@@ -1,5 +1,5 @@
 import { convexTest } from "convex-test";
-import { describe, expect, test } from "vitest";
+import { describe, expect, test, vi } from "vitest";
 import { api } from "./_generated/api";
 import type { Id } from "./_generated/dataModel";
 import schema from "./schema";
@@ -60,5 +60,85 @@ describe("projects.listWithStats", () => {
 
     const eveRows = await e.query(api.projects.listWithStats, { from: "2026-09-21", to: "2026-09-27" });
     expect(eveRows.map((r) => [r.name, r.total])).toEqual([["Other team", 1]]);
+  });
+});
+
+describe("projects.remove (batched)", () => {
+  // Convex caps writes per transaction (16,000 docs in production). Scale the cap down so a
+  // 1,500-todo project reproduces the "delete everything in one transaction" failure.
+  const WRITE_LIMIT = 1_000;
+  const TODOS = 1_500;
+
+  async function seedBigProject() {
+    const t = convexTest({ schema, modules, transactionLimits: { documentsWritten: WRITE_LIMIT } });
+    const a = t.withIdentity(alice);
+    const big = await a.mutation(api.projects.create, { name: "Big", color: "#111" });
+    const keep = await a.mutation(api.projects.create, { name: "Keep", color: "#222" });
+    for (let start = 0; start < TODOS; start += 500) {
+      await t.run(async (ctx) => {
+        for (let i = start; i < Math.min(start + 500, TODOS); i++) {
+          await ctx.db.insert("todos", {
+            orgId: "org_a",
+            projectId: big,
+            title: `t${i}`,
+            date: "2026-09-21",
+            status: "todo",
+            createdBy: "user_alice",
+            order: i,
+          });
+        }
+      });
+    }
+    await a.mutation(api.todos.create, { projectId: big, title: "Logged", date: "2026-09-21" });
+    await a.mutation(api.todos.create, { projectId: keep, title: "Survivor", date: "2026-09-21" });
+    return { t, a, big, keep };
+  }
+
+  const countTodos = (t: Awaited<ReturnType<typeof seedBigProject>>["t"], projectId: Id<"projects">) =>
+    t.run(async (ctx) =>
+      (await ctx.db.query("todos").withIndex("by_project_date", (q) => q.eq("projectId", projectId)).collect()).length,
+    );
+
+  test(`deletes a project with > ${TODOS} todos in batches, hiding it immediately`, async () => {
+    vi.useFakeTimers();
+    try {
+      const { t, a, big, keep } = await seedBigProject();
+      expect(await countTodos(t, big)).toBe(TODOS + 1);
+
+      await a.mutation(api.projects.remove, { projectId: big });
+
+      // Hidden immediately, before any batch has run.
+      expect((await a.query(api.projects.list, { includeArchived: true })).map((p) => p.name)).toEqual(["Keep"]);
+      expect((await a.query(api.projects.listWithStats, { from: "2026-09-21", to: "2026-09-21" })).map((p) => p.name)).toEqual(["Keep"]);
+      expect(await a.query(api.projects.get, { projectId: big })).toBeNull();
+
+      await t.finishAllScheduledFunctions(vi.runAllTimers);
+
+      expect(await countTodos(t, big)).toBe(0);
+      expect(await t.run((ctx) => ctx.db.get(big))).toBeNull();
+      expect(await countTodos(t, keep)).toBe(1);
+
+      // Logged exactly once; the todo history is kept.
+      const log = await t.run((ctx) => ctx.db.query("activity").collect());
+      expect(log.filter((r) => r.action === "project_deleted")).toHaveLength(1);
+      expect(log.some((r) => r.action === "created" && r.todoTitle === "Logged")).toBe(true);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  test("removing an already-deleting project is a no-op and logs once", async () => {
+    vi.useFakeTimers();
+    try {
+      const { t, a, big } = await seedBigProject();
+      await a.mutation(api.projects.remove, { projectId: big });
+      await a.mutation(api.projects.remove, { projectId: big });
+      await t.finishAllScheduledFunctions(vi.runAllTimers);
+      const log = await t.run((ctx) => ctx.db.query("activity").collect());
+      expect(log.filter((r) => r.action === "project_deleted")).toHaveLength(1);
+      expect(await t.run((ctx) => ctx.db.get(big))).toBeNull();
+    } finally {
+      vi.useRealTimers();
+    }
   });
 });

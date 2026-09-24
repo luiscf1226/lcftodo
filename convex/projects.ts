@@ -1,6 +1,7 @@
 import { v } from "convex/values";
 import type { Id } from "./_generated/dataModel";
-import { mutation, query } from "./_generated/server";
+import { internal } from "./_generated/api";
+import { internalMutation, mutation, query } from "./_generated/server";
 import { getMember, log, requireMember, requireProject } from "./lib/auth";
 
 export const list = query({
@@ -13,7 +14,7 @@ export const list = query({
       .withIndex("by_org", (q) => q.eq("orgId", member.orgId))
       .collect();
     return projects
-      .filter((p) => includeArchived || !p.archived)
+      .filter((p) => !p.deleting && (includeArchived || !p.archived))
       .sort((a, b) => a.name.localeCompare(b.name));
   },
 });
@@ -43,6 +44,7 @@ export const listWithStats = query({
       counts[t.status]++;
     }
     return projects
+      .filter((p) => !p.deleting)
       .sort((a, b) => Number(a.archived) - Number(b.archived) || a.name.localeCompare(b.name))
       .map((project) => {
         const counts = countsByProject.get(project._id) ?? { todo: 0, doing: 0, done: 0, not_done: 0 };
@@ -58,7 +60,7 @@ export const get = query({
     const member = await getMember(ctx);
     if (!member) return null;
     const project = await ctx.db.get(projectId);
-    if (!project || project.orgId !== member.orgId) return null;
+    if (!project || project.orgId !== member.orgId || project.deleting) return null;
     return project;
   },
 });
@@ -117,18 +119,38 @@ export const setArchived = mutation({
 });
 
 // Admin only. Todos are removed; the activity log is kept so history survives.
+// The project is marked `deleting` (hidden from every project query) and `project_deleted` is
+// logged here, once. Todos are then deleted in batches by `deleteBatch` so large projects never
+// exceed Convex's per-transaction limits; the project doc itself is deleted last.
 export const remove = mutation({
   args: { projectId: v.id("projects") },
   handler: async (ctx, { projectId }) => {
     const member = await requireMember(ctx);
     if (!member.isAdmin) throw new Error("Only team admins can delete projects.");
     const project = await requireProject(ctx, member, projectId);
+    if (project.deleting) return; // Already in progress: don't log or schedule twice.
+    await ctx.db.patch(projectId, { deleting: true });
+    await log(ctx, member, project, { action: "project_deleted" });
+    await ctx.scheduler.runAfter(0, internal.projects.deleteBatch, { projectId });
+  },
+});
+
+const DELETE_BATCH_SIZE = 500;
+
+export const deleteBatch = internalMutation({
+  args: { projectId: v.id("projects") },
+  handler: async (ctx, { projectId }) => {
+    const project = await ctx.db.get(projectId);
+    if (!project?.deleting) return;
     const todos = await ctx.db
       .query("todos")
       .withIndex("by_project_date", (q) => q.eq("projectId", projectId))
-      .collect();
+      .take(DELETE_BATCH_SIZE);
     for (const t of todos) await ctx.db.delete(t._id);
-    await ctx.db.delete(projectId);
-    await log(ctx, member, project, { action: "project_deleted" });
+    if (todos.length === DELETE_BATCH_SIZE) {
+      await ctx.scheduler.runAfter(0, internal.projects.deleteBatch, { projectId });
+    } else {
+      await ctx.db.delete(projectId);
+    }
   },
 });

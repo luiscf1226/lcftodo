@@ -37,6 +37,8 @@ export default defineSchema({
     color: v.string(),
     archived: v.boolean(),
     createdBy: v.string(),
+    // Set by projects.remove; the project is hidden and its todos are being deleted in batches.
+    deleting: v.optional(v.boolean()),
   }).index("by_org", ["orgId"]),
 
   todos: defineTable({
