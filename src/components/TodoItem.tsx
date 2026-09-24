@@ -6,19 +6,23 @@ import { Check, CornerDownRight } from "lucide-react";
 import type { Doc } from "../../convex/_generated/dataModel";
 import { api } from "../../convex/_generated/api";
 import { Avatar } from "./Avatar";
-import { StatusSelect } from "./StatusSelect";
+import { StatusPill, StatusSelect } from "./StatusSelect";
 import type { Member } from "./useMembers";
+import { showToast } from "./ToastViewport";
+import { errorMessage } from "@/lib/errors";
 
 export function TodoItem({
   todo,
   assignee,
   project,
   onOpen,
+  readOnly = false,
 }: {
   todo: Doc<"todos">;
   assignee?: Member;
   project?: { name: string; color: string };
   onOpen: () => void;
+  readOnly?: boolean;
 }) {
   const setStatus = useMutation(api.todos.setStatus).withOptimisticUpdate((store, { todoId, status }) => {
     for (const { args, value } of store.getAllQueries(api.todos.listForProject)) {
@@ -32,29 +36,26 @@ export function TodoItem({
   });
   const done = todo.status === "done";
   const notDone = todo.status === "not_done";
+  const updateStatus = async (status: typeof todo.status) => {
+    try {
+      await setStatus({ todoId: todo._id, status });
+    } catch (error) {
+      showToast(errorMessage(error, "Couldn't update the todo status."));
+    }
+  };
 
   return (
-    <div
-      role="button"
-      tabIndex={0}
-      onClick={onOpen}
-      onKeyDown={(e) => {
-        if (e.target === e.currentTarget && (e.key === "Enter" || e.key === " ")) {
-          e.preventDefault();
-          onOpen();
-        }
-      }}
-      className="group flex cursor-pointer items-start gap-2.5 rounded-lg border border-line bg-surface px-2.5 py-2 text-sm transition-colors hover:border-muted/40 focus-visible:outline-2 focus-visible:outline-accent"
-    >
+    <div className="group flex items-start gap-2.5 rounded-lg border border-line bg-surface px-2.5 py-2 text-sm transition-colors hover:border-muted/40">
       <button
         type="button"
         aria-label={done ? "Mark as to do" : "Mark as done"}
+        disabled={readOnly}
         onClick={(e) => {
           e.stopPropagation();
-          void setStatus({ todoId: todo._id, status: done ? "todo" : "done" });
+          void updateStatus(done ? "todo" : "done");
         }}
         className={clsx(
-          "mt-0.5 grid size-4.5 shrink-0 place-items-center rounded-full border transition-colors",
+          "mt-0.5 grid size-4.5 shrink-0 place-items-center rounded-full border transition-colors disabled:cursor-not-allowed disabled:opacity-60",
           done ? "border-emerald-500 bg-emerald-500 text-white" : "border-line hover:border-emerald-500",
         )}
       >
@@ -62,11 +63,20 @@ export function TodoItem({
       </button>
 
       <div className="min-w-0 flex-1">
-        <p className={clsx("break-words", (done || notDone) && "text-muted", done && "line-through")}>
+        <button
+          type="button"
+          onClick={onOpen}
+          disabled={readOnly}
+          className={clsx(
+            "block w-full cursor-pointer break-words text-left focus-visible:outline-2 focus-visible:outline-accent disabled:cursor-not-allowed",
+            (done || notDone) && "text-muted",
+            done && "line-through",
+          )}
+        >
           {todo.title}
-        </p>
+        </button>
         <div className="mt-1.5 flex flex-wrap items-center gap-1.5">
-          <StatusSelect value={todo.status} onChange={(status) => void setStatus({ todoId: todo._id, status })} />
+          {readOnly ? <StatusPill status={todo.status} /> : <StatusSelect value={todo.status} onChange={(status) => void updateStatus(status)} />}
           {project && (
             <span className="inline-flex items-center gap-1 text-xs text-muted">
               <span className="size-2 rounded-full" style={{ background: project.color }} />

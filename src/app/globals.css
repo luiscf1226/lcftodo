@@ -1,6 +1,6 @@
 @import "tailwindcss";
 
-@custom-variant dark (@media (prefers-color-scheme: dark));
+@custom-variant dark (&:where(.dark, .dark *));
 
 :root {
   --bg: #f7f7f8;
@@ -14,8 +14,20 @@
   --danger: #dc2626;
 }
 
+:root[data-theme="dark"] {
+  --bg: #0c0c10;
+  --surface: #15151b;
+  --surface-2: #1c1c24;
+  --line: #2a2a34;
+  --fg: #ececf1;
+  --muted: #9a9aa8;
+  --accent: #818cf8;
+  --accent-fg: #0c0c10;
+  --danger: #f87171;
+}
+
 @media (prefers-color-scheme: dark) {
-  :root {
+  :root[data-theme="system"] {
     --bg: #0c0c10;
     --surface: #15151b;
     --surface-2: #1c1c24;
@@ -42,8 +54,24 @@
   --font-mono: var(--font-geist-mono);
 }
 
-html {
-  color-scheme: light dark;
+:root[data-theme="dark"] {
+  color-scheme: dark;
+}
+
+:root[data-theme="light"] {
+  color-scheme: light;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root[data-theme="system"] {
+    color-scheme: dark;
+  }
+}
+
+@media (prefers-color-scheme: light) {
+  :root[data-theme="system"] {
+    color-scheme: light;
+  }
 }
 
 body {

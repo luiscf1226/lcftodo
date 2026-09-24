@@ -2,11 +2,11 @@
 
 import { useAuth, useOrganization } from "@clerk/nextjs";
 import clsx from "clsx";
-import { useQuery } from "convex/react";
-import { ArrowRight } from "lucide-react";
+import { useConvex, useQuery } from "convex/react";
+import { ArrowRight, Plus } from "lucide-react";
 import Link from "next/link";
-import { useMemo, useState } from "react";
-import type { Doc } from "../../../convex/_generated/dataModel";
+import { useEffect, useMemo, useState } from "react";
+import type { Doc, Id } from "../../../convex/_generated/dataModel";
 import { api } from "../../../convex/_generated/api";
 import { Empty, PageHeader, Skeleton } from "@/components/PageHeader";
 import { TodoDialog } from "@/components/TodoDialog";
@@ -20,14 +20,48 @@ type TeamTodo = Doc<"todos"> & { projectName: string; projectColor: string };
 export default function TodayPage() {
   const { userId } = useAuth();
   const { organization } = useOrganization();
-  const today = todayKey();
+  const [today, setToday] = useState(todayKey);
   const start = weekStart(today);
   const days = weekDays(start);
+  const convex = useConvex();
   const todos = useQuery(api.todos.listForTeam, { from: start, to: shiftDays(start, 6) });
   const projects = useQuery(api.projects.list, {});
   const { byId } = useMembers();
   const [scope, setScope] = useState<"mine" | "team">("mine");
   const [editing, setEditing] = useState<TeamTodo | null>(null);
+  const [creating, setCreating] = useState(false);
+  const [lastProjectId, setLastProjectId] = useState<Id<"projects"> | "">(() => {
+    if (typeof window === "undefined") return "";
+    return window.localStorage.getItem("lcftodos:last-project") as Id<"projects"> | null ?? "";
+  });
+  const activeProjects = useMemo(() => (projects ?? []).filter((project) => !project.archived), [projects]);
+  const newProjectId = activeProjects.some((project) => project._id === lastProjectId)
+    ? lastProjectId
+    : activeProjects[0]?._id ?? "";
+
+  const selectProject = (projectId: Id<"projects">) => {
+    setLastProjectId(projectId);
+    window.localStorage.setItem("lcftodos:last-project", projectId);
+  };
+
+  useEffect(() => {
+    const refreshToday = () => {
+      const currentToday = todayKey();
+      const currentStart = weekStart(currentToday);
+      setToday(currentToday);
+      void convex.query(api.todos.listForTeam, { from: currentStart, to: shiftDays(currentStart, 6) }).catch(() => undefined);
+    };
+    const onFocus = () => refreshToday();
+    const onVisibility = () => {
+      if (document.visibilityState === "visible") refreshToday();
+    };
+    window.addEventListener("focus", onFocus);
+    document.addEventListener("visibilitychange", onVisibility);
+    return () => {
+      window.removeEventListener("focus", onFocus);
+      document.removeEventListener("visibilitychange", onVisibility);
+    };
+  }, [convex]);
 
   const inScope = useMemo(
     () => (todos ?? []).filter((t) => scope === "team" || t.assigneeId === userId || (!t.assigneeId && t.createdBy === userId)),
@@ -63,18 +97,25 @@ export default function TodayPage() {
         title={fmt(today, "EEEE, MMMM d")}
         subtitle={organization ? `${organization.name} · this week at a glance` : undefined}
         actions={
-          <div className="flex rounded-lg border border-line bg-surface p-0.5 text-sm" role="tablist">
-            {(["mine", "team"] as const).map((s) => (
-              <button
-                key={s}
-                role="tab"
-                aria-selected={scope === s}
-                onClick={() => setScope(s)}
-                className={clsx("rounded-md px-3 py-1.5", scope === s ? "bg-surface-2 font-medium" : "text-muted")}
-              >
-                {s === "mine" ? "My todos" : "Whole team"}
+          <div className="flex flex-wrap items-center gap-2">
+            {activeProjects.length > 0 && (
+              <button className="btn-primary" onClick={() => setCreating(true)}>
+                <Plus className="size-4" /> New todo
               </button>
-            ))}
+            )}
+            <div className="flex rounded-lg border border-line bg-surface p-0.5 text-sm" role="tablist">
+              {(["mine", "team"] as const).map((s) => (
+                <button
+                  key={s}
+                  role="tab"
+                  aria-selected={scope === s}
+                  onClick={() => setScope(s)}
+                  className={clsx("rounded-md px-3 py-1.5", scope === s ? "bg-surface-2 font-medium" : "text-muted")}
+                >
+                  {s === "mine" ? "My todos" : "Whole team"}
+                </button>
+              ))}
+            </div>
           </div>
         }
       />
@@ -132,6 +173,16 @@ export default function TodayPage() {
 
       {editing && (
         <TodoDialog open onClose={() => setEditing(null)} projectId={editing.projectId} date={editing.date} todo={editing} />
+      )}
+      {creating && newProjectId && (
+        <TodoDialog
+          open
+          onClose={() => setCreating(false)}
+          projectId={newProjectId}
+          date={today}
+          projects={activeProjects}
+          onProjectIdChange={selectProject}
+        />
       )}
     </div>
   );

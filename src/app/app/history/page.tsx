@@ -10,6 +10,7 @@ import { api } from "../../../../convex/_generated/api";
 import { Avatar } from "@/components/Avatar";
 import { Empty, PageHeader, Skeleton } from "@/components/PageHeader";
 import { StatusPill } from "@/components/StatusSelect";
+import { useDismissibleMenu } from "@/components/useDismissibleMenu";
 import { useMembers } from "@/components/useMembers";
 import { describe } from "@/lib/activity";
 import { download, toCsv } from "@/lib/csv";
@@ -22,10 +23,11 @@ export default function HistoryPage() {
   const [to, setTo] = useState(today);
   const [projectId, setProjectId] = useState<Id<"projects"> | "">("");
   const [memberId, setMemberId] = useState("");
-  const [tab, setTab] = useState<"days" | "activity">("days");
+  const [tab, setTab] = useState<"days" | "people" | "activity">("days");
+  const validRange = from <= to;
 
   const projects = useQuery(api.projects.list, { includeArchived: true });
-  const todos = useQuery(api.todos.listForTeam, from <= to ? { from, to } : "skip");
+  const todos = useQuery(api.todos.listForTeam, validRange ? { from, to } : "skip");
   const filtered = useMemo(
     () =>
       (todos ?? []).filter(
@@ -42,7 +44,7 @@ export default function HistoryPage() {
       <PageHeader
         title="History"
         subtitle="Everything your team planned, finished and missed."
-        actions={<ExportMenu from={from} to={to} projectId={projectId || undefined} memberId={memberId} todos={filtered} nameOf={nameOf} />}
+        actions={<ExportMenu disabled={!validRange} from={from} to={to} projectId={projectId || undefined} memberId={memberId} todos={filtered} members={members} nameOf={nameOf} />}
       />
 
       <div className="card mb-5 grid gap-3 p-3 sm:grid-cols-2 lg:grid-cols-4">
@@ -70,8 +72,14 @@ export default function HistoryPage() {
         </div>
       </div>
 
+      {!validRange && (
+        <p className="mb-4 rounded-lg border border-danger/30 bg-danger/10 px-3 py-2 text-sm text-danger" role="alert">
+          The start date must be on or before the end date. Adjust either date to view or export History.
+        </p>
+      )}
+
       <div className="mb-4 flex gap-1 border-b border-line" role="tablist">
-        {(["days", "activity"] as const).map((t) => (
+        {(["days", "people", "activity"] as const).map((t) => (
           <button
             key={t}
             role="tab"
@@ -79,13 +87,15 @@ export default function HistoryPage() {
             onClick={() => setTab(t)}
             className={clsx("-mb-px border-b-2 px-3 py-2 text-sm", tab === t ? "border-accent font-medium" : "border-transparent text-muted hover:text-fg")}
           >
-            {t === "days" ? "Day by day" : "Activity log"}
+            {t === "days" ? "Day by day" : t === "people" ? "People" : "Activity log"}
           </button>
         ))}
       </div>
 
-      {tab === "days" ? (
+      {!validRange ? null : tab === "days" ? (
         todos === undefined ? <Skeleton className="h-60" /> : <DaySummary todos={filtered} byId={byId} />
+      ) : tab === "people" ? (
+        todos === undefined ? <Skeleton className="h-60" /> : <PeopleSummary todos={filtered} members={members} nameOf={nameOf} />
       ) : (
         <ActivityLog projectId={projectId || undefined} actorId={memberId || undefined} byId={byId} nameOf={nameOf} />
       )}
@@ -155,6 +165,71 @@ function DaySummary({ todos, byId }: { todos: TeamTodos; byId: Members["byId"] }
   );
 }
 
+type PersonStats = {
+  id?: string;
+  name: string;
+  assigned: number;
+  done: number;
+  notDone: number;
+  open: number;
+};
+
+function peopleStats(todos: TeamTodos, members: Members["members"], nameOf: Members["nameOf"]): PersonStats[] {
+  const byPerson = new Map<string, PersonStats>();
+  for (const member of members) byPerson.set(member.id, { id: member.id, name: member.name, assigned: 0, done: 0, notDone: 0, open: 0 });
+  byPerson.set("unassigned", { name: "Unassigned", assigned: 0, done: 0, notDone: 0, open: 0 });
+  for (const todo of todos) {
+    const key = todo.assigneeId ?? "unassigned";
+    const person = byPerson.get(key) ?? {
+      id: todo.assigneeId,
+      name: todo.assigneeId ? nameOf(todo.assigneeId) : "Unassigned",
+      assigned: 0,
+      done: 0,
+      notDone: 0,
+      open: 0,
+    };
+    person.assigned++;
+    if (todo.status === "done") person.done++;
+    else if (todo.status === "not_done") person.notDone++;
+    else person.open++;
+    byPerson.set(key, person);
+  }
+  return [...byPerson.values()].sort((a, b) => b.assigned - a.assigned || a.name.localeCompare(b.name));
+}
+
+function PeopleSummary({ todos, members, nameOf }: { todos: TeamTodos; members: Members["members"]; nameOf: Members["nameOf"] }) {
+  const people = useMemo(() => peopleStats(todos, members, nameOf), [todos, members, nameOf]);
+
+  return (
+    <div className="card overflow-x-auto">
+      <table className="w-full min-w-150 text-left text-sm">
+        <thead className="border-b border-line bg-surface-2/60 text-xs font-medium tracking-wide text-muted uppercase">
+          <tr>
+            <th className="px-4 py-2.5">Person</th>
+            <th className="px-3 py-2.5 text-right">Assigned</th>
+            <th className="px-3 py-2.5 text-right">Done</th>
+            <th className="px-3 py-2.5 text-right">Didn&apos;t finish</th>
+            <th className="px-3 py-2.5 text-right">Open</th>
+            <th className="px-4 py-2.5 text-right">Completion</th>
+          </tr>
+        </thead>
+        <tbody className="divide-y divide-line">
+          {people.map((person) => (
+            <tr key={person.id ?? "unassigned"}>
+              <td className="px-4 py-3 font-medium">{person.name}</td>
+              <td className="px-3 py-3 text-right tabular-nums">{person.assigned}</td>
+              <td className="px-3 py-3 text-right tabular-nums">{person.done}</td>
+              <td className="px-3 py-3 text-right tabular-nums">{person.notDone}</td>
+              <td className="px-3 py-3 text-right tabular-nums">{person.open}</td>
+              <td className="px-4 py-3 text-right tabular-nums">{person.assigned ? `${Math.round((person.done / person.assigned) * 100)}%` : "—"}</td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+  );
+}
+
 function ActivityLog({
   projectId,
   actorId,
@@ -206,22 +281,27 @@ function ActivityLog({
 }
 
 function ExportMenu({
+  disabled,
   from,
   to,
   projectId,
   memberId,
   todos,
+  members,
   nameOf,
 }: {
+  disabled: boolean;
   from: string;
   to: string;
   projectId?: Id<"projects">;
   memberId: string;
   todos: TeamTodos;
+  members: Members["members"];
   nameOf: Members["nameOf"];
 }) {
   const convex = useConvex();
   const [busy, setBusy] = useState(false);
+  const { open, setOpen, close, containerRef, triggerRef } = useDismissibleMenu();
   const stamp = `${from}_to_${to}`;
 
   const todoRows = () =>
@@ -235,6 +315,16 @@ function ExportMenu({
       notes: t.notes ?? "",
       completed_at: t.completedAt ? new Date(t.completedAt).toISOString() : "",
       carried_over: t.carriedFrom ? "yes" : "",
+    }));
+
+  const peopleRows = () =>
+    peopleStats(todos, members, nameOf).map((person) => ({
+      person: person.name,
+      assigned: person.assigned,
+      done: person.done,
+      didnt_finish: person.notDone,
+      open: person.open,
+      completion_percent: person.assigned ? Math.round((person.done / person.assigned) * 100) : "",
     }));
 
   async function activityRows() {
@@ -258,31 +348,53 @@ function ExportMenu({
       }));
   }
 
-  async function run(kind: "todos-csv" | "activity-csv" | "json") {
+  async function downloadExcel() {
+    const XLSX = await import("xlsx");
+    const workbook = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(workbook, XLSX.utils.json_to_sheet(todoRows()), "Todos");
+    XLSX.utils.book_append_sheet(workbook, XLSX.utils.json_to_sheet(await activityRows()), "Activity");
+    XLSX.utils.book_append_sheet(workbook, XLSX.utils.json_to_sheet(peopleRows()), "People");
+    const content = XLSX.write(workbook, { bookType: "xlsx", type: "array" });
+    const url = URL.createObjectURL(new Blob([content], { type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" }));
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = `lcftodos_${stamp}.xlsx`;
+    link.click();
+    setTimeout(() => URL.revokeObjectURL(url), 1000);
+  }
+
+  async function run(kind: "todos-csv" | "people-csv" | "activity-csv" | "excel" | "json") {
     setBusy(true);
     try {
       if (kind === "todos-csv") download(`todos_${stamp}.csv`, toCsv(todoRows()), "text/csv;charset=utf-8");
+      if (kind === "people-csv") download(`people_${stamp}.csv`, toCsv(peopleRows()), "text/csv;charset=utf-8");
       if (kind === "activity-csv") download(`activity_${stamp}.csv`, toCsv(await activityRows()), "text/csv;charset=utf-8");
+      if (kind === "excel") await downloadExcel();
       if (kind === "json") {
-        const data = { exportedAt: new Date().toISOString(), from, to, todos: todoRows(), activity: await activityRows() };
+        const data = { exportedAt: new Date().toISOString(), from, to, todos: todoRows(), people: peopleRows(), activity: await activityRows() };
         download(`lcftodos_${stamp}.json`, JSON.stringify(data, null, 2), "application/json");
       }
     } finally {
       setBusy(false);
+      close();
     }
   }
 
+  if (disabled) return <button className="btn-outline" disabled>Export</button>;
+
   return (
-    <details className="relative">
-      <summary className="btn-outline list-none" aria-disabled={busy}>
+    <div ref={containerRef} className="relative">
+      <button ref={triggerRef} type="button" className="btn-outline" aria-expanded={open} aria-haspopup="menu" disabled={busy} onClick={() => setOpen((value) => !value)}>
         <Download className="size-4" /> {busy ? "Exporting…" : "Export"}
-      </summary>
-      <div className="absolute right-0 z-10 mt-1 w-56 rounded-xl border border-line bg-surface p-1 shadow-lg">
-        <button className="btn-ghost w-full justify-start" disabled={busy} onClick={() => void run("todos-csv")}>Todos (CSV)</button>
-        <button className="btn-ghost w-full justify-start" disabled={busy} onClick={() => void run("activity-csv")}>Activity log (CSV)</button>
-        <button className="btn-ghost w-full justify-start" disabled={busy} onClick={() => void run("json")}>Everything (JSON)</button>
+      </button>
+      {open && <div role="menu" className="absolute right-0 z-10 mt-1 w-56 rounded-xl border border-line bg-surface p-1 shadow-lg">
+        <button role="menuitem" className="btn-ghost w-full justify-start" disabled={busy} onClick={() => void run("todos-csv")}>Todos (CSV)</button>
+        <button role="menuitem" className="btn-ghost w-full justify-start" disabled={busy} onClick={() => void run("people-csv")}>People (CSV)</button>
+        <button role="menuitem" className="btn-ghost w-full justify-start" disabled={busy} onClick={() => void run("activity-csv")}>Activity log (CSV)</button>
+        <button role="menuitem" className="btn-ghost w-full justify-start" disabled={busy} onClick={() => void run("excel")}>Excel (.xlsx)</button>
+        <button role="menuitem" className="btn-ghost w-full justify-start" disabled={busy} onClick={() => void run("json")}>Everything (JSON)</button>
         <p className="px-3 pt-1 pb-1.5 text-[11px] text-muted">Uses the current date range and filters.</p>
-      </div>
-    </details>
+      </div>}
+    </div>
   );
 }
