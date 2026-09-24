@@ -389,13 +389,15 @@ function ProjectMenu({ project, onEdit, onDelete }: { project: Doc<"projects">; 
         <button role="menuitem" className="btn-ghost w-full justify-start" onClick={() => { close(); onEdit(); }}>
           <Pencil className="size-4" /> Edit
         </button>
-        <button role="menuitem" className="btn-ghost w-full justify-start" onClick={() => void archive()}>
-          {project.archived ? <><ArchiveRestore className="size-4" /> Restore</> : <><Archive className="size-4" /> Archive</>}
-        </button>
         {isAdmin && (
-          <button role="menuitem" className="btn-ghost w-full justify-start text-danger" onClick={() => { close(); onDelete(); }}>
-            <Trash2 className="size-4" /> Delete
-          </button>
+          <>
+            <button role="menuitem" className="btn-ghost w-full justify-start" onClick={() => void archive()}>
+              {project.archived ? <><ArchiveRestore className="size-4" /> Restore</> : <><Archive className="size-4" /> Archive</>}
+            </button>
+            <button role="menuitem" className="btn-ghost w-full justify-start text-danger" onClick={() => { close(); onDelete(); }}>
+              <Trash2 className="size-4" /> Delete
+            </button>
+          </>
         )}
       </div>}
     </div>
