@@ -4,11 +4,8 @@ import { useOrganization } from "@clerk/nextjs";
 import { useQuery } from "convex/react";
 import { useMemo } from "react";
 import { api } from "../../convex/_generated/api";
-<<<<<<< HEAD
-import { SYSTEM_ACTOR_ID, SYSTEM_ACTOR_NAME } from "../../convex/lib/constants";
-=======
 import type { Id } from "../../convex/_generated/dataModel";
->>>>>>> 1708b78 (feat(ui): team project access panel, setup checklist, member empty states (#46))
+import { SYSTEM_ACTOR_ID, SYSTEM_ACTOR_NAME } from "../../convex/lib/constants";
 
 export type Member = { id: string; name: string; imageUrl?: string; role?: string };
 

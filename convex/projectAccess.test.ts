@@ -127,6 +127,10 @@ describe("restricted access: two projects with different memberships", () => {
     const now = Date.now();
     expect(await b.query(api.activity.exportRange, { fromMs: now - 3_600_000, toMs: now + 3_600_000, projectId: borealis })).toEqual([]);
     expect(new Set((await exportRows(a)).map((r) => r.projectName))).toEqual(new Set(["Apollo", "Borealis"]));
+
+    // Search.
+    expect((await b.query(api.search.todos, { query: "work" })).map((r) => r.title)).toEqual(["Apollo work"]);
+    expect((await a.query(api.search.todos, { query: "work" })).map((r) => r.title).sort()).toEqual(["Apollo work", "Borealis work"]);
   });
 
   test("writes to an inaccessible project fail as if it didn't exist", async () => {

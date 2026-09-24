@@ -48,7 +48,7 @@ todos     { orgId, projectId, title, notes?, date, status, assigneeId?,
             createdBy, order, completedAt?, carriedFrom? }             by_project_date, by_org_date
 activity  { orgId, projectId, todoId?, actorId, action, todoTitle,
             from?, to?, date? }                                        by_org, by_project, by_todo
-teamSettings { orgId, restrictedProjectAccess, updatedBy, updatedAt }  by_org
+teamSettings { orgId, timeZone?, autoCarryOver, restrictedProjectAccess?, … }  by_org
 projectMemberships { orgId, projectId, userId, grantedBy, grantedAt }  by_project_user, by_org_user, by_org
 projectInvitations { orgId, invitationId, email, role, projectIds, status,
             invitedBy, expiresAt?, appliedAt?, acceptedUserId? }       by_org, by_invitation, by_org_email

@@ -47,6 +47,10 @@ export default defineSchema({
     autoCarryOver: v.boolean(),
     // Team-local day ("YYYY-MM-DD") the nightly carry-over last ran for; keeps the cron idempotent.
     lastAutoCarryDate: v.optional(v.string()),
+    // Project access policy (#46). Missing/false = open: every member sees every project
+    // (the default, and the state of every team that existed before #46). Once an admin
+    // restricts it, non-admin members only see projects they have a `projectMemberships` row for.
+    restrictedProjectAccess: v.optional(v.boolean()),
     updatedBy: v.string(),
     updatedAt: v.number(),
   })
@@ -65,16 +69,6 @@ export default defineSchema({
   })
     .index("by_clerkId", ["clerkId"])
     .index("by_email", ["email"]),
-
-  // Per-team settings (#46). A missing row means the legacy/open policy: every member sees
-  // every project. Admins opt in to `restrictedProjectAccess`, after which non-admin members
-  // only see projects they have a `projectMemberships` row for.
-  teamSettings: defineTable({
-    orgId: v.string(),
-    restrictedProjectAccess: v.boolean(),
-    updatedBy: v.string(),
-    updatedAt: v.number(),
-  }).index("by_org", ["orgId"]),
 
   // Explicit project access grants (#46). Only enforced while the team is restricted.
   projectMemberships: defineTable({

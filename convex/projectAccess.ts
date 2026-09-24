@@ -147,7 +147,8 @@ export const setRestricted = mutation({
       .withIndex("by_org", (q) => q.eq("orgId", member.orgId)).unique();
     const fields = { restrictedProjectAccess: enabled, updatedBy: member.userId, updatedAt: Date.now() };
     if (existing) await ctx.db.patch(existing._id, fields);
-    else await ctx.db.insert("teamSettings", { orgId: member.orgId, ...fields });
+    // The row is shared with the time zone / carry-over settings (#21, #22); keep their defaults.
+    else await ctx.db.insert("teamSettings", { orgId: member.orgId, autoCarryOver: false, ...fields });
     return { seeded };
   },
 });
