@@ -2,7 +2,7 @@ import { v } from "convex/values";
 import type { Id } from "./_generated/dataModel";
 import { internal } from "./_generated/api";
 import { internalMutation, mutation, query } from "./_generated/server";
-import { getMember, log, requireMember, requireProject } from "./lib/auth";
+import { accessibleProjectIds, canReadProject, getMember, inScope, log, requireMember, requireProject } from "./lib/auth";
 import { emptyStatusCounts, STATUSES, type Status } from "./lib/constants";
 import { checkRange, projectColor, projectDescription, projectName } from "./lib/validate";
 
@@ -11,12 +11,15 @@ export const list = query({
   handler: async (ctx, { includeArchived }) => {
     const member = await getMember(ctx);
     if (!member) return [];
-    const projects = await ctx.db
-      .query("projects")
-      .withIndex("by_org", (q) => q.eq("orgId", member.orgId))
-      .collect();
+    const [projects, scope] = await Promise.all([
+      ctx.db
+        .query("projects")
+        .withIndex("by_org", (q) => q.eq("orgId", member.orgId))
+        .collect(),
+      accessibleProjectIds(ctx, member),
+    ]);
     return projects
-      .filter((p) => !p.deleting && (includeArchived || !p.archived))
+      .filter((p) => !p.deleting && (includeArchived || !p.archived) && inScope(scope, p._id))
       .sort((a, b) => a.name.localeCompare(b.name));
   },
 });
@@ -29,7 +32,7 @@ export const listWithStats = query({
     const member = await getMember(ctx);
     if (!member) return [];
     checkRange(from, to);
-    const [projects, todos] = await Promise.all([
+    const [projects, todos, scope] = await Promise.all([
       ctx.db
         .query("projects")
         .withIndex("by_org", (q) => q.eq("orgId", member.orgId))
@@ -38,15 +41,17 @@ export const listWithStats = query({
         .query("todos")
         .withIndex("by_org_date", (q) => q.eq("orgId", member.orgId).gte("date", from).lte("date", to))
         .collect(),
+      accessibleProjectIds(ctx, member),
     ]);
     const countsByProject = new Map<Id<"projects">, Record<Status, number>>();
     for (const t of todos) {
+      if (!inScope(scope, t.projectId)) continue;
       let counts = countsByProject.get(t.projectId);
       if (!counts) countsByProject.set(t.projectId, (counts = emptyStatusCounts()));
       counts[t.status]++;
     }
     return projects
-      .filter((p) => !p.deleting)
+      .filter((p) => !p.deleting && inScope(scope, p._id))
       .sort((a, b) => Number(a.archived) - Number(b.archived) || a.name.localeCompare(b.name))
       .map((project) => {
         const counts = countsByProject.get(project._id) ?? emptyStatusCounts();
@@ -62,8 +67,7 @@ export const get = query({
     const member = await getMember(ctx);
     if (!member) return null;
     const project = await ctx.db.get(projectId);
-    if (!project || project.orgId !== member.orgId || project.deleting) return null;
-    return project;
+    return (await canReadProject(ctx, member, project)) ? project : null;
   },
 });
 
@@ -82,6 +86,12 @@ export const create = mutation({
       archived: false,
       createdBy: member.userId,
     });
+    // The creator keeps access to their own project if the team restricts access later (#46).
+    if (!member.isAdmin) {
+      await ctx.db.insert("projectMemberships", {
+        orgId: member.orgId, projectId, userId: member.userId, grantedBy: member.userId, grantedAt: Date.now(),
+      });
+    }
     const project = (await ctx.db.get(projectId))!;
     await log(ctx, member, project, { action: "project_created" });
     return projectId;
@@ -170,6 +180,11 @@ export const deleteBatch = internalMutation({
     if (todos.length === DELETE_BATCH_SIZE) {
       await ctx.scheduler.runAfter(0, internal.projects.deleteBatch, { projectId });
     } else {
+      // Access grants go with the project (#46). Pending invitations just skip missing ids.
+      const grants = await ctx.db.query("projectMemberships")
+        .withIndex("by_project_user", (q) => q.eq("projectId", projectId))
+        .collect();
+      for (const g of grants) await ctx.db.delete(g._id);
       await ctx.db.delete(projectId);
     }
   },

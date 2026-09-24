@@ -1,43 +1,71 @@
 import { v } from "convex/values";
 import { internal } from "./_generated/api";
-import { action, internalMutation, internalQuery } from "./_generated/server";
+import { action, internalMutation, internalQuery, type MutationCtx } from "./_generated/server";
+import { applyPendingForEmails } from "./invitations";
 import { requireMember } from "./lib/auth";
+import { revokeAllGrants } from "./projectAccess";
 import { isTombstoned, tombstone } from "./lib/tombstones";
 
 const membership = v.object({
   membershipId: v.string(), userId: v.string(), role: v.string(), createdAt: v.number(), updatedAt: v.number(),
 });
 
+type MembershipEvent = {
+  orgId: string; userId: string; membershipId: string; role: string; active: boolean;
+  createdAt: number; updatedAt: number;
+};
+
+/** Applies a membership event; returns false when it was stale or already terminal. */
+async function applyMembershipEvent(
+  ctx: MutationCtx,
+  { orgId, userId, membershipId, role, active, createdAt, updatedAt }: MembershipEvent,
+): Promise<boolean> {
+  if (!orgId || !userId || !membershipId || !Number.isFinite(createdAt) || !Number.isFinite(updatedAt)) {
+    throw new Error("Invalid membership event.");
+  }
+  // Clerk retries webhooks, and delivery may arrive out of order. A deleted
+  // membership id never comes back; re-inviting creates a new id.
+  if (await isTombstoned(ctx, "membership", membershipId) || await isTombstoned(ctx, "user", userId)) return false;
+  if (!active) await tombstone(ctx, "membership", membershipId);
+  const existing = await ctx.db.query("memberships")
+    .withIndex("by_org_user", (q) => q.eq("orgId", orgId).eq("userId", userId)).unique();
+  const now = Date.now();
+  if (!existing) {
+    await ctx.db.insert("memberships", {
+      orgId, userId, role, active, membershipId, membershipCreatedAt: createdAt, lastEventAt: updatedAt, updatedAt: now,
+    });
+    return true;
+  }
+  if (existing.membershipId === membershipId) {
+    if (active && (existing.lastEventAt ?? 0) > updatedAt) return false;
+  } else if (existing.membershipId && (existing.membershipCreatedAt ?? 0) > createdAt) {
+    return false;
+  }
+  await ctx.db.patch(existing._id, {
+    role, active, membershipId, membershipCreatedAt: createdAt, lastEventAt: updatedAt, updatedAt: now,
+  });
+  return true;
+}
+
 export const applyWebhook = internalMutation({
   args: {
     orgId: v.string(), userId: v.string(), membershipId: v.string(), role: v.string(), active: v.boolean(),
     createdAt: v.number(), updatedAt: v.number(),
+    // Clerk's `public_user_data.identifier` (usually the email), used to match invitation grants.
+    identifier: v.optional(v.string()),
   },
-  handler: async (ctx, { orgId, userId, membershipId, role, active, createdAt, updatedAt }) => {
-    if (!orgId || !userId || !membershipId || !Number.isFinite(createdAt) || !Number.isFinite(updatedAt)) {
-      throw new Error("Invalid membership event.");
-    }
-    // Clerk retries webhooks, and delivery may arrive out of order. A deleted
-    // membership id never comes back; re-inviting creates a new id.
-    if (await isTombstoned(ctx, "membership", membershipId) || await isTombstoned(ctx, "user", userId)) return;
-    if (!active) await tombstone(ctx, "membership", membershipId);
-    const existing = await ctx.db.query("memberships")
-      .withIndex("by_org_user", (q) => q.eq("orgId", orgId).eq("userId", userId)).unique();
-    const now = Date.now();
-    if (!existing) {
-      await ctx.db.insert("memberships", {
-        orgId, userId, role, active, membershipId, membershipCreatedAt: createdAt, lastEventAt: updatedAt, updatedAt: now,
-      });
+  handler: async (ctx, { identifier, ...event }) => {
+    if (!(await applyMembershipEvent(ctx, event))) return;
+    const { orgId, userId } = event;
+    if (!event.active) {
+      // Leaving the team drops every project grant; a later re-invite starts from scratch (#46).
+      await revokeAllGrants(ctx, orgId, userId);
       return;
     }
-    if (existing.membershipId === membershipId) {
-      if (active && (existing.lastEventAt ?? 0) > updatedAt) return;
-    } else if (existing.membershipId && (existing.membershipCreatedAt ?? 0) > createdAt) {
-      return;
-    }
-    await ctx.db.patch(existing._id, {
-      role, active, membershipId, membershipCreatedAt: createdAt, lastEventAt: updatedAt, updatedAt: now,
-    });
+    // Fallback for `organizationInvitation.accepted` arriving late or not being subscribed:
+    // apply project grants of an invitation sent to this person's email, exactly once (#46).
+    const user = await ctx.db.query("users").withIndex("by_clerkId", (q) => q.eq("clerkId", userId)).unique();
+    await applyPendingForEmails(ctx, orgId, userId, [identifier ?? "", user?.email ?? ""]);
   },
 });
 
@@ -81,7 +109,10 @@ export const finishBackfillPage = internalMutation({
     for (const row of page.page) {
       if (row.backfillRunId === runId || row.updatedAt >= startedAt) continue;
       if (row.membershipId) await tombstone(ctx, "membership", row.membershipId);
-      if (row.active) await ctx.db.patch(row._id, { active: false, updatedAt: startedAt });
+      if (row.active) {
+        await ctx.db.patch(row._id, { active: false, updatedAt: startedAt });
+        await revokeAllGrants(ctx, orgId, row.userId);
+      }
     }
     return { cursor: page.continueCursor, isDone: page.isDone };
   },

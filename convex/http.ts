@@ -47,10 +47,28 @@ http.route({
           typeof data.updated_at !== "number" || !Number.isFinite(data.updated_at)) {
         return new Response("Invalid membership event.", { status: 400 });
       }
+      const identifier = "identifier" in user && typeof user.identifier === "string" ? user.identifier : undefined;
       await ctx.runMutation(internal.memberships.applyWebhook, {
         orgId: org.id, userId: user.user_id, membershipId: data.id, role: data.role,
         active: type !== "organizationMembership.deleted", createdAt: data.created_at, updatedAt: data.updated_at,
+        identifier,
       });
+    } else if (type === "organizationInvitation.accepted" || type === "organizationInvitation.revoked") {
+      // Project grants stored with an invitation (#46) are keyed by Clerk's invitation id.
+      if (!data || typeof data !== "object" || !("id" in data) || typeof data.id !== "string" || !data.id) {
+        return new Response("Invalid invitation event.", { status: 400 });
+      }
+      if (type === "organizationInvitation.revoked") {
+        await ctx.runMutation(internal.invitations.markRevoked, { invitationId: data.id });
+      } else {
+        if (!("organization_id" in data) || typeof data.organization_id !== "string" ||
+            !("user_id" in data) || typeof data.user_id !== "string" || !data.user_id) {
+          return new Response("Invalid invitation event.", { status: 400 });
+        }
+        await ctx.runMutation(internal.invitations.applyAccepted, {
+          invitationId: data.id, orgId: data.organization_id, userId: data.user_id,
+        });
+      }
     } else if (type === "user.created" || type === "user.updated") {
       if (!data || typeof data !== "object" || !("id" in data) || typeof data.id !== "string" ||
           !("updated_at" in data) || typeof data.updated_at !== "number" || !Number.isFinite(data.updated_at)) {

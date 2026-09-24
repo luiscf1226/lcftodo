@@ -89,7 +89,7 @@ export function WeekBoard({ projectId }: { projectId: Id<"projects"> }) {
     // We deleted it ourselves and are on our way back to the project list.
     if (deleting) return <Skeleton className="h-40" />;
     return (
-      <Empty title="Project not found" body="It may have been deleted, or it belongs to another team." action={<Link href="/app/projects" className="btn-outline">Back to projects</Link>} />
+      <Empty title="Project not found" body="It may have been deleted, belong to another team, or you may no longer have access to it." action={<Link href="/app/projects" className="btn-outline">Back to projects</Link>} />
     );
   }
 
@@ -252,7 +252,7 @@ function QuickAddForm({ projectId, date, onClose, onMore }: { projectId: Id<"pro
   const inputRef = useRef<HTMLInputElement>(null);
   const [title, setTitle] = useState("");
   const [busy, setBusy] = useState(false);
-  const mention = useAssigneeMention(title, setTitle, inputRef);
+  const mention = useAssigneeMention(title, setTitle, inputRef, projectId);
 
   return (
     <form

@@ -4,6 +4,7 @@ import { useOrganization } from "@clerk/nextjs";
 import { useQuery } from "convex/react";
 import { useMemo } from "react";
 import { api } from "../../convex/_generated/api";
+import type { Id } from "../../convex/_generated/dataModel";
 import { SYSTEM_ACTOR_ID, SYSTEM_ACTOR_NAME } from "../../convex/lib/constants";
 
 export type Member = { id: string; name: string; imageUrl?: string; role?: string };
@@ -44,4 +45,20 @@ export function useMembers(extraIds: string[] = []) {
   const nameOf = (id?: string) => (id ? (byId.get(id)?.name ?? "Former member") : "");
 
   return { members, byId, nameOf };
+}
+
+/**
+ * Team members who may be assigned work in a project (#46): the whole team while project
+ * access is open, otherwise admins and people granted that project. The server enforces the
+ * same rule; this only keeps pickers honest.
+ */
+export function useAssignableMembers(projectId: Id<"projects"> | undefined) {
+  const all = useMembers();
+  const assignable = useQuery(api.projectAccess.assignable, projectId ? { projectId } : "skip");
+  const members = useMemo(() => {
+    if (!assignable?.restricted) return all.members;
+    const allowed = new Set(assignable.userIds);
+    return all.members.filter((m) => allowed.has(m.id));
+  }, [all.members, assignable]);
+  return { ...all, members };
 }

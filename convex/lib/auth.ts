@@ -43,6 +43,67 @@ export async function requireMember(ctx: QueryCtx): Promise<Member> {
   return member;
 }
 
+// ---------------------------------------------------------------------------
+// Project access (#46)
+//
+// Policy:
+// - Admins can read and manage every project of their team.
+// - While a team has not turned on "restricted project access" (the default, and the state of
+//   every team that existed before #46), every active member can read every project.
+// - Once restricted, a non-admin member can only read and write projects they hold an explicit
+//   `projectMemberships` grant for. Anything else behaves exactly as if the project didn't exist.
+// ---------------------------------------------------------------------------
+
+export async function isRestricted(ctx: QueryCtx, orgId: string): Promise<boolean> {
+  const settings = await ctx.db.query("teamSettings")
+    .withIndex("by_org", (q) => q.eq("orgId", orgId)).unique();
+  return settings?.restrictedProjectAccess ?? false;
+}
+
+export async function hasProjectGrant(ctx: QueryCtx, projectId: Id<"projects">, userId: string): Promise<boolean> {
+  const grant = await ctx.db.query("projectMemberships")
+    .withIndex("by_project_user", (q) => q.eq("projectId", projectId).eq("userId", userId)).first();
+  return grant !== null;
+}
+
+/**
+ * The project ids a member may read, or `"all"` when the member is not restricted
+ * (admins, and every member of an unrestricted team). Callers still filter by org and
+ * `deleting` themselves.
+ */
+export async function accessibleProjectIds(ctx: QueryCtx, member: Member): Promise<"all" | Set<Id<"projects">>> {
+  if (member.isAdmin || !(await isRestricted(ctx, member.orgId))) return "all";
+  const grants = await ctx.db.query("projectMemberships")
+    .withIndex("by_org_user", (q) => q.eq("orgId", member.orgId).eq("userId", member.userId)).collect();
+  return new Set(grants.map((g) => g.projectId));
+}
+
+export const inScope = (scope: "all" | Set<Id<"projects">>, projectId: Id<"projects">) =>
+  scope === "all" || scope.has(projectId);
+
+/** True if the member may read this project (same team, not being deleted, and allowed by the access policy). */
+export async function canReadProject(ctx: QueryCtx, member: Member, project: Doc<"projects"> | null): Promise<boolean> {
+  if (!project || project.orgId !== member.orgId || project.deleting) return false;
+  if (member.isAdmin || !(await isRestricted(ctx, member.orgId))) return true;
+  return await hasProjectGrant(ctx, project._id, member.userId);
+}
+
+/**
+ * Whether another team member (by Clerk user id) may access a project: used for assignee
+ * eligibility. Requires an active synced membership in the project's team.
+ */
+export async function userCanAccessProject(ctx: QueryCtx, project: Doc<"projects">, userId: string): Promise<boolean> {
+  const membership = await ctx.db.query("memberships")
+    .withIndex("by_org_user", (q) => q.eq("orgId", project.orgId).eq("userId", userId)).unique();
+  if (!membership?.active) return false;
+  if (membership.role === "org:admin" || !(await isRestricted(ctx, project.orgId))) return true;
+  return await hasProjectGrant(ctx, project._id, userId);
+}
+
+/**
+ * Loads a project the member may access. Projects of other teams, and projects the member
+ * has no access to, are reported identically as "not found" so ids reveal nothing.
+ */
 export async function requireProject(
   ctx: QueryCtx,
   member: Member,
@@ -50,8 +111,14 @@ export async function requireProject(
 ): Promise<Doc<"projects">> {
   const project = await ctx.db.get(projectId);
   if (!project || project.orgId !== member.orgId) throw new Error("Project not found.");
+  if (!member.isAdmin && (await isRestricted(ctx, member.orgId)) && !(await hasProjectGrant(ctx, projectId, member.userId))) {
+    throw new Error("Project not found.");
+  }
   return project;
 }
+
+/** Alias that reads well at call sites that only need the access check. */
+export const requireProjectAccess = requireProject;
 
 /**
  * Like requireProject, but also rejects projects whose todos are frozen:
@@ -79,6 +146,10 @@ export async function requireTodo(
 ): Promise<Doc<"todos">> {
   const todo = await ctx.db.get(todoId);
   if (!todo || todo.orgId !== member.orgId) throw new Error("Todo not found.");
+  // A todo in a project the member can't access is reported the same way (#46).
+  if (!member.isAdmin && (await isRestricted(ctx, member.orgId)) && !(await hasProjectGrant(ctx, todo.projectId, member.userId))) {
+    throw new Error("Todo not found.");
+  }
   return todo;
 }
 
