@@ -142,6 +142,10 @@ const STEPS: Step[] = [
         <p>
           Open <strong>Team</strong> to invite teammates by email, manage roles, and edit team settings.
         </p>
+        <p>
+          Admins can invite people to selected projects and restrict project access, so each member only sees
+          the projects they&apos;re added to. New admins get a setup checklist on <strong>Today</strong>.
+        </p>
       </>
     ),
   },

@@ -29,7 +29,7 @@ export function TodayQuickAdd({ date, projects, projectId, onProjectIdChange, on
   const inputRef = useRef<HTMLInputElement>(null);
   const [title, setTitle] = useState("");
   const [busy, setBusy] = useState(false);
-  const mention = useAssigneeMention(title, setTitle, inputRef);
+  const mention = useAssigneeMention(title, setTitle, inputRef, projectId);
   const project = projects.find((p) => p._id === projectId);
 
   useEffect(() => {

@@ -15,6 +15,9 @@ export default function ProjectsPage() {
   const [creating, setCreating] = useState(false);
   const from = weekStart(useToday());
   const projects = useQuery(api.projects.listWithStats, { from, to: shiftDays(from, 6) });
+  const access = useQuery(api.projectAccess.me, {});
+  // A member of a restricted team only sees projects an admin granted them (#46).
+  const awaitingAccess = access?.restricted === true && !access.isAdmin;
   const active = projects?.filter((p) => !p.archived) ?? [];
   const archived = projects?.filter((p) => p.archived) ?? [];
 
@@ -36,8 +39,10 @@ export default function ProjectsPage() {
         </div>
       ) : active.length === 0 && archived.length === 0 ? (
         <Empty
-          title="No projects yet"
-          body="Projects group your team's todos. Create one to start planning the week."
+          title={awaitingAccess ? "You haven't been added to any projects yet" : "No projects yet"}
+          body={awaitingAccess
+            ? "A team admin can give you access to existing projects. You can also create your own."
+            : "Projects group your team's todos. Create one to start planning the week."}
           action={<button className="btn-primary" onClick={() => setCreating(true)}><Plus className="size-4" /> New project</button>}
         />
       ) : (

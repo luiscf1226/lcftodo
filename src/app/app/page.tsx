@@ -9,6 +9,7 @@ import { useMemo, useState } from "react";
 import type { Doc, Id } from "../../../convex/_generated/dataModel";
 import { api } from "../../../convex/_generated/api";
 import { Empty, PageHeader, Skeleton } from "@/components/PageHeader";
+import { SetupChecklist } from "@/components/SetupChecklist";
 import { TodayQuickAdd } from "@/components/TodayQuickAdd";
 import { TodoDialog } from "@/components/TodoDialog";
 import { TodoItem } from "@/components/TodoItem";
@@ -27,6 +28,7 @@ export default function TodayPage() {
   const days = useMemo(() => weekDays(start), [start]);
   const todos = useQuery(api.todos.listForTeam, { from: start, to: shiftDays(start, 6) });
   const projects = useQuery(api.projects.list, {});
+  const access = useQuery(api.projectAccess.me, {});
   const { byId } = useMembers();
   const [scope, setScope] = useState<"mine" | "team">("mine");
   const [editing, setEditing] = useState<TeamTodo | null>(null);
@@ -103,6 +105,8 @@ export default function TodayPage() {
         }
       />
 
+      {organization && access?.isAdmin && <SetupChecklist orgId={organization.id} />}
+
       {newProjectId && (
         <TodayQuickAdd
           date={today}
@@ -147,6 +151,12 @@ export default function TodayPage() {
 
       {todos === undefined ? (
         <Skeleton className="h-40" />
+      ) : projects && projects.length === 0 && access?.restricted && !access.isAdmin ? (
+        <Empty
+          title="No projects yet"
+          body="You haven't been added to any projects on this team. Ask a team admin to give you access, or create your own project."
+          action={<Link href="/app/projects" className="btn-outline">Go to projects <ArrowRight className="size-4" /></Link>}
+        />
       ) : projects && projects.length === 0 ? (
         <Empty
           title="Welcome! Start with a project"
