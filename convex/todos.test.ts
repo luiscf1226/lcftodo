@@ -118,6 +118,32 @@ describe("todos and history", () => {
   });
 });
 
+describe("archived projects are read-only (#18)", () => {
+  test("todo mutations are rejected while archived and allowed again after restore", async () => {
+    const { a, b, projectId } = await setup();
+    const todoId = await a.mutation(api.todos.create, { projectId, title: "Frozen", date: "2026-09-21" });
+    await a.mutation(api.projects.setArchived, { projectId, archived: true });
+
+    const archived = /archived/;
+    await expect(b.mutation(api.todos.create, { projectId, title: "x", date: "2026-09-21" })).rejects.toThrow(archived);
+    await expect(b.mutation(api.todos.update, { todoId, title: "x", date: "2026-09-21" })).rejects.toThrow(archived);
+    await expect(b.mutation(api.todos.setStatus, { todoId, status: "done" })).rejects.toThrow(archived);
+    await expect(b.mutation(api.todos.setStatus, { todoId, status: "todo" })).rejects.toThrow(archived);
+    await expect(b.mutation(api.todos.remove, { todoId })).rejects.toThrow(archived);
+    await expect(b.mutation(api.todos.carryOver, { projectId, date: "2026-09-21" })).rejects.toThrow(archived);
+
+    // Nothing changed and nothing was logged.
+    const [todo] = await a.query(api.todos.listForProject, { projectId, from: "2026-09-21", to: "2026-09-22" });
+    expect(todo).toMatchObject({ title: "Frozen", status: "todo" });
+    expect((await a.query(api.activity.forTodo, { todoId })).map((h) => h.action)).toEqual(["created"]);
+
+    // Reads still work, and restoring makes the project writable again.
+    await a.mutation(api.projects.setArchived, { projectId, archived: false });
+    await b.mutation(api.todos.setStatus, { todoId, status: "done" });
+    await b.mutation(api.todos.create, { projectId, title: "Back", date: "2026-09-21" });
+  });
+});
+
 describe("server-side input validation (#29)", () => {
   test("todo title is trimmed, required and capped at 300 chars", async () => {
     const { a, projectId } = await setup();

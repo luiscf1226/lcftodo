@@ -1,7 +1,7 @@
 import { v } from "convex/values";
 import type { Doc } from "./_generated/dataModel";
 import { mutation, query } from "./_generated/server";
-import { getMember, log, requireMember, requireProject, requireTodo } from "./lib/auth";
+import { getMember, log, requireMember, requireTodo, requireWritableProject } from "./lib/auth";
 import { assignee, checkDate, todoNotes, todoTitle } from "./lib/validate";
 import { status } from "./schema";
 
@@ -68,7 +68,7 @@ export const create = mutation({
   },
   handler: async (ctx, args) => {
     const member = await requireMember(ctx);
-    const project = await requireProject(ctx, member, args.projectId);
+    const project = await requireWritableProject(ctx, member, args.projectId);
     checkDate(args.date);
     const title = todoTitle(args.title);
     const notes = todoNotes(args.notes);
@@ -100,7 +100,7 @@ export const update = mutation({
   handler: async (ctx, args) => {
     const member = await requireMember(ctx);
     const todo = await requireTodo(ctx, member, args.todoId);
-    const project = await requireProject(ctx, member, todo.projectId);
+    const project = await requireWritableProject(ctx, member, todo.projectId);
     checkDate(args.date);
     const title = todoTitle(args.title);
     const notes = todoNotes(args.notes);
@@ -130,8 +130,8 @@ export const setStatus = mutation({
   handler: async (ctx, args) => {
     const member = await requireMember(ctx);
     const todo = await requireTodo(ctx, member, args.todoId);
+    const project = await requireWritableProject(ctx, member, todo.projectId);
     if (todo.status === args.status) return;
-    const project = await requireProject(ctx, member, todo.projectId);
     await ctx.db.patch(todo._id, {
       status: args.status,
       completedAt: args.status === "done" ? Date.now() : undefined,
@@ -147,7 +147,7 @@ export const remove = mutation({
   handler: async (ctx, { todoId }) => {
     const member = await requireMember(ctx);
     const todo = await requireTodo(ctx, member, todoId);
-    const project = await requireProject(ctx, member, todo.projectId);
+    const project = await requireWritableProject(ctx, member, todo.projectId);
     await ctx.db.delete(todo._id);
     await log(ctx, member, project, {
       action: "deleted", todoId: todo._id, todoTitle: todo.title, from: todo.status, date: todo.date,
@@ -161,7 +161,7 @@ export const carryOver = mutation({
   args: { projectId: v.id("projects"), date: v.string() },
   handler: async (ctx, { projectId, date }) => {
     const member = await requireMember(ctx);
-    const project = await requireProject(ctx, member, projectId);
+    const project = await requireWritableProject(ctx, member, projectId);
     checkDate(date);
     const to = nextDay(date);
     const open = (
