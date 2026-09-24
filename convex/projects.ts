@@ -3,6 +3,7 @@ import type { Id } from "./_generated/dataModel";
 import { internal } from "./_generated/api";
 import { internalMutation, mutation, query } from "./_generated/server";
 import { getMember, log, requireMember, requireProject } from "./lib/auth";
+import { emptyStatusCounts, STATUSES, type Status } from "./lib/constants";
 import { checkRange, projectColor, projectDescription, projectName } from "./lib/validate";
 
 export const list = query({
@@ -38,19 +39,18 @@ export const listWithStats = query({
         .withIndex("by_org_date", (q) => q.eq("orgId", member.orgId).gte("date", from).lte("date", to))
         .collect(),
     ]);
-    type Counts = { todo: number; doing: number; done: number; not_done: number };
-    const countsByProject = new Map<Id<"projects">, Counts>();
+    const countsByProject = new Map<Id<"projects">, Record<Status, number>>();
     for (const t of todos) {
       let counts = countsByProject.get(t.projectId);
-      if (!counts) countsByProject.set(t.projectId, (counts = { todo: 0, doing: 0, done: 0, not_done: 0 }));
+      if (!counts) countsByProject.set(t.projectId, (counts = emptyStatusCounts()));
       counts[t.status]++;
     }
     return projects
       .filter((p) => !p.deleting)
       .sort((a, b) => Number(a.archived) - Number(b.archived) || a.name.localeCompare(b.name))
       .map((project) => {
-        const counts = countsByProject.get(project._id) ?? { todo: 0, doing: 0, done: 0, not_done: 0 };
-        const total = counts.todo + counts.doing + counts.done + counts.not_done;
+        const counts = countsByProject.get(project._id) ?? emptyStatusCounts();
+        const total = STATUSES.reduce((sum, s) => sum + counts[s], 0);
         return { ...project, counts, total };
       });
   },
@@ -101,7 +101,8 @@ export const update = mutation({
     if (project.deleting) throw new Error("This project is being deleted.");
     const name = projectName(args.name);
     const description = projectDescription(args.description);
-    const color = projectColor(args.color);
+    // A project created before the palette check keeps its color until it is changed.
+    const color = args.color === project.color ? project.color : projectColor(args.color);
     await ctx.db.patch(projectId, { name, description, color });
     await log(ctx, member, { ...project, name }, {
       action: "project_updated",

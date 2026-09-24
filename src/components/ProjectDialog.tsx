@@ -6,7 +6,8 @@ import { useRouter } from "next/navigation";
 import { useState, type FormEvent } from "react";
 import type { Doc } from "../../convex/_generated/dataModel";
 import { api } from "../../convex/_generated/api";
-import { PROJECT_COLORS } from "@/lib/status";
+import { errorMessage } from "@/lib/errors";
+import { LIMITS, PROJECT_COLORS } from "@/lib/status";
 import { Modal } from "./Modal";
 
 export function ProjectDialog({
@@ -49,8 +50,9 @@ function ProjectForm({ onClose, project }: { onClose: () => void; project?: Doc<
         onClose();
         router.push(`/app/projects/${id}`);
       }
-    } catch {
-      setError("Couldn't save the project. Try again.");
+    } catch (caught) {
+      // Server validation messages (length, color) are meant to be shown as-is.
+      setError(errorMessage(caught, "Couldn't save the project. Try again."));
       setBusy(false);
     }
   }
@@ -59,11 +61,11 @@ function ProjectForm({ onClose, project }: { onClose: () => void; project?: Doc<
     <form onSubmit={submit} className="space-y-4">
       <div>
         <label className="label" htmlFor="project-name">Name</label>
-        <input id="project-name" autoFocus className="input" value={name} onChange={(e) => setName(e.target.value)} maxLength={80} required placeholder="e.g. Website relaunch" />
+        <input id="project-name" autoFocus className="input" value={name} onChange={(e) => setName(e.target.value)} maxLength={LIMITS.projectName} required placeholder="e.g. Website relaunch" />
       </div>
       <div>
         <label className="label" htmlFor="project-desc">Description</label>
-        <textarea id="project-desc" className="input min-h-16" value={description} onChange={(e) => setDescription(e.target.value)} maxLength={500} placeholder="Optional" />
+        <textarea id="project-desc" className="input min-h-16" value={description} onChange={(e) => setDescription(e.target.value)} maxLength={LIMITS.projectDescription} placeholder="Optional" />
       </div>
       <fieldset>
         <legend className="label">Color</legend>

@@ -20,7 +20,7 @@ import { showToast } from "@/components/ToastViewport";
 import { useDismissibleMenu } from "@/components/useDismissibleMenu";
 import { fmt, fromKey, shiftDays, todayKey, weekDays, weekLabel, weekStart } from "@/lib/dates";
 import { errorMessage } from "@/lib/errors";
-import { STATUS_META, STATUSES } from "@/lib/status";
+import { emptyStatusCounts, LIMITS, STATUS_META, STATUSES } from "@/lib/status";
 
 type Editing = { date: string; todo?: Doc<"todos"> } | null;
 
@@ -64,7 +64,7 @@ export function WeekBoard({ projectId }: { projectId: Id<"projects"> }) {
   }, [visible, days]);
 
   const counts = useMemo(() => {
-    const c = { todo: 0, doing: 0, done: 0, not_done: 0 };
+    const c = emptyStatusCounts();
     for (const t of visible) c[t.status]++;
     return c;
   }, [visible]);
@@ -211,6 +211,7 @@ export function WeekBoard({ projectId }: { projectId: Id<"projects"> }) {
         projectId={projectId}
         date={editing?.date ?? today}
         todo={editing?.todo}
+        readOnly={project?.archived}
       />
       {project && <ProjectDialog open={editingProject} onClose={() => setEditingProject(false)} project={project} />}
       {project && <DeleteProject open={confirmDelete} onClose={() => setConfirmDelete(false)} project={project} />}
@@ -272,7 +273,7 @@ function QuickAdd({ projectId, date, onMore }: { projectId: Id<"projects">; date
           className="input py-1.5"
           placeholder="New todo… Type @ to assign"
           value={title}
-          maxLength={300}
+          maxLength={LIMITS.todoTitle}
           role="combobox"
           aria-autocomplete="list"
           aria-controls={suggestions.length > 0 ? `assignee-suggestions-${date}` : undefined}

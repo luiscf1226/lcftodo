@@ -1,6 +1,9 @@
-export const STATUSES = ["todo", "doing", "done", "not_done"] as const;
-export type Status = (typeof STATUSES)[number];
+import type { Status } from "../../convex/lib/constants";
 
+// Statuses, limits and the palette are defined once in Convex (#37) and shared with the UI.
+export { emptyStatusCounts, LIMITS, PROJECT_COLORS, STATUSES, type Status } from "../../convex/lib/constants";
+
+// UI metadata for each status. `Record<Status, …>` fails to compile if a status is missing.
 export const STATUS_META: Record<Status, { label: string; dot: string; pill: string }> = {
   todo: {
     label: "To do",
@@ -23,7 +26,3 @@ export const STATUS_META: Record<Status, { label: string; dot: string; pill: str
     pill: "bg-rose-50 text-rose-800 ring-rose-200 dark:bg-rose-950 dark:text-rose-300 dark:ring-rose-900",
   },
 };
-
-export const PROJECT_COLORS = [
-  "#6366f1", "#0ea5e9", "#10b981", "#f59e0b", "#ef4444", "#ec4899", "#8b5cf6", "#64748b",
-];

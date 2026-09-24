@@ -1,0 +1,44 @@
+// Single source of truth for values shared by the Convex schema, server-side
+// validation and the UI (#37, #29). Keep this file free of server-only imports
+// so the Next.js app can import it directly.
+
+export const STATUSES = ["todo", "doing", "done", "not_done"] as const;
+export type Status = (typeof STATUSES)[number];
+
+export const ACTIONS = [
+  "created",
+  "updated",
+  "status",
+  "moved",
+  "carried_over",
+  "deleted",
+  "project_created",
+  "project_updated",
+  "project_archived",
+  "project_restored",
+  "project_deleted",
+] as const;
+export type Action = (typeof ACTIONS)[number];
+
+/** A zeroed counter for every status. */
+export const emptyStatusCounts = (): Record<Status, number> =>
+  Object.fromEntries(STATUSES.map((s) => [s, 0])) as Record<Status, number>;
+
+// Text limits enforced by mutations and mirrored by the UI's maxLength.
+export const LIMITS = {
+  todoTitle: 300,
+  todoNotes: 5000,
+  projectName: 80,
+  projectDescription: 500,
+} as const;
+
+// Project palette. `color` is rendered into inline styles, so only these are accepted.
+export const PROJECT_COLORS = [
+  "#6366f1", "#0ea5e9", "#10b981", "#f59e0b", "#ef4444", "#ec4899", "#8b5cf6", "#64748b",
+] as const;
+
+// Longest inclusive day range a team-wide query or export may span (#15).
+export const MAX_RANGE_DAYS = 366;
+
+// Rows per `activity.exportPage` call; larger requests are clamped to this.
+export const MAX_EXPORT_PAGE_SIZE = 1000;
