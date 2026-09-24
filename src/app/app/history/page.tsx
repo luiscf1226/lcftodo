@@ -2,7 +2,7 @@
 
 import clsx from "clsx";
 import { useConvex, usePaginatedQuery, useQuery } from "convex/react";
-import { format, formatDistanceToNow } from "date-fns";
+import { differenceInCalendarDays, format, formatDistanceToNow, isValid } from "date-fns";
 import { ChevronDown, Download } from "lucide-react";
 import { useMemo, useState } from "react";
 import type { Id } from "../../../../convex/_generated/dataModel";
@@ -15,6 +15,7 @@ import { useMembers } from "@/components/useMembers";
 import { describe } from "@/lib/activity";
 import { download, toCsv } from "@/lib/csv";
 import { fmt, fromKey, shiftDays, todayKey } from "@/lib/dates";
+import { errorMessage } from "@/lib/errors";
 import { STATUS_META, STATUSES } from "@/lib/status";
 
 export default function HistoryPage() {
@@ -24,10 +25,15 @@ export default function HistoryPage() {
   const [projectId, setProjectId] = useState<Id<"projects"> | "">("");
   const [memberId, setMemberId] = useState("");
   const [tab, setTab] = useState<"days" | "people" | "activity">("days");
-  const validRange = from <= to;
+  const validDates = Boolean(from && to) && isValid(fromKey(from)) && isValid(fromKey(to));
+  const validRange = validDates && from <= to;
+  const rangeDays = validRange ? differenceInCalendarDays(fromKey(to), fromKey(from)) + 1 : 0;
+  const rangeTooLarge = rangeDays > 366;
+  const canViewRange = validRange && !rangeTooLarge;
+  const memberFilterLabel = tab === "activity" ? "Changed by" : "Assigned to";
 
   const projects = useQuery(api.projects.list, { includeArchived: true });
-  const todos = useQuery(api.todos.listForTeam, validRange ? { from, to } : "skip");
+  const todos = useQuery(api.todos.listForTeam, canViewRange ? { from, to } : "skip");
   const filtered = useMemo(
     () =>
       (todos ?? []).filter(
@@ -44,7 +50,7 @@ export default function HistoryPage() {
       <PageHeader
         title="History"
         subtitle="Everything your team planned, finished and missed."
-        actions={<ExportMenu disabled={!validRange} from={from} to={to} projectId={projectId || undefined} memberId={memberId} todos={filtered} members={members} nameOf={nameOf} />}
+        actions={<ExportMenu disabled={!canViewRange} from={from} to={to} projectId={projectId || undefined} memberId={memberId} todos={filtered} members={members} nameOf={nameOf} />}
       />
 
       <div className="card mb-5 grid gap-3 p-3 sm:grid-cols-2 lg:grid-cols-4">
@@ -64,7 +70,7 @@ export default function HistoryPage() {
           </select>
         </div>
         <div>
-          <label className="label" htmlFor="h-member">Person</label>
+          <label className="label" htmlFor="h-member">{memberFilterLabel}</label>
           <select id="h-member" className="input" value={memberId} onChange={(e) => setMemberId(e.target.value)}>
             <option value="">Everyone</option>
             {members.map((m) => <option key={m.id} value={m.id}>{m.name}</option>)}
@@ -72,9 +78,18 @@ export default function HistoryPage() {
         </div>
       </div>
 
-      {!validRange && (
+      {!validDates ? (
+        <p className="mb-4 rounded-lg border border-danger/30 bg-danger/10 px-3 py-2 text-sm text-danger" role="alert">
+          Select valid start and end dates to view or export History.
+        </p>
+      ) : !validRange && (
         <p className="mb-4 rounded-lg border border-danger/30 bg-danger/10 px-3 py-2 text-sm text-danger" role="alert">
           The start date must be on or before the end date. Adjust either date to view or export History.
+        </p>
+      )}
+      {rangeTooLarge && (
+        <p className="mb-4 rounded-lg border border-danger/30 bg-danger/10 px-3 py-2 text-sm text-danger" role="alert">
+          History supports ranges up to 366 days. Select a shorter range to view or export it.
         </p>
       )}
 
@@ -92,7 +107,7 @@ export default function HistoryPage() {
         ))}
       </div>
 
-      {!validRange ? null : tab === "days" ? (
+      {!canViewRange ? null : tab === "days" ? (
         todos === undefined ? <Skeleton className="h-60" /> : <DaySummary todos={filtered} byId={byId} />
       ) : tab === "people" ? (
         todos === undefined ? <Skeleton className="h-60" /> : <PeopleSummary todos={filtered} members={members} nameOf={nameOf} />
@@ -301,6 +316,7 @@ function ExportMenu({
 }) {
   const convex = useConvex();
   const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
   const { open, setOpen, close, containerRef, triggerRef } = useDismissibleMenu();
   const stamp = `${from}_to_${to}`;
 
@@ -349,12 +365,17 @@ function ExportMenu({
   }
 
   async function downloadExcel() {
-    const XLSX = await import("xlsx");
-    const workbook = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(workbook, XLSX.utils.json_to_sheet(todoRows()), "Todos");
-    XLSX.utils.book_append_sheet(workbook, XLSX.utils.json_to_sheet(await activityRows()), "Activity");
-    XLSX.utils.book_append_sheet(workbook, XLSX.utils.json_to_sheet(peopleRows()), "People");
-    const content = XLSX.write(workbook, { bookType: "xlsx", type: "array" });
+    const { default: ExcelJS } = await import("exceljs");
+    const workbook = new ExcelJS.Workbook();
+    const addSheet = (name: string, rows: Record<string, string | number>[]) => {
+      const worksheet = workbook.addWorksheet(name);
+      worksheet.columns = Object.keys(rows[0] ?? {}).map((key) => ({ header: key, key }));
+      rows.forEach((row) => worksheet.addRow(row));
+    };
+    addSheet("Todos", todoRows());
+    addSheet("Activity", await activityRows());
+    addSheet("People", peopleRows());
+    const content = await workbook.xlsx.writeBuffer();
     const url = URL.createObjectURL(new Blob([content], { type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" }));
     const link = document.createElement("a");
     link.href = url;
@@ -365,6 +386,7 @@ function ExportMenu({
 
   async function run(kind: "todos-csv" | "people-csv" | "activity-csv" | "excel" | "json") {
     setBusy(true);
+    setError(null);
     try {
       if (kind === "todos-csv") download(`todos_${stamp}.csv`, toCsv(todoRows()), "text/csv;charset=utf-8");
       if (kind === "people-csv") download(`people_${stamp}.csv`, toCsv(peopleRows()), "text/csv;charset=utf-8");
@@ -374,6 +396,8 @@ function ExportMenu({
         const data = { exportedAt: new Date().toISOString(), from, to, todos: todoRows(), people: peopleRows(), activity: await activityRows() };
         download(`lcftodos_${stamp}.json`, JSON.stringify(data, null, 2), "application/json");
       }
+    } catch (caught) {
+      setError(errorMessage(caught, "Couldn’t export this range. Please try a shorter range."));
     } finally {
       setBusy(false);
       close();
@@ -395,6 +419,7 @@ function ExportMenu({
         <button role="menuitem" className="btn-ghost w-full justify-start" disabled={busy} onClick={() => void run("json")}>Everything (JSON)</button>
         <p className="px-3 pt-1 pb-1.5 text-[11px] text-muted">Uses the current date range and filters.</p>
       </div>}
+      {error && <p className="absolute right-0 top-full z-10 mt-2 w-72 rounded-lg border border-danger/30 bg-surface px-3 py-2 text-sm text-danger shadow-lg" role="alert">{error}</p>}
     </div>
   );
 }

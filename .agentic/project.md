@@ -12,7 +12,7 @@
 | Purpose | Command | Verified result (2026-09-23) |
 | --- | --- | --- |
 | Development | `npm run dev` | UNVERIFIED: starts Next.js and Convex in parallel; needs configured Clerk and Convex environment. |
-| Build | `npm run build` | BLOCKED by the sandbox network: Next.js could not fetch the Geist Google Fonts stylesheet. |
+| Build | `npm run build` | PASSED with dummy public Clerk/Convex values and network access on 2026-09-23. Without those values, prerendering stops at the provider configuration check. |
 | Lint | `npm run lint` | PASSED on 2026-09-23. |
 | Tests | `npm test` | PASSED on 2026-09-23: 2 files and 11 tests. |
 
