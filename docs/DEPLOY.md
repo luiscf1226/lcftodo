@@ -2,6 +2,21 @@
 
 Stack: **Vercel** (Next.js) + **Convex** (backend) + **Clerk** (auth, Organizations = teams).
 
+## Current production status (2026-09-24)
+
+Live at **https://lcftodo.vercel.app**. Every merge to `main` deploys Convex prod and then Next.js.
+
+| Piece | State |
+|---|---|
+| Clerk | App `lcftodo`, **development instance** (`closing-bullfrog-7604.clerk.accounts.dev`). Organizations are on with *Membership required*. The Convex integration adds the `aud=convex` claim. The session token also carries `name`, `email`, `picture`, `org_id` and `org_role`. |
+| Clerk webhook | Svix endpoint pointing at `https://rugged-seahorse-548.convex.site/clerk-webhook`. It sends `user.*`, `organizationMembership.*`, `organizationInvitation.accepted` and `.revoked`. |
+| Convex | Project `lcftodo`: dev `vibrant-salmon-106`, prod `rugged-seahorse-548`. Prod env vars: `CLERK_JWT_ISSUER_DOMAIN`, `CLERK_SECRET_KEY`, `CLERK_WEBHOOK_SECRET`, `RESEND_API_KEY`, `NOTIFICATIONS_SIGNING_SECRET`, `APP_URL`. |
+| Vercel | Production has `CONVEX_DEPLOY_KEY` (deploy-only) plus the Clerk vars. Preview has the dev `NEXT_PUBLIC_CONVEX_URL` plus the Clerk vars. |
+| GitHub | Branch protection on `main` requires `ci`. The E2E job runs on every PR (secrets documented in `docs/CI.md`). A nightly encrypted prod backup runs (see `docs/BACKUPS.md`). |
+| Email | Resend sends from `onboarding@resend.dev` until a domain is verified. Until then, only the Resend account owner receives mail. |
+
+**Still open:** a production Clerk instance and a custom domain (step 6, #5). That same domain also unblocks Resend for teammates. Sentry (#35) is deferred.
+
 ## How CI/CD works
 
 | Event | GitHub Actions (`ci`) | Vercel |
@@ -65,7 +80,7 @@ vercel --prod
 ```
 After that, every merge to `main` deploys automatically.
 
-### 5. Verify (#31, #4)
+### 5. Verify (#31, #4) — last run: [2026-09-24 smoke test](test-plans/2026-09-24-prod-smoke.md)
 1. Open the production URL, sign up, create a team.
 2. Invite a second account; both see the same projects and todos.
 3. A third account in another team sees none of it.
