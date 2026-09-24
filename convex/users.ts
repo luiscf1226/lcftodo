@@ -19,7 +19,8 @@ function findUser(ctx: QueryCtx, clerkId: string) {
     .unique();
 }
 
-// Called after sign-in so teammates can see names and avatars. Webhooks keep it in sync later.
+// Called after sign-in so teammates can see names and avatars. Once a Clerk webhook has
+// synced the profile, webhooks own it and a stale session token can't overwrite it.
 export const store = mutation({
   args: {},
   handler: async (ctx) => {
@@ -28,7 +29,7 @@ export const store = mutation({
     const fields = profileFields(identity);
     const existing = await findUser(ctx, identity.subject);
     if (existing) {
-      await ctx.db.patch(existing._id, fields);
+      if (existing.profileSyncedAt === undefined) await ctx.db.patch(existing._id, fields);
       return existing._id;
     }
     return await ctx.db.insert("users", fields);
@@ -89,9 +90,9 @@ export const upsertFromWebhook = internalMutation({
   args: {
     clerkId: v.string(), name: v.string(), email: v.optional(v.string()), imageUrl: v.optional(v.string()),
   },
-  handler: async (ctx, fields) => {
-    const existing = await ctx.db.query("users")
-      .withIndex("by_clerkId", (q) => q.eq("clerkId", fields.clerkId)).unique();
+  handler: async (ctx, args) => {
+    const fields = { ...args, profileSyncedAt: Date.now() };
+    const existing = await findUser(ctx, args.clerkId);
     if (existing) await ctx.db.patch(existing._id, fields);
     else await ctx.db.insert("users", fields);
   },
