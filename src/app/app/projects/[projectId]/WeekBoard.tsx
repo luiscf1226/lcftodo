@@ -178,6 +178,7 @@ export function WeekBoard({ projectId }: { projectId: Id<"projects"> }) {
                 <section
                   key={day}
                   ref={isToday ? todayRef : undefined}
+                  aria-label={fmt(day, "EEEE, MMMM d")}
                   className={clsx(
                     "flex scroll-mt-20 flex-col rounded-xl border bg-surface-2/60 p-2 lg:min-h-72",
                     isToday ? "border-accent/60" : "border-line",
