@@ -2,7 +2,7 @@ import { v } from "convex/values";
 import type { Doc } from "./_generated/dataModel";
 import { mutation, query } from "./_generated/server";
 import { getMember, log, requireMember, requireTodo, requireWritableProject } from "./lib/auth";
-import { assignee, checkDate, todoNotes, todoTitle } from "./lib/validate";
+import { assignee, checkDate, checkRange, todoNotes, todoTitle } from "./lib/validate";
 import { status } from "./schema";
 
 function nextDay(date: string) {
@@ -31,11 +31,13 @@ export const listForProject = query({
 });
 
 // All todos in the team for a date range, joined with their project.
+// The range is capped (see checkRange) so the query stays bounded (#15).
 export const listForTeam = query({
   args: { from: v.string(), to: v.string() },
   handler: async (ctx, { from, to }) => {
     const member = await getMember(ctx);
     if (!member) return [];
+    checkRange(from, to);
     const [todos, projects] = await Promise.all([
       ctx.db
         .query("todos")

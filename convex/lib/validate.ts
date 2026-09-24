@@ -65,6 +65,22 @@ export function checkDate(date: string) {
   if (!isCalendarDate(date)) throw new Error("Invalid date.");
 }
 
+export const MAX_RANGE_DAYS = 366;
+
+/**
+ * Validates an inclusive "YYYY-MM-DD" range for team-wide queries (#15):
+ * both ends must be real days, from ≤ to, and at most MAX_RANGE_DAYS long.
+ */
+export function checkRange(from: string, to: string) {
+  checkDate(from);
+  checkDate(to);
+  if (from > to) throw new Error("Invalid range: the start date is after the end date.");
+  const days = (Date.parse(`${to}T00:00:00Z`) - Date.parse(`${from}T00:00:00Z`)) / 86_400_000 + 1;
+  if (days > MAX_RANGE_DAYS) {
+    throw new Error(`Date range too large: pick at most ${MAX_RANGE_DAYS} days.`);
+  }
+}
+
 /**
  * Validates an optional assignee; empty becomes undefined.
  * TODO(#30): check against the team membership table once it exists — for now

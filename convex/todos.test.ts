@@ -144,6 +144,26 @@ describe("archived projects are read-only (#18)", () => {
   });
 });
 
+describe("bounded team queries (#15)", () => {
+  test("listForTeam accepts up to 366 days and rejects larger or inverted ranges", async () => {
+    const { a, projectId } = await setup();
+    await a.mutation(api.todos.create, { projectId, title: "In range", date: "2026-09-21" });
+    // 366 days inclusive (2028 is a leap year).
+    const rows = await a.query(api.todos.listForTeam, { from: "2028-01-01", to: "2028-12-31" });
+    expect(rows).toEqual([]);
+    const ok = await a.query(api.todos.listForTeam, { from: "2026-01-01", to: "2027-01-01" });
+    expect(ok.map((t) => t.title)).toEqual(["In range"]);
+
+    await expect(a.query(api.todos.listForTeam, { from: "2026-01-01", to: "2027-01-02" })).rejects.toThrow(
+      /at most 366 days/,
+    );
+    await expect(a.query(api.todos.listForTeam, { from: "2026-09-22", to: "2026-09-21" })).rejects.toThrow(
+      /start date is after the end date/,
+    );
+    await expect(a.query(api.todos.listForTeam, { from: "2026-02-31", to: "2026-03-01" })).rejects.toThrow(/date/);
+  });
+});
+
 describe("server-side input validation (#29)", () => {
   test("todo title is trimmed, required and capped at 300 chars", async () => {
     const { a, projectId } = await setup();
