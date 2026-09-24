@@ -73,7 +73,7 @@ jobs:
           CONVEX_DEPLOY_KEY: ${{ secrets.CONVEX_DEV_DEPLOY_KEY }}
         run: |
           case "$CONVEX_DEPLOY_KEY" in
-            dev:*) npx convex dev --once --typecheck disable ;;
+            dev:*) npx convex deploy --typecheck disable ;;
             *) echo "::error::CONVEX_DEV_DEPLOY_KEY must be a development deploy key (dev:...)."; exit 1 ;;
           esac
 
