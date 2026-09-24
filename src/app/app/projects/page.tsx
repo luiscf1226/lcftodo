@@ -7,12 +7,13 @@ import { useState } from "react";
 import { api } from "../../../../convex/_generated/api";
 import { Empty, PageHeader, Skeleton } from "@/components/PageHeader";
 import { ProjectDialog } from "@/components/ProjectDialog";
+import { useTeamTimeZone } from "@/components/useTeamTimeZone";
 import { shiftDays, todayKey, weekStart } from "@/lib/dates";
 import { STATUS_META, STATUSES } from "@/lib/status";
 
 export default function ProjectsPage() {
   const [creating, setCreating] = useState(false);
-  const from = weekStart(todayKey());
+  const from = weekStart(todayKey(useTeamTimeZone()));
   const projects = useQuery(api.projects.listWithStats, { from, to: shiftDays(from, 6) });
   const active = projects?.filter((p) => !p.archived) ?? [];
   const archived = projects?.filter((p) => p.archived) ?? [];

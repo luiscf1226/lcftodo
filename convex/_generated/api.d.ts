@@ -9,13 +9,17 @@
  */
 
 import type * as activity from "../activity.js";
+import type * as crons from "../crons.js";
 import type * as http from "../http.js";
 import type * as lib_auth from "../lib/auth.js";
+import type * as lib_carryOver from "../lib/carryOver.js";
 import type * as lib_constants from "../lib/constants.js";
+import type * as lib_timezone from "../lib/timezone.js";
 import type * as lib_tombstones from "../lib/tombstones.js";
 import type * as lib_validate from "../lib/validate.js";
 import type * as memberships from "../memberships.js";
 import type * as projects from "../projects.js";
+import type * as teams from "../teams.js";
 import type * as todos from "../todos.js";
 import type * as users from "../users.js";
 
@@ -27,13 +31,17 @@ import type {
 
 declare const fullApi: ApiFromModules<{
   activity: typeof activity;
+  crons: typeof crons;
   http: typeof http;
   "lib/auth": typeof lib_auth;
+  "lib/carryOver": typeof lib_carryOver;
   "lib/constants": typeof lib_constants;
+  "lib/timezone": typeof lib_timezone;
   "lib/tombstones": typeof lib_tombstones;
   "lib/validate": typeof lib_validate;
   memberships: typeof memberships;
   projects: typeof projects;
+  teams: typeof teams;
   todos: typeof todos;
   users: typeof users;
 }>;

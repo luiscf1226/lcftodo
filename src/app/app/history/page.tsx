@@ -13,17 +13,22 @@ import { Empty, PageHeader, Skeleton } from "@/components/PageHeader";
 import { StatusPill } from "@/components/StatusSelect";
 import { useDismissibleMenu } from "@/components/useDismissibleMenu";
 import { useMembers } from "@/components/useMembers";
+import { useTeamTimeZone } from "@/components/useTeamTimeZone";
 import { describe } from "@/lib/activity";
 import { download, toCsv } from "@/lib/csv";
-import { fmt, fromKey, shiftDays, todayKey } from "@/lib/dates";
+import { browserTimeZone, dayStartMs, fmt, fromKey, shiftDays, todayKey } from "@/lib/dates";
 import { errorMessage } from "@/lib/errors";
 import { collectPages } from "@/lib/export";
 import { emptyStatusCounts, STATUS_META, STATUSES } from "@/lib/status";
 
 export default function HistoryPage() {
-  const today = todayKey();
-  const [from, setFrom] = useState(shiftDays(today, -29));
-  const [to, setTo] = useState(today);
+  // Default range follows the team's "today" (#21) until the user picks dates.
+  const today = todayKey(useTeamTimeZone());
+  const [picked, setPicked] = useState<{ from?: string; to?: string }>({});
+  const from = picked.from ?? shiftDays(today, -29);
+  const to = picked.to ?? today;
+  const setFrom = (value: string) => setPicked((p) => ({ ...p, from: value }));
+  const setTo = (value: string) => setPicked((p) => ({ ...p, to: value }));
   const [projectId, setProjectId] = useState<Id<"projects"> | "">("");
   const [memberId, setMemberId] = useState("");
   const [tab, setTab] = useState<"days" | "people" | "activity">("days");
@@ -317,6 +322,8 @@ function ExportMenu({
   nameOf: Members["nameOf"];
 }) {
   const convex = useConvex();
+  // Activity is filtered by timestamp, so day boundaries use the team's zone (#21).
+  const timeZone = useTeamTimeZone();
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const { open, setOpen, close, containerRef, triggerRef } = useDismissibleMenu();
@@ -349,8 +356,8 @@ function ExportMenu({
     // Pages through every row on the server (filtered by index), so nothing is silently dropped (#15).
     const rows = await collectPages((cursor) =>
       convex.query(api.activity.exportPage, {
-        fromMs: fromKey(from).getTime(),
-        toMs: fromKey(shiftDays(to, 1)).getTime() - 1,
+        fromMs: dayStartMs(from, timeZone),
+        toMs: dayStartMs(shiftDays(to, 1), timeZone) - 1,
         projectId,
         actorId: memberId || undefined,
         paginationOpts: { numItems: MAX_EXPORT_PAGE_SIZE, cursor },
@@ -398,7 +405,7 @@ function ExportMenu({
       if (kind === "activity-csv") download(`activity_${stamp}.csv`, toCsv(await activityRows()), "text/csv;charset=utf-8");
       if (kind === "excel") await downloadExcel();
       if (kind === "json") {
-        const data = { exportedAt: new Date().toISOString(), from, to, todos: todoRows(), people: peopleRows(), activity: await activityRows() };
+        const data = { exportedAt: new Date().toISOString(), from, to, timeZone: timeZone ?? browserTimeZone(), todos: todoRows(), people: peopleRows(), activity: await activityRows() };
         download(`lcftodos_${stamp}.json`, JSON.stringify(data, null, 2), "application/json");
       }
     } catch (caught) {

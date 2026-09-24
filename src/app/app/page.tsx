@@ -13,6 +13,7 @@ import { TodayQuickAdd } from "@/components/TodayQuickAdd";
 import { TodoDialog } from "@/components/TodoDialog";
 import { TodoItem } from "@/components/TodoItem";
 import { useMembers } from "@/components/useMembers";
+import { useTeamTimeZone } from "@/components/useTeamTimeZone";
 import { fmt, shiftDays, todayKey, weekDays, weekStart } from "@/lib/dates";
 import { emptyStatusCounts, STATUS_META, STATUSES } from "@/lib/status";
 
@@ -21,7 +22,10 @@ type TeamTodo = Doc<"todos"> & { projectName: string; projectColor: string; proj
 export default function TodayPage() {
   const { userId } = useAuth();
   const { organization } = useOrganization();
-  const [today, setToday] = useState(todayKey);
+  // "Today" is the team's day (#21); bumping `clock` re-reads it when the tab regains focus.
+  const timeZone = useTeamTimeZone();
+  const [, setClock] = useState(0);
+  const today = todayKey(timeZone);
   const start = weekStart(today);
   const days = weekDays(start);
   const convex = useConvex();
@@ -47,9 +51,8 @@ export default function TodayPage() {
 
   useEffect(() => {
     const refreshToday = () => {
-      const currentToday = todayKey();
-      const currentStart = weekStart(currentToday);
-      setToday(currentToday);
+      const currentStart = weekStart(todayKey(timeZone));
+      setClock((n) => n + 1);
       void convex.query(api.todos.listForTeam, { from: currentStart, to: shiftDays(currentStart, 6) }).catch(() => undefined);
     };
     const onFocus = () => refreshToday();
@@ -62,7 +65,7 @@ export default function TodayPage() {
       window.removeEventListener("focus", onFocus);
       document.removeEventListener("visibilitychange", onVisibility);
     };
-  }, [convex]);
+  }, [convex, timeZone]);
 
   const inScope = useMemo(
     () => (todos ?? []).filter((t) => scope === "team" || t.assigneeId === userId || (!t.assigneeId && t.createdBy === userId)),

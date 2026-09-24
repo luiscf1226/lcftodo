@@ -42,3 +42,8 @@ export const MAX_RANGE_DAYS = 366;
 
 // Rows per `activity.exportPage` call; larger requests are clamped to this.
 export const MAX_EXPORT_PAGE_SIZE = 1000;
+
+// Actor id recorded for changes made by scheduled jobs (e.g. nightly carry-over, #22).
+// The UI renders it as "System".
+export const SYSTEM_ACTOR_ID = "system";
+export const SYSTEM_ACTOR_NAME = "System";

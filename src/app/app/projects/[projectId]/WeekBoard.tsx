@@ -16,6 +16,7 @@ import { TodoDialog } from "@/components/TodoDialog";
 import { TodoItem } from "@/components/TodoItem";
 import { Modal } from "@/components/Modal";
 import { useMembers } from "@/components/useMembers";
+import { useTeamTimeZone } from "@/components/useTeamTimeZone";
 import { showToast } from "@/components/ToastViewport";
 import { useDismissibleMenu } from "@/components/useDismissibleMenu";
 import { fmt, fromKey, shiftDays, todayKey, weekDays, weekLabel, weekStart } from "@/lib/dates";
@@ -29,7 +30,7 @@ export function WeekBoard({ projectId }: { projectId: Id<"projects"> }) {
   const pathname = usePathname();
   const search = useSearchParams();
   const { userId } = useAuth();
-  const today = todayKey();
+  const today = todayKey(useTeamTimeZone());
   const requestedWeek = search.get("week");
   const start = weekStart(requestedWeek && isValid(fromKey(requestedWeek)) ? requestedWeek : today);
   const days = useMemo(() => weekDays(start), [start]);
