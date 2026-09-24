@@ -1,0 +1,38 @@
+{
+  "name": "lcftodos",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "dev": "npm-run-all --parallel dev:frontend dev:backend",
+    "build": "next build",
+    "start": "next start",
+    "lint": "eslint",
+    "test": "vitest run",
+    "dev:frontend": "next dev",
+    "dev:backend": "convex dev"
+  },
+  "dependencies": {
+    "@clerk/nextjs": "^7.9.5",
+    "clsx": "^2.1.1",
+    "convex": "^1.46.0",
+    "date-fns": "^4.4.0",
+    "lucide-react": "^1.47.0",
+    "next": "16.3.6",
+    "react": "19.2.8",
+    "react-dom": "19.2.8"
+  },
+  "devDependencies": {
+    "@edge-runtime/vm": "^5.0.0",
+    "@tailwindcss/postcss": "^4",
+    "@types/node": "^22.20.4",
+    "@types/react": "^19",
+    "@types/react-dom": "^19",
+    "convex-test": "^0.0.59",
+    "eslint": "^9",
+    "eslint-config-next": "16.3.6",
+    "npm-run-all": "^4.1.5",
+    "tailwindcss": "^4",
+    "typescript": "^5",
+    "vitest": "^5.0.1"
+  }
+}
