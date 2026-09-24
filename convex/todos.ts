@@ -1,13 +1,9 @@
 import { v } from "convex/values";
 import type { Doc } from "./_generated/dataModel";
 import { mutation, query } from "./_generated/server";
-import { getMember, log, requireMember, requireProject, requireTodo } from "./lib/auth";
+import { getMember, log, requireMember, requireTodo, requireWritableProject } from "./lib/auth";
+import { assignee, checkDate, checkRange, todoNotes, todoTitle } from "./lib/validate";
 import { status } from "./schema";
-
-const DATE = /^\d{4}-\d{2}-\d{2}$/;
-function checkDate(date: string) {
-  if (!DATE.test(date)) throw new Error("Invalid date.");
-}
 
 function nextDay(date: string) {
   const d = new Date(`${date}T00:00:00Z`);
@@ -35,11 +31,13 @@ export const listForProject = query({
 });
 
 // All todos in the team for a date range, joined with their project.
+// The range is capped (see checkRange) so the query stays bounded (#15).
 export const listForTeam = query({
   args: { from: v.string(), to: v.string() },
   handler: async (ctx, { from, to }) => {
     const member = await getMember(ctx);
     if (!member) return [];
+    checkRange(from, to);
     const [todos, projects] = await Promise.all([
       ctx.db
         .query("todos")
@@ -54,6 +52,7 @@ export const listForTeam = query({
     ]);
     const byId = new Map(projects.map((p) => [p._id, p]));
     return todos
+      .filter((t) => !byId.get(t.projectId)?.deleting)
       .sort((a, b) => a.date.localeCompare(b.date) || byOrder(a, b))
       .map((t) => {
         const p = byId.get(t.projectId);
@@ -72,18 +71,19 @@ export const create = mutation({
   },
   handler: async (ctx, args) => {
     const member = await requireMember(ctx);
-    const project = await requireProject(ctx, member, args.projectId);
+    const project = await requireWritableProject(ctx, member, args.projectId);
     checkDate(args.date);
-    const title = args.title.trim();
-    if (!title) throw new Error("Title is required.");
+    const title = todoTitle(args.title);
+    const notes = todoNotes(args.notes);
+    const assigneeId = await assignee(ctx, args.assigneeId);
     const todoId = await ctx.db.insert("todos", {
       orgId: member.orgId,
       projectId: project._id,
       title,
-      notes: args.notes?.trim() || undefined,
+      notes,
       date: args.date,
       status: "todo",
-      assigneeId: args.assigneeId || undefined,
+      assigneeId,
       createdBy: member.userId,
       order: Date.now(),
     });
@@ -103,12 +103,14 @@ export const update = mutation({
   handler: async (ctx, args) => {
     const member = await requireMember(ctx);
     const todo = await requireTodo(ctx, member, args.todoId);
-    const project = await requireProject(ctx, member, todo.projectId);
+    const project = await requireWritableProject(ctx, member, todo.projectId);
     checkDate(args.date);
-    const title = args.title.trim();
-    if (!title) throw new Error("Title is required.");
-    const notes = args.notes?.trim() || undefined;
-    const assigneeId = args.assigneeId || undefined;
+    const title = todoTitle(args.title);
+    const notes = todoNotes(args.notes);
+    // An unchanged assignee isn't re-validated, so a todo can still be edited if its assignee has
+    // no `users` row (yet).
+    const assigneeId =
+      args.assigneeId && args.assigneeId === todo.assigneeId ? todo.assigneeId : await assignee(ctx, args.assigneeId);
     await ctx.db.patch(todo._id, { title, notes, date: args.date, assigneeId });
 
     if (todo.date !== args.date) {
@@ -134,8 +136,8 @@ export const setStatus = mutation({
   handler: async (ctx, args) => {
     const member = await requireMember(ctx);
     const todo = await requireTodo(ctx, member, args.todoId);
+    const project = await requireWritableProject(ctx, member, todo.projectId);
     if (todo.status === args.status) return;
-    const project = await requireProject(ctx, member, todo.projectId);
     await ctx.db.patch(todo._id, {
       status: args.status,
       completedAt: args.status === "done" ? Date.now() : undefined,
@@ -151,7 +153,7 @@ export const remove = mutation({
   handler: async (ctx, { todoId }) => {
     const member = await requireMember(ctx);
     const todo = await requireTodo(ctx, member, todoId);
-    const project = await requireProject(ctx, member, todo.projectId);
+    const project = await requireWritableProject(ctx, member, todo.projectId);
     await ctx.db.delete(todo._id);
     await log(ctx, member, project, {
       action: "deleted", todoId: todo._id, todoTitle: todo.title, from: todo.status, date: todo.date,
@@ -165,7 +167,7 @@ export const carryOver = mutation({
   args: { projectId: v.id("projects"), date: v.string() },
   handler: async (ctx, { projectId, date }) => {
     const member = await requireMember(ctx);
-    const project = await requireProject(ctx, member, projectId);
+    const project = await requireWritableProject(ctx, member, projectId);
     checkDate(date);
     const to = nextDay(date);
     const open = (
@@ -177,6 +179,10 @@ export const carryOver = mutation({
 
     for (const t of open) {
       await ctx.db.patch(t._id, { status: "not_done", completedAt: undefined });
+      // Record the "didn't finish" on the original's own history (#33).
+      await log(ctx, member, project, {
+        action: "status", todoId: t._id, todoTitle: t.title, from: t.status, to: "not_done", date,
+      });
       const newId = await ctx.db.insert("todos", {
         orgId: t.orgId,
         projectId: t.projectId,

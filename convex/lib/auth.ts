@@ -44,6 +44,25 @@ export async function requireProject(
   return project;
 }
 
+/**
+ * Like requireProject, but also rejects projects whose todos are frozen:
+ * archived projects (#18) and projects that are being deleted (#16).
+ */
+export async function requireWritableProject(
+  ctx: QueryCtx,
+  member: Member,
+  projectId: Id<"projects">,
+): Promise<Doc<"projects">> {
+  const project = await requireProject(ctx, member, projectId);
+  if (project.archived) {
+    throw new Error("This project is archived. Restore it to make changes.");
+  }
+  if (project.deleting) {
+    throw new Error("This project is being deleted.");
+  }
+  return project;
+}
+
 export async function requireTodo(
   ctx: QueryCtx,
   member: Member,

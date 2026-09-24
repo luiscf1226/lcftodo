@@ -11,6 +11,10 @@
     "jsx": "react-jsx",
     "skipLibCheck": true,
     "allowSyntheticDefaultImports": true,
+    /* `vite/client` types `import.meta.glob`, which convex-test needs in
+     * *.test.ts. Setting "types" disables @types auto-inclusion, so list
+     * everything the functions rely on. */
+    "types": ["vite/client", "node"],
 
     /* These compiler options are required by Convex */
     "target": "ESNext",
