@@ -71,6 +71,8 @@ export default defineSchema({
     date: v.optional(v.string()),
   })
     .index("by_org", ["orgId"])
+    .index("by_org_actor", ["orgId", "actorId"])
     .index("by_project", ["projectId"])
+    .index("by_project_actor", ["projectId", "actorId"])
     .index("by_todo", ["todoId"]),
 });

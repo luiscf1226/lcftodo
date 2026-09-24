@@ -11,17 +11,26 @@ export const list = query({
   },
   handler: async (ctx, { paginationOpts, projectId, actorId }) => {
     const member = await requireMember(ctx);
+    // Every filter combination is served by an index (no `.filter()`), so pages are never
+    // sparse: a page scans only matching rows.
     let q;
     if (projectId) {
       const project = await ctx.db.get(projectId);
       if (!project || project.orgId !== member.orgId) {
         return { page: [], isDone: true, continueCursor: "" };
       }
-      q = ctx.db.query("activity").withIndex("by_project", (q) => q.eq("projectId", projectId));
+      q = actorId
+        ? ctx.db
+            .query("activity")
+            .withIndex("by_project_actor", (q) => q.eq("projectId", projectId).eq("actorId", actorId))
+        : ctx.db.query("activity").withIndex("by_project", (q) => q.eq("projectId", projectId));
     } else {
-      q = ctx.db.query("activity").withIndex("by_org", (q) => q.eq("orgId", member.orgId));
+      q = actorId
+        ? ctx.db
+            .query("activity")
+            .withIndex("by_org_actor", (q) => q.eq("orgId", member.orgId).eq("actorId", actorId))
+        : ctx.db.query("activity").withIndex("by_org", (q) => q.eq("orgId", member.orgId));
     }
-    if (actorId) q = q.filter((f) => f.eq(f.field("actorId"), actorId));
     return await q.order("desc").paginate(paginationOpts);
   },
 });
