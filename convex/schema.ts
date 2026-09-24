@@ -75,7 +75,9 @@ export default defineSchema({
     carriedFrom: v.optional(v.id("todos")),
   })
     .index("by_project_date", ["projectId", "date"])
-    .index("by_org_date", ["orgId", "date"]),
+    .index("by_org_date", ["orgId", "date"])
+    // Full-text search on titles, always scoped to one team (#26).
+    .searchIndex("search_title", { searchField: "title", filterFields: ["orgId"] }),
 
   activity: defineTable({
     orgId: v.string(),

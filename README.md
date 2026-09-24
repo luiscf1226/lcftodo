@@ -2,7 +2,8 @@
 
 Team todo app: sign up, create a team, create projects, invite teammates, plan todos per
 day across the week, track them as **To do / Doing / Done / Didn't finish**, and keep a full
-history you can export to CSV or JSON.
+history (day by day, per person, activity log) you can export to CSV, Excel (.xlsx) or JSON.
+Find any todo by title with **⌘K / Ctrl+K**.
 
 Stack: **Next.js 16** · **Clerk** (auth + Organizations = teams) · **Convex** (backend) · Tailwind 4.
 Product plan: [`docs/PLAN.md`](docs/PLAN.md).
@@ -74,6 +75,8 @@ npm test                  # backend tests (convex-test)
   (`convex/lib/auth.ts`) — teams can never see each other's data. After the
   membership backfill, it also requires an active synced membership.
 - `activity` is an append-only log; deleting a todo or project keeps its history.
+- Search (`convex/search.ts`) uses the `todos.search_title` search index, filtered by
+  the caller's team, and links each result to its project week.
 - *Carry* on a day moves unfinished todos to the next day and marks the originals
   *Didn't finish*, so slippage stays visible in History.
 - Invite teammates from **Team** (Clerk's organization profile: members, invitations, roles).

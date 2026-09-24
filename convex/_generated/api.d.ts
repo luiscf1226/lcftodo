@@ -16,6 +16,7 @@ import type * as lib_tombstones from "../lib/tombstones.js";
 import type * as lib_validate from "../lib/validate.js";
 import type * as memberships from "../memberships.js";
 import type * as projects from "../projects.js";
+import type * as search from "../search.js";
 import type * as todos from "../todos.js";
 import type * as users from "../users.js";
 
@@ -34,6 +35,7 @@ declare const fullApi: ApiFromModules<{
   "lib/validate": typeof lib_validate;
   memberships: typeof memberships;
   projects: typeof projects;
+  search: typeof search;
   todos: typeof todos;
   users: typeof users;
 }>;
