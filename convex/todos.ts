@@ -1,7 +1,9 @@
 import { v } from "convex/values";
 import type { Doc } from "./_generated/dataModel";
 import { mutation, query } from "./_generated/server";
-import { getMember, log, requireMember, requireTodo, requireWritableProject } from "./lib/auth";
+import {
+  accessibleProjectIds, canReadProject, getMember, inScope, log, requireMember, requireTodo, requireWritableProject,
+} from "./lib/auth";
 import { carryOverDay } from "./lib/carryOver";
 import { assignee, checkDate, checkRange, todoNotes, todoTitle } from "./lib/validate";
 import { status } from "./schema";
@@ -14,7 +16,7 @@ export const listForProject = query({
     const member = await getMember(ctx);
     if (!member) return [];
     const project = await ctx.db.get(projectId);
-    if (!project || project.orgId !== member.orgId) return [];
+    if (!(await canReadProject(ctx, member, project))) return [];
     checkRange(from, to);
     const todos = await ctx.db
       .query("todos")
@@ -34,7 +36,7 @@ export const listForTeam = query({
     const member = await getMember(ctx);
     if (!member) return [];
     checkRange(from, to);
-    const [todos, projects] = await Promise.all([
+    const [todos, projects, scope] = await Promise.all([
       ctx.db
         .query("todos")
         .withIndex("by_org_date", (q) =>
@@ -45,10 +47,12 @@ export const listForTeam = query({
         .query("projects")
         .withIndex("by_org", (q) => q.eq("orgId", member.orgId))
         .collect(),
+      accessibleProjectIds(ctx, member),
     ]);
-    const byId = new Map(projects.map((p) => [p._id, p]));
+    // Only projects the caller may read (#46); a restricted member never sees other projects' rows.
+    const byId = new Map(projects.filter((p) => !p.deleting && inScope(scope, p._id)).map((p) => [p._id, p]));
     return todos
-      .filter((t) => !byId.get(t.projectId)?.deleting)
+      .filter((t) => byId.has(t.projectId))
       .sort((a, b) => a.date.localeCompare(b.date) || byOrder(a, b))
       .map((t) => {
         const p = byId.get(t.projectId);
@@ -72,8 +76,7 @@ export const get = query({
     const todo = await ctx.db.get(todoId);
     if (!todo || todo.orgId !== member.orgId) return null;
     const project = await ctx.db.get(todo.projectId);
-    if (!project || project.deleting) return null;
-    return todo;
+    return (await canReadProject(ctx, member, project)) ? todo : null;
   },
 });
 
@@ -91,7 +94,7 @@ export const create = mutation({
     checkDate(args.date);
     const title = todoTitle(args.title);
     const notes = todoNotes(args.notes);
-    const assigneeId = await assignee(ctx, member.orgId, args.assigneeId);
+    const assigneeId = await assignee(ctx, project, args.assigneeId);
     const todoId = await ctx.db.insert("todos", {
       orgId: member.orgId,
       projectId: project._id,
@@ -123,10 +126,10 @@ export const update = mutation({
     checkDate(args.date);
     const title = todoTitle(args.title);
     const notes = todoNotes(args.notes);
-    // Preserve a historical assignee when editing other fields, even if their
-    // membership has since been removed.
+    // Preserve a historical assignee when editing other fields, even if their team membership
+    // or project access has since been removed (#46); only a new assignee is validated.
     const assigneeId =
-      args.assigneeId && args.assigneeId === todo.assigneeId ? todo.assigneeId : await assignee(ctx, member.orgId, args.assigneeId);
+      args.assigneeId && args.assigneeId === todo.assigneeId ? todo.assigneeId : await assignee(ctx, project, args.assigneeId);
     await ctx.db.patch(todo._id, { title, notes, date: args.date, assigneeId });
 
     if (todo.date !== args.date) {

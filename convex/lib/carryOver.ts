@@ -1,6 +1,6 @@
 import type { Doc } from "../_generated/dataModel";
 import type { MutationCtx } from "../_generated/server";
-import { log, type Member } from "./auth";
+import { isRestricted, log, userCanAccessProject, type Member } from "./auth";
 import { addDaysToKey } from "./timezone";
 
 /**
@@ -26,6 +26,16 @@ export async function carryOverDay(
       .collect()
   ).filter((t) => t.status === "todo" || t.status === "doing");
 
+  // The original keeps its (historical) assignee, but new work is only carried to people who
+  // can still access the project; other copies are left unassigned for an admin to reassign (#46).
+  const restricted = await isRestricted(ctx, project.orgId);
+  const eligible = new Map<string, boolean>();
+  const carriedAssignee = async (assigneeId: string | undefined) => {
+    if (!assigneeId || !restricted) return assigneeId;
+    if (!eligible.has(assigneeId)) eligible.set(assigneeId, await userCanAccessProject(ctx, project, assigneeId));
+    return eligible.get(assigneeId) ? assigneeId : undefined;
+  };
+
   for (const t of open) {
     await ctx.db.patch(t._id, { status: "not_done", completedAt: undefined });
     // Record the "didn't finish" on the original's own history (#33).
@@ -39,7 +49,7 @@ export async function carryOverDay(
       notes: t.notes,
       date: to,
       status: t.status,
-      assigneeId: t.assigneeId,
+      assigneeId: await carriedAssignee(t.assigneeId),
       createdBy: actor.userId,
       order: t.order,
       carriedFrom: t._id,
