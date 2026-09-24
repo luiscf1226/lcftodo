@@ -5,6 +5,7 @@ import { getMember, log, requireMember, requireTodo, requireWritableProject } fr
 import { carryOverDay } from "./lib/carryOver";
 import { deleteTodo } from "./lib/cascade";
 import { needsRebalance, ORDER_STEP } from "./lib/ordering";
+import { notifyAssigned } from "./lib/notify";
 import { assignee, checkDate, checkRange, todoNotes, todoTitle } from "./lib/validate";
 import { status } from "./schema";
 
@@ -106,6 +107,7 @@ export const create = mutation({
       order: Date.now(),
     });
     await log(ctx, member, project, { action: "created", todoId, todoTitle: title, date: args.date });
+    if (assigneeId) await notifyAssigned(ctx, member, project, { todoId, title, date: args.date }, assigneeId);
     return todoId;
   },
 });
@@ -135,6 +137,9 @@ export const update = mutation({
       // Editing one occurrence of a series detaches it: later series edits leave it alone (#23).
       ...(todo.recurrenceId && changed ? { recurrenceDetached: true } : {}),
     });
+    if (assigneeId && assigneeId !== todo.assigneeId) {
+      await notifyAssigned(ctx, member, project, { todoId: todo._id, title, date: args.date }, assigneeId);
+    }
 
     if (todo.date !== args.date) {
       await log(ctx, member, project, {

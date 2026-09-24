@@ -156,4 +156,54 @@ export default defineSchema({
   })
     .index("by_org", ["orgId"])
     .index("by_project", ["projectId"]),
+
+  // --- Notifications (#25) ---
+
+  // Per-user email preferences (apply to every team). Missing row = all on.
+  notificationPrefs: defineTable({
+    userId: v.string(),
+    emailDigest: v.boolean(),
+    emailAssigned: v.boolean(),
+    updatedAt: v.number(),
+  }).index("by_user", ["userId"]),
+
+  // One row per member per team-local day: makes the daily digest idempotent.
+  digestSends: defineTable({
+    orgId: v.string(),
+    userId: v.string(),
+    date: v.string(),
+    status: v.union(v.literal("pending"), v.literal("sent"), v.literal("skipped"), v.literal("failed")),
+    attempts: v.number(),
+    updatedAt: v.number(),
+  }).index("by_org_user_date", ["orgId", "userId", "date"]),
+
+  // In-app notifications (the bell).
+  notifications: defineTable({
+    orgId: v.string(),
+    userId: v.string(),
+    kind: v.literal("assigned"),
+    todoId: v.id("todos"),
+    todoTitle: v.string(),
+    projectName: v.string(),
+    date: v.string(),
+    actorId: v.string(),
+    read: v.boolean(),
+  })
+    .index("by_org_user", ["orgId", "userId"])
+    .index("by_org_user_read", ["orgId", "userId", "read"]),
+
+  // Optional Slack incoming webhook per team (admin-only). The URL is a secret:
+  // it is never returned to clients or logged.
+  teamSlack: defineTable({
+    orgId: v.string(),
+    webhookUrl: v.optional(v.string()),
+    postAssignments: v.boolean(),
+    postDigest: v.boolean(),
+    // Team-local day the Slack summary was last posted for.
+    lastDigestDate: v.optional(v.string()),
+    updatedBy: v.string(),
+    updatedAt: v.number(),
+  })
+    .index("by_org", ["orgId"])
+    .index("by_postDigest", ["postDigest"]),
 });

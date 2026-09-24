@@ -3,7 +3,7 @@
 import { OrganizationList, OrganizationSwitcher, UserButton, useOrganization } from "@clerk/nextjs";
 import clsx from "clsx";
 import { useConvexAuth, useMutation, useQuery } from "convex/react";
-import { CircleHelp, FolderKanban, History, LayoutDashboard, Users } from "lucide-react";
+import { Bell, CircleHelp, FolderKanban, History, LayoutDashboard, Users } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useEffect, useState, type ReactNode } from "react";
@@ -41,6 +41,8 @@ export function AppShell({ children }: { children: ReactNode }) {
     setTutorialDismissed(true);
   };
   const openTutorial = () => setTutorialRequested(true);
+
+  const unread = useQuery(api.notifications.unreadCount, isAuthenticated ? {} : "skip") ?? 0;
 
   const isActive = (href: string) => (href === "/app" ? pathname === "/app" : pathname.startsWith(href));
 
@@ -81,6 +83,16 @@ export function AppShell({ children }: { children: ReactNode }) {
               <Icon className="size-4" /> {label}
             </Link>
           ))}
+          <Link
+            href="/app/notifications"
+            className={clsx(
+              "flex items-center gap-2.5 rounded-lg px-2.5 py-2 text-sm",
+              isActive("/app/notifications") ? "bg-surface-2 font-medium text-fg" : "text-muted hover:bg-surface-2 hover:text-fg",
+            )}
+          >
+            <Bell className="size-4" /> Notifications
+            <UnreadBadge count={unread} className="ml-auto" />
+          </Link>
         </nav>
         <div className="mt-auto space-y-3 px-1">
           <button
@@ -99,6 +111,15 @@ export function AppShell({ children }: { children: ReactNode }) {
         <OrganizationSwitcher hidePersonal afterSelectOrganizationUrl="/app" afterCreateOrganizationUrl="/app" />
         <div className="flex items-center gap-2">
           <SearchButton compact />
+          <Link
+            href="/app/notifications"
+            className="btn-ghost relative p-1.5 text-muted"
+            aria-label={unread ? `Notifications, ${unread > 99 ? "99+" : unread} unread` : "Notifications"}
+            title="Notifications"
+          >
+            <Bell className="size-5" />
+            <UnreadBadge count={unread} className="absolute -top-0.5 -right-0.5" />
+          </Link>
           <button type="button" onClick={openTutorial} className="btn-ghost p-1.5 text-muted" aria-label="Open tutorial" title="Tutorial">
             <CircleHelp className="size-5" />
           </button>
@@ -124,5 +145,17 @@ export function AppShell({ children }: { children: ReactNode }) {
       <TodoSearch />
       <ToastViewport />
     </div>
+  );
+}
+
+function UnreadBadge({ count, className }: { count: number; className?: string }) {
+  if (count <= 0) return null;
+  return (
+    <span
+      aria-label={`${count > 99 ? "99+" : count} unread`}
+      className={clsx("min-w-5 rounded-full bg-accent px-1.5 text-center text-[11px] leading-5 font-medium text-accent-fg", className)}
+    >
+      {count > 99 ? "99+" : count}
+    </span>
   );
 }

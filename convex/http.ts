@@ -2,6 +2,8 @@ import { httpRouter } from "convex/server";
 import { Webhook } from "svix";
 import { internal } from "./_generated/api";
 import { httpAction } from "./_generated/server";
+import { escapeHtml } from "./lib/email";
+import { UNSUBSCRIBE_PATH, verifyUnsubscribeToken } from "./lib/unsubscribe";
 
 const http = httpRouter();
 
@@ -75,6 +77,58 @@ http.route({
       await ctx.runMutation(internal.users.deleteFromWebhook, { clerkId: data.id });
     }
     return new Response("OK");
+  }),
+});
+
+// Login-free unsubscribe (#25). GET shows a confirmation form so link scanners
+// can't unsubscribe anyone; POST (the form, or RFC 8058 one-click) applies it.
+function page(title: string, body: string, status = 200) {
+  const html = `<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">` +
+    `<meta name="robots" content="noindex"><title>${escapeHtml(title)}</title></head>` +
+    `<body style="font-family:system-ui,-apple-system,Segoe UI,sans-serif;max-width:32rem;margin:4rem auto;padding:0 1rem;color:#0f172a">` +
+    `<h1 style="font-size:1.25rem">${escapeHtml(title)}</h1>${body}</body></html>`;
+  return new Response(html, {
+    status,
+    headers: {
+      "Content-Type": "text/html; charset=utf-8",
+      "Cache-Control": "no-store",
+      "Referrer-Policy": "no-referrer",
+      "Content-Security-Policy": "default-src 'none'; style-src 'unsafe-inline'; form-action 'self'",
+    },
+  });
+}
+
+const KIND_LABEL = { digest: "the daily digest email", assigned: "assignment emails" } as const;
+const invalidLink = () =>
+  page("Link not valid", "<p>This unsubscribe link is invalid. You can change email settings in LCF Todos under Notifications.</p>", 400);
+
+http.route({
+  path: UNSUBSCRIBE_PATH,
+  method: "GET",
+  handler: httpAction(async (_ctx, request) => {
+    const token = new URL(request.url).searchParams.get("token") ?? "";
+    const target = await verifyUnsubscribeToken(token);
+    if (!target) return invalidLink();
+    const action = `${UNSUBSCRIBE_PATH}?token=${encodeURIComponent(token)}`;
+    return page(
+      "Unsubscribe",
+      `<p>Stop receiving ${KIND_LABEL[target.kind]} from LCF Todos?</p>` +
+        `<form method="post" action="${escapeHtml(action)}"><button type="submit" style="padding:.5rem 1rem;font:inherit">Unsubscribe</button></form>`,
+    );
+  }),
+});
+
+http.route({
+  path: UNSUBSCRIBE_PATH,
+  method: "POST",
+  handler: httpAction(async (ctx, request) => {
+    const target = await verifyUnsubscribeToken(new URL(request.url).searchParams.get("token") ?? "");
+    if (!target) return invalidLink();
+    await ctx.runMutation(internal.notifications.unsubscribe, target);
+    return page(
+      "You're unsubscribed",
+      `<p>You won't receive ${KIND_LABEL[target.kind]} anymore. You can turn it back on in LCF Todos under Notifications.</p>`,
+    );
   }),
 });
 
