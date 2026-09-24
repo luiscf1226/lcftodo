@@ -177,7 +177,9 @@ export default defineSchema({
     editedAt: v.optional(v.number()),
   })
     .index("by_todo", ["todoId"])
-    .index("by_project", ["projectId"]),
+    .index("by_project", ["projectId"])
+    // Admin full team export (#36).
+    .index("by_org", ["orgId"]),
 
   // Recurring todo series (#23). Occurrences are ordinary todos with `recurrenceId`.
   recurrences: defineTable({

@@ -5,6 +5,7 @@ import { useQuery } from "convex/react";
 import { api } from "../../../../../convex/_generated/api";
 import { ProjectAccessPanel } from "@/components/ProjectAccessPanel";
 import { TeamSettings } from "@/components/TeamSettings";
+import { TeamBackupExport } from "@/components/TeamBackupExport";
 
 export default function TeamPage() {
   const me = useQuery(api.projectAccess.me, {});
@@ -30,6 +31,7 @@ export default function TeamPage() {
         </p>
       )}
       <TeamSettings />
+      <TeamBackupExport />
       <OrganizationProfile
         path="/app/team"
         routing="path"
