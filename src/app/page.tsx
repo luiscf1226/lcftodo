@@ -35,7 +35,9 @@ export default async function Home() {
         </span>
         <div className="flex items-center gap-2">
           <ThemeToggle compact className="sm:hidden" />
-          <ThemeToggle className="hidden sm:inline-flex" />
+          <span className="hidden sm:inline-flex">
+            <ThemeToggle />
+          </span>
           <Link href="/sign-in" className="btn-ghost">
             Iniciar sesión
           </Link>
