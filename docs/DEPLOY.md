@@ -37,6 +37,8 @@ npx convex dev --once --configure new       # creates the project + dev deployme
 npx convex env set CLERK_JWT_ISSUER_DOMAIN https://<name>.clerk.accounts.dev
 npx convex env set CLERK_JWT_ISSUER_DOMAIN https://<name>.clerk.accounts.dev --prod
 ```
+Then set up the Clerk webhook, `CLERK_WEBHOOK_SECRET`/`CLERK_SECRET_KEY`, and the membership
+backfill on both deployments: see `README.md` → *Membership sync*.
 Then in the dashboard: **Production deployment → Settings → Generate Production Deploy Key**.
 Also note the dev deployment URL (`https://<dev-name>.convex.cloud`, in `.env.local`).
 
@@ -71,7 +73,8 @@ After that, every merge to `main` deploys automatically.
 ### 6. Later: production Clerk instance
 Needs a domain you own. Create the production instance in Clerk, repeat steps 1.2–1.5 there, add
 the DNS records Clerk shows, swap the Vercel **Production** keys to `pk_live_…`/`sk_live_…`, and
-set `CLERK_JWT_ISSUER_DOMAIN` on the **prod** Convex deployment to the new Frontend API URL.
+set `CLERK_JWT_ISSUER_DOMAIN` on the **prod** Convex deployment to the new Frontend API URL. Redo
+the *Membership sync* webhook and secrets for the production instance.
 
 ## Branch protection (#32)
 After CI has run once on `main`, run the command in `docs/CI.md`.

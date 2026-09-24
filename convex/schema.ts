@@ -23,11 +23,41 @@ export const action = v.union(
 );
 
 export default defineSchema({
+  memberships: defineTable({
+    orgId: v.string(),
+    userId: v.string(),
+    role: v.string(),
+    active: v.boolean(),
+    // Clerk's immutable membership id and timestamps (ms); a re-invite gets a new id.
+    membershipId: v.optional(v.string()),
+    membershipCreatedAt: v.optional(v.number()),
+    lastEventAt: v.optional(v.number()),
+    updatedAt: v.number(),
+    backfillRunId: v.optional(v.string()),
+  })
+    .index("by_org", ["orgId"])
+    .index("by_org_user", ["orgId", "userId"])
+    .index("by_user", ["userId"]),
+
+  // Clerk deletions are terminal for a membership or user id, so retried older events are ignored.
+  tombstones: defineTable({
+    kind: v.union(v.literal("membership"), v.literal("user")),
+    clerkId: v.string(),
+  }).index("by_kind_clerkId", ["kind", "clerkId"]),
+
+  membershipSync: defineTable({
+    orgId: v.string(),
+    ready: v.boolean(),
+    backfilledAt: v.number(),
+  }).index("by_org", ["orgId"]),
+
   users: defineTable({
     clerkId: v.string(),
     name: v.string(),
     email: v.optional(v.string()),
     imageUrl: v.optional(v.string()),
+    // Clerk's `updated_at` (ms) of the last applied profile webhook.
+    clerkUpdatedAt: v.optional(v.number()),
     // When the user checked off the first-run tutorial. Missing = not completed yet.
     onboardingCompletedAt: v.optional(v.number()),
   }).index("by_clerkId", ["clerkId"]),

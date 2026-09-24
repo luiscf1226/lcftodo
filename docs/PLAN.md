@@ -39,7 +39,10 @@ full, exportable history.
 ## Data model (Convex)
 
 ```
-users     { clerkId, name, email?, imageUrl? }                         by_clerkId
+users     { clerkId, name, email?, imageUrl?, clerkUpdatedAt? }        by_clerkId
+memberships { orgId, userId, role, active, membershipId?, updatedAt, … } by_org, by_org_user, by_user
+membershipSync { orgId, ready, backfilledAt }                          by_org
+tombstones { kind, clerkId }                                           by_kind_clerkId
 projects  { orgId, name, description?, color, archived, createdBy }    by_org
 todos     { orgId, projectId, title, notes?, date, status, assigneeId?,
             createdBy, order, completedAt?, carriedFrom? }             by_project_date, by_org_date
@@ -51,7 +54,9 @@ activity  { orgId, projectId, todoId?, actorId, action, todoTitle,
 
 `convex/lib/auth.ts#requireMember` reads the Clerk identity and the active organization
 (`org_id` / `org_role` claims) on every query/mutation, and every document read or written is
-checked against that `orgId`. Deleting projects is admin-only.
+checked against that `orgId`. Once a team's membership backfill has run, it also requires an
+active synced `memberships` row and takes the role from it (see `README.md` → *Membership sync*).
+Deleting projects is admin-only.
 
 ## Milestones
 
@@ -99,7 +104,7 @@ uses it, **P1** = should have soon, **P2** = nice to have.
 | T-16 | **Large project delete** | Delete projects in batches (scheduled mutation) so big projects don't hit Convex transaction limits. |
 | T-17 | **Menus close properly** | Project menu and Export menu close on outside click and `Esc`. |
 | T-18 | **Archived projects are read-only** | Todos in archived projects can't be created/edited/status-changed (server-enforced), UI shows it. |
-| T-19 | **Profile sync** | Clerk `user.updated` webhook → Convex `users` so name/avatar changes show without the user re-logging in. |
+| T-19 | **Profile sync** ✅ (#30) | Clerk `user.updated` webhook → Convex `users` so name/avatar changes show without the user re-logging in. |
 | T-20 | **E2E tests** | Playwright covering the T-03 flow using Clerk testing tokens; runs in CI. |
 
 ### P2 — Nice to have

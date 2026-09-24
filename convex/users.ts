@@ -1,7 +1,8 @@
 import { v } from "convex/values";
 import type { UserIdentity } from "convex/server";
-import { mutation, query, type QueryCtx } from "./_generated/server";
+import { internalMutation, mutation, query, type QueryCtx } from "./_generated/server";
 import { requireMember } from "./lib/auth";
+import { isTombstoned, tombstone } from "./lib/tombstones";
 
 function profileFields(identity: UserIdentity) {
   return {
@@ -19,7 +20,9 @@ function findUser(ctx: QueryCtx, clerkId: string) {
     .unique();
 }
 
-// Called by the client after sign-in so teammates can see names and avatars.
+// Called after sign-in so teammates can see names and avatars. Once a Clerk webhook has
+// synced the profile (clerkUpdatedAt), webhooks own it and a stale session token can't
+// overwrite it.
 export const store = mutation({
   args: {},
   handler: async (ctx) => {
@@ -28,9 +31,10 @@ export const store = mutation({
     const fields = profileFields(identity);
     const existing = await findUser(ctx, identity.subject);
     if (existing) {
-      await ctx.db.patch(existing._id, fields);
+      if (existing.clerkUpdatedAt === undefined) await ctx.db.patch(existing._id, fields);
       return existing._id;
     }
+    if (await isTombstoned(ctx, "user", identity.subject)) throw new Error("This account was deleted.");
     return await ctx.db.insert("users", fields);
   },
 });
@@ -38,14 +42,14 @@ export const store = mutation({
 export const byClerkIds = query({
   args: { clerkIds: v.array(v.string()) },
   handler: async (ctx, { clerkIds }) => {
-    await requireMember(ctx);
+    const member = await requireMember(ctx);
     const users = await Promise.all(
-      [...new Set(clerkIds)].slice(0, 200).map((clerkId) =>
-        ctx.db
-          .query("users")
-          .withIndex("by_clerkId", (q) => q.eq("clerkId", clerkId))
-          .unique(),
-      ),
+      [...new Set(clerkIds)].slice(0, 200).map(async (clerkId) => {
+        const membership = await ctx.db.query("memberships")
+          .withIndex("by_org_user", (q) => q.eq("orgId", member.orgId).eq("userId", clerkId)).unique();
+        if (!membership && clerkId !== member.userId) return null;
+        return await findUser(ctx, clerkId);
+      }),
     );
     return users
       .filter((u) => u !== null)
@@ -80,6 +84,37 @@ export const completeOnboarding = mutation({
       }
       return;
     }
+    if (await isTombstoned(ctx, "user", identity.subject)) throw new Error("This account was deleted.");
     await ctx.db.insert("users", { ...profileFields(identity), onboardingCompletedAt: Date.now() });
+  },
+});
+
+export const upsertFromWebhook = internalMutation({
+  args: {
+    clerkId: v.string(), name: v.string(), email: v.optional(v.string()), imageUrl: v.optional(v.string()),
+    updatedAt: v.number(),
+  },
+  handler: async (ctx, { updatedAt, ...fields }) => {
+    if (!Number.isFinite(updatedAt)) throw new Error("Invalid user event.");
+    if (await isTombstoned(ctx, "user", fields.clerkId)) return;
+    const existing = await findUser(ctx, fields.clerkId);
+    if (existing && (existing.clerkUpdatedAt ?? 0) > updatedAt) return;
+    if (existing) await ctx.db.patch(existing._id, { ...fields, clerkUpdatedAt: updatedAt });
+    else await ctx.db.insert("users", { ...fields, clerkUpdatedAt: updatedAt });
+  },
+});
+
+export const deleteFromWebhook = internalMutation({
+  args: { clerkId: v.string() },
+  handler: async (ctx, { clerkId }) => {
+    await tombstone(ctx, "user", clerkId);
+    const user = await findUser(ctx, clerkId);
+    if (user) await ctx.db.delete(user._id);
+    const memberships = await ctx.db.query("memberships")
+      .withIndex("by_user", (q) => q.eq("userId", clerkId)).collect();
+    for (const membership of memberships) {
+      if (membership.membershipId) await tombstone(ctx, "membership", membership.membershipId);
+      if (membership.active) await ctx.db.patch(membership._id, { active: false, updatedAt: Date.now() });
+    }
   },
 });

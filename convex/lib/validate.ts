@@ -83,15 +83,14 @@ export function checkRange(from: string, to: string) {
 
 /**
  * Validates an optional assignee; empty becomes undefined.
- * TODO(#30): check against the team membership table once it exists — for now
- * we only reject ids that aren't present in `users`.
+ * Only active members of the current team may receive work.
  */
-export async function assignee(ctx: QueryCtx, assigneeId: string | undefined): Promise<string | undefined> {
+export async function assignee(ctx: QueryCtx, orgId: string, assigneeId: string | undefined): Promise<string | undefined> {
   if (!assigneeId) return undefined;
-  const user = await ctx.db
-    .query("users")
-    .withIndex("by_clerkId", (q) => q.eq("clerkId", assigneeId))
+  const membership = await ctx.db
+    .query("memberships")
+    .withIndex("by_org_user", (q) => q.eq("orgId", orgId).eq("userId", assigneeId))
     .unique();
-  if (!user) throw new Error("Assignee is not a member of this team.");
+  if (!membership?.active) throw new Error("Assignee is not an active member of this team.");
   return assigneeId;
 }
