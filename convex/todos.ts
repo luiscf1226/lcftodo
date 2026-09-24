@@ -4,6 +4,7 @@ import { mutation, query } from "./_generated/server";
 import { getMember, log, requireMember, requireTodo, requireWritableProject } from "./lib/auth";
 import { carryOverDay } from "./lib/carryOver";
 import { deleteTodo } from "./lib/cascade";
+import { needsRebalance, ORDER_STEP } from "./lib/ordering";
 import { assignee, checkDate, checkRange, todoNotes, todoTitle } from "./lib/validate";
 import { status } from "./schema";
 
@@ -148,6 +149,49 @@ export const update = mutation({
         from: todo.title !== title ? todo.title : undefined,
         to: todo.title !== title ? title : undefined,
         date: args.date,
+      });
+    }
+  },
+});
+
+// Drag & drop (#13): moves a todo to `date` at fractional position `order`
+// (computed by the client between its new neighbours, see lib/ordering).
+// Logs `moved` when the day changes; a reorder within a day is not logged.
+export const move = mutation({
+  args: { todoId: v.id("todos"), date: v.string(), order: v.number() },
+  handler: async (ctx, args) => {
+    const member = await requireMember(ctx);
+    const todo = await requireTodo(ctx, member, args.todoId);
+    const project = await requireWritableProject(ctx, member, todo.projectId);
+    checkDate(args.date);
+    if (!Number.isFinite(args.order)) throw new Error("Invalid position.");
+    if (todo.date === args.date && todo.order === args.order) return;
+
+    await ctx.db.patch(todo._id, {
+      date: args.date,
+      order: args.order,
+      // Moving one occurrence of a series to another day detaches it, like an edit does (#23).
+      ...(todo.recurrenceId && todo.date !== args.date ? { recurrenceDetached: true } : {}),
+    });
+
+    // When neighbours get too close to tell apart, renumber the whole day
+    // (a single project's day, so the read stays small) keeping its sequence.
+    const day = (
+      await ctx.db
+        .query("todos")
+        .withIndex("by_project_date", (q) => q.eq("projectId", todo.projectId).eq("date", args.date))
+        .collect()
+    ).sort((a, b) => a.order - b.order || a._creationTime - b._creationTime);
+    if (needsRebalance(day)) {
+      for (const [i, t] of day.entries()) {
+        const order = (i + 1) * ORDER_STEP;
+        if (t.order !== order) await ctx.db.patch(t._id, { order });
+      }
+    }
+
+    if (todo.date !== args.date) {
+      await log(ctx, member, project, {
+        action: "moved", todoId: todo._id, todoTitle: todo.title, from: todo.date, to: args.date, date: args.date,
       });
     }
   },
