@@ -42,7 +42,7 @@ describe("peopleStats", () => {
 
   test("always shows every member and an Unassigned bucket", () => {
     const stats = peopleStats([{ status: "todo" }, { assigneeId: "", status: "done" }], members, nameOf);
-    expect(stats.map((p) => p.name)).toEqual(["Unassigned", "Ana", "Ben", "Cy"]);
+    expect(stats.map((p) => p.name)).toEqual(["Sin asignar", "Ana", "Ben", "Cy"]);
     expect(stats[0]).toMatchObject({ id: undefined, assigned: 2, done: 1, open: 1 });
     expect(stats.find((p) => p.id === "u_cy")).toMatchObject({ assigned: 0 });
   });
@@ -63,7 +63,7 @@ describe("peopleStats", () => {
       members,
       nameOf,
     );
-    expect(stats.map((p) => p.name)).toEqual(["Cy", "Ben", "Ana", "Unassigned"]);
+    expect(stats.map((p) => p.name)).toEqual(["Cy", "Ben", "Ana", "Sin asignar"]);
   });
 
   test("buckets sum to the number of todos", () => {

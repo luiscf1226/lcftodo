@@ -23,9 +23,9 @@ export function TeamChooser({ pending }: { pending: boolean }) {
   return (
     <>
       <div className="text-center">
-        <h1 className="text-2xl font-semibold tracking-tight">Choose a team</h1>
+        <h1 className="text-2xl font-semibold tracking-tight">Elige un equipo</h1>
         <p className="mt-1 text-sm text-pretty text-muted">
-          Pick one of your teams, or create a new one. You can switch teams any time.
+          Elige uno de tus equipos o crea uno nuevo. Puedes cambiar de equipo cuando quieras.
         </p>
       </div>
       <OrganizationList
@@ -35,7 +35,7 @@ export function TeamChooser({ pending }: { pending: boolean }) {
       />
       <SignOutButton>
         <button type="button" className="btn-ghost text-muted">
-          Sign out
+          Cerrar sesión
         </button>
       </SignOutButton>
     </>

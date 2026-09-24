@@ -1,4 +1,5 @@
 import { addDays, format, isValid, parseISO, startOfWeek } from "date-fns";
+import { es } from "date-fns/locale";
 import { dateKeyInZone, startOfDayInZone } from "../../convex/lib/timezone";
 
 // Dates are stored as calendar days ("YYYY-MM-DD") in the team's time zone
@@ -29,10 +30,18 @@ export function weekDays(startKey: string) {
 
 export const shiftDays = (key: string, n: number) => toKey(addDays(fromKey(key), n));
 
-export const fmt = (key: string, pattern: string) => format(fromKey(key), pattern);
+const SPANISH_PATTERNS: Record<string, string> = {
+  "EEEE, MMMM d": "EEEE d 'de' MMMM",
+  "EEEE, MMMM d, yyyy": "EEEE d 'de' MMMM 'de' yyyy",
+  "EEE, MMM d": "EEE d MMM",
+  "EEE, MMM d, yyyy": "EEE d MMM yyyy",
+  "MMM d": "d MMM",
+};
+
+export const fmt = (key: string, pattern: string) =>
+  format(fromKey(key), SPANISH_PATTERNS[pattern] ?? pattern, { locale: es });
 
 export function weekLabel(startKey: string) {
   const end = shiftDays(startKey, 6);
-  const sameMonth = startKey.slice(0, 7) === end.slice(0, 7);
-  return `${fmt(startKey, "MMM d")} – ${fmt(end, sameMonth ? "d, yyyy" : "MMM d, yyyy")}`;
+  return `${fmt(startKey, "d MMM")} – ${fmt(end, "d MMM yyyy")}`;
 }

@@ -15,10 +15,10 @@ import { ThemeToggle } from "@/components/ThemeToggle";
 import { ONBOARDING_PATH } from "@/lib/routes";
 
 const NAV = [
-  { href: "/app", label: "Today", icon: LayoutDashboard },
-  { href: "/app/projects", label: "Projects", icon: FolderKanban },
-  { href: "/app/history", label: "History", icon: History },
-  { href: "/app/team", label: "Team", icon: Users },
+  { href: "/app", label: "Hoy", icon: LayoutDashboard },
+  { href: "/app/projects", label: "Proyectos", icon: FolderKanban },
+  { href: "/app/history", label: "Historial", icon: History },
+  { href: "/app/team", label: "Equipo", icon: Users },
 ] as const;
 
 export function AppShell({ children }: { children: ReactNode }) {
@@ -58,7 +58,7 @@ export function AppShell({ children }: { children: ReactNode }) {
   if (needsTeam) {
     return (
       <main className="grid min-h-dvh place-items-center p-4 text-sm text-muted" aria-live="polite">
-        Taking you to team setup…
+        Abriendo la configuración del equipo…
       </main>
     );
   }
@@ -101,7 +101,7 @@ export function AppShell({ children }: { children: ReactNode }) {
                 : "text-muted hover:bg-surface-2 hover:text-fg",
             )}
           >
-            <Bell className="size-4" /> Notifications
+            <Bell className="size-4" /> Notificaciones
             <UnreadBadge count={unread} className="ml-auto" />
           </Link>
         </nav>
@@ -114,7 +114,7 @@ export function AppShell({ children }: { children: ReactNode }) {
             <CircleHelp className="size-4" /> Tutorial
           </button>
           <div className="flex items-center justify-between gap-2 px-1.5 text-xs text-muted">
-            Theme <ThemeToggle />
+            Tema <ThemeToggle />
           </div>
           <UserButton showName />
         </div>
@@ -134,8 +134,8 @@ export function AppShell({ children }: { children: ReactNode }) {
           <Link
             href="/app/notifications"
             className="btn-ghost relative p-1.5 text-muted"
-            aria-label={unread ? `Notifications, ${unread > 99 ? "99+" : unread} unread` : "Notifications"}
-            title="Notifications"
+            aria-label={unread ? `Notificaciones: ${unread > 99 ? "99+" : unread} sin leer` : "Notificaciones"}
+            title="Notificaciones"
           >
             <Bell className="size-5" />
             <UnreadBadge count={unread} className="absolute -top-0.5 -right-0.5" />
@@ -144,7 +144,7 @@ export function AppShell({ children }: { children: ReactNode }) {
             type="button"
             onClick={openTutorial}
             className="btn-ghost p-1.5 text-muted"
-            aria-label="Open tutorial"
+            aria-label="Abrir tutorial"
             title="Tutorial"
           >
             <CircleHelp className="size-5" />
@@ -181,7 +181,7 @@ function UnreadBadge({ count, className }: { count: number; className?: string }
   if (count <= 0) return null;
   return (
     <span
-      aria-label={`${count > 99 ? "99+" : count} unread`}
+      aria-label={`${count > 99 ? "99+" : count} sin leer`}
       className={clsx(
         "min-w-5 rounded-full bg-accent px-1.5 text-center text-[11px] leading-5 font-medium text-accent-fg",
         className,

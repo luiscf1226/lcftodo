@@ -3,6 +3,7 @@
 import clsx from "clsx";
 import { useConvex, usePaginatedQuery, useQuery } from "convex/react";
 import { differenceInCalendarDays, format, formatDistanceToNow, isValid } from "date-fns";
+import { es } from "date-fns/locale";
 import { ChevronDown, Download } from "lucide-react";
 import { useMemo, useState } from "react";
 import type { Id } from "../../../../convex/_generated/dataModel";
@@ -41,7 +42,7 @@ export default function HistoryPage() {
   const rangeDays = validRange ? differenceInCalendarDays(fromKey(to), fromKey(from)) + 1 : 0;
   const rangeTooLarge = rangeDays > MAX_RANGE_DAYS;
   const canViewRange = validRange && !rangeTooLarge;
-  const memberFilterLabel = tab === "activity" ? "Changed by" : "Assigned to";
+  const memberFilterLabel = tab === "activity" ? "Modificado por" : "Asignado a";
 
   const projects = useQuery(api.projects.list, { includeArchived: true });
   // Activity keeps the names of projects that have since been deleted. List those projects too,
@@ -65,7 +66,7 @@ export default function HistoryPage() {
       if (!known.has(a.projectId) && !names.has(a.projectId)) names.set(a.projectId, a.projectName);
     }
     // Keep the current choice listed even if a new date range no longer mentions it.
-    if (projectId && !known.has(projectId) && !names.has(projectId)) names.set(projectId, "Deleted project");
+    if (projectId && !known.has(projectId) && !names.has(projectId)) names.set(projectId, "Proyecto eliminado");
     return [...names].map(([_id, name]) => ({ _id, name })).sort((a, b) => a.name.localeCompare(b.name));
   }, [projects, rangeActivity, projectId]);
   const projectDeleted = deletedProjects.some((p) => p._id === projectId);
@@ -89,8 +90,8 @@ export default function HistoryPage() {
   return (
     <div className="mx-auto max-w-5xl">
       <PageHeader
-        title="History"
-        subtitle="Everything your team planned, finished and missed."
+        title="Historial"
+        subtitle="Todo lo que tu equipo planificó, terminó y dejó pendiente."
         actions={
           <ExportMenu
             disabled={!canViewRange}
@@ -109,7 +110,7 @@ export default function HistoryPage() {
       <div className="mb-5 grid gap-3 card p-3 sm:grid-cols-2 lg:grid-cols-4">
         <div>
           <label className="label" htmlFor="h-from">
-            From
+            Desde
           </label>
           <input
             id="h-from"
@@ -122,7 +123,7 @@ export default function HistoryPage() {
         </div>
         <div>
           <label className="label" htmlFor="h-to">
-            To
+            Hasta
           </label>
           <input
             id="h-to"
@@ -135,7 +136,7 @@ export default function HistoryPage() {
         </div>
         <div>
           <label className="label" htmlFor="h-project">
-            Project
+            Proyecto
           </label>
           <select
             id="h-project"
@@ -143,16 +144,16 @@ export default function HistoryPage() {
             value={projectId}
             onChange={(e) => setProjectId(e.target.value as Id<"projects"> | "")}
           >
-            <option value="">All projects</option>
+            <option value="">Todos los proyectos</option>
             {projects?.map((p) => (
               <option key={p._id} value={p._id}>
                 {p.name}
-                {p.archived ? " (archived)" : ""}
+                {p.archived ? " (archivado)" : ""}
               </option>
             ))}
             {deletedProjects.map((p) => (
               <option key={p._id} value={p._id}>
-                {p.name} (deleted)
+                {p.name} (eliminado)
               </option>
             ))}
           </select>
@@ -162,7 +163,7 @@ export default function HistoryPage() {
             {memberFilterLabel}
           </label>
           <select id="h-member" className="input" value={memberId} onChange={(e) => setMemberId(e.target.value)}>
-            <option value="">Everyone</option>
+            <option value="">Todos</option>
             {members.map((m) => (
               <option key={m.id} value={m.id}>
                 {m.name}
@@ -174,7 +175,7 @@ export default function HistoryPage() {
 
       {!validDates ? (
         <p className="mb-4 rounded-lg border border-danger/30 bg-danger/10 px-3 py-2 text-sm text-danger" role="alert">
-          Select valid start and end dates to view or export History.
+          Selecciona fechas de inicio y fin válidas para ver o exportar el historial.
         </p>
       ) : (
         !validRange && (
@@ -182,14 +183,15 @@ export default function HistoryPage() {
             className="mb-4 rounded-lg border border-danger/30 bg-danger/10 px-3 py-2 text-sm text-danger"
             role="alert"
           >
-            The start date must be on or before the end date. Adjust either date to view or export History.
+            La fecha de inicio debe ser anterior o igual a la fecha de fin. Corrige las fechas para ver o exportar el
+            historial.
           </p>
         )
       )}
       {rangeTooLarge && (
         <p className="mb-4 rounded-lg border border-danger/30 bg-danger/10 px-3 py-2 text-sm text-danger" role="alert">
-          History supports ranges up to {MAX_RANGE_DAYS} days (this one is {rangeDays}). Select a shorter range to view
-          or export it.
+          El historial admite hasta {MAX_RANGE_DAYS} días por consulta (este rango tiene {rangeDays}). Selecciona un
+          período más corto para verlo o exportarlo.
         </p>
       )}
 
@@ -205,7 +207,7 @@ export default function HistoryPage() {
               tab === t ? "border-accent font-medium" : "border-transparent text-muted hover:text-fg",
             )}
           >
-            {t === "days" ? "Day by day" : t === "people" ? "People" : "Activity log"}
+            {t === "days" ? "Día a día" : t === "people" ? "Personas" : "Actividad"}
           </button>
         ))}
       </div>
@@ -265,13 +267,13 @@ function DaySummary({ todos, byId }: { todos: TeamTodos; byId: Members["byId"] }
   for (const t of todos) totals[t.status]++;
 
   if (days.length === 0)
-    return <Empty title="No todos in this range" body="Try a wider date range or different filters." />;
+    return <Empty title="No hay tareas en este período" body="Prueba un período más amplio u otros filtros." />;
 
   return (
     <>
       <div className="mb-4 flex flex-wrap gap-x-4 gap-y-1 text-sm text-muted">
         <span>
-          <span className="font-semibold text-fg">{todos.length}</span> todos
+          <span className="font-semibold text-fg">{todos.length}</span> tareas
         </span>
         {STATUSES.map((s) => (
           <span key={s}>
@@ -279,7 +281,7 @@ function DaySummary({ todos, byId }: { todos: TeamTodos; byId: Members["byId"] }
           </span>
         ))}
         <span>
-          <span className="font-semibold text-fg">{Math.round((totals.done / todos.length) * 100)}%</span> completion
+          <span className="font-semibold text-fg">{Math.round((totals.done / todos.length) * 100)}%</span> completado
         </span>
       </div>
       <ul className="divide-y divide-line card">
@@ -336,7 +338,8 @@ function DaySummary({ todos, byId }: { todos: TeamTodos; byId: Members["byId"] }
 }
 
 function PeopleSummary({ people }: { people: PersonStats[] }) {
-  if (people.length === 0) return <Empty title="No people to show" body="Try clearing the Assigned to filter." />;
+  if (people.length === 0)
+    return <Empty title="No hay personas para mostrar" body="Prueba quitar el filtro de responsables." />;
 
   // The person column stays pinned while the numbers scroll sideways on phones.
   return (
@@ -344,12 +347,12 @@ function PeopleSummary({ people }: { people: PersonStats[] }) {
       <table className="w-full min-w-120 text-left text-sm">
         <thead className="border-b border-line bg-surface-2/60 text-xs font-medium tracking-wide text-muted uppercase">
           <tr>
-            <th className="sticky left-0 bg-surface px-4 py-2.5">Person</th>
-            <th className="px-3 py-2.5 text-right">Assigned</th>
-            <th className="px-3 py-2.5 text-right">Done</th>
-            <th className="px-3 py-2.5 text-right">Didn&apos;t finish</th>
-            <th className="px-3 py-2.5 text-right">Open</th>
-            <th className="px-4 py-2.5 text-right">Completion</th>
+            <th className="sticky left-0 bg-surface px-4 py-2.5">Persona</th>
+            <th className="px-3 py-2.5 text-right">Asignadas</th>
+            <th className="px-3 py-2.5 text-right">Hechas</th>
+            <th className="px-3 py-2.5 text-right">Sin terminar</th>
+            <th className="px-3 py-2.5 text-right">Pendientes</th>
+            <th className="px-4 py-2.5 text-right">Completado</th>
           </tr>
         </thead>
         <tbody className="divide-y divide-line">
@@ -402,13 +405,13 @@ function ActivityLog({
   );
 
   if (status === "LoadingFirstPage") return <Skeleton className="h-60" />;
-  if (results.length === 0 && status === "Exhausted") return <Empty title="No activity yet" />;
+  if (results.length === 0 && status === "Exhausted") return <Empty title="Todavía no hay actividad" />;
 
   return (
     <div>
       {results.length === 0 ? (
         <p className="card p-4 text-sm text-muted">
-          No matching activity in the latest entries. Load more to look further back.
+          No hay actividad que coincida en las entradas recientes. Carga más para buscar entradas anteriores.
         </p>
       ) : (
         <ul className="divide-y divide-line card">
@@ -431,9 +434,9 @@ function ActivityLog({
                   <time
                     className="shrink-0 text-xs text-muted"
                     dateTime={new Date(a._creationTime).toISOString()}
-                    title={new Date(a._creationTime).toLocaleString()}
+                    title={new Date(a._creationTime).toLocaleString("es")}
                   >
-                    {formatDistanceToNow(a._creationTime, { addSuffix: true })}
+                    {formatDistanceToNow(a._creationTime, { addSuffix: true, locale: es })}
                   </time>
                 </div>
               </li>
@@ -444,7 +447,7 @@ function ActivityLog({
       {status !== "Exhausted" && (
         <div className="mt-4 flex justify-center">
           <button className="btn-outline" disabled={status === "LoadingMore"} onClick={() => loadMore(60)}>
-            {status === "LoadingMore" ? "Loading…" : "Load more"}
+            {status === "LoadingMore" ? "Cargando…" : "Cargar más"}
           </button>
         </div>
       )}
@@ -490,7 +493,7 @@ function ExportMenu({
       created_by: nameOf(t.createdBy),
       notes: t.notes ?? "",
       completed_at: t.completedAt ? new Date(t.completedAt).toISOString() : "",
-      carried_over: t.carriedFrom ? "yes" : "",
+      carried_over: t.carriedFrom ? "sí" : "",
     }));
 
   const peopleRows = () =>
@@ -542,9 +545,9 @@ function ExportMenu({
         download(`activity_${stamp}.csv`, toCsv(await activityRows(), ACTIVITY_HEADERS), "text/csv;charset=utf-8");
       if (kind === "excel") {
         await downloadXlsx(`lcftodos_${stamp}.xlsx`, [
-          { name: "Todos", rows: todoRows(), headers: TODO_HEADERS },
-          { name: "Activity", rows: await activityRows(), headers: ACTIVITY_HEADERS },
-          { name: "People", rows: peopleRows(), headers: PEOPLE_HEADERS },
+          { name: "Tareas", rows: todoRows(), headers: TODO_HEADERS },
+          { name: "Actividad", rows: await activityRows(), headers: ACTIVITY_HEADERS },
+          { name: "Personas", rows: peopleRows(), headers: PEOPLE_HEADERS },
         ]);
       }
       if (kind === "json") {
@@ -560,7 +563,7 @@ function ExportMenu({
         download(`lcftodos_${stamp}.json`, JSON.stringify(data, null, 2), "application/json");
       }
     } catch (caught) {
-      setError(errorMessage(caught, "Couldn’t export this range. Please try a shorter range."));
+      setError(errorMessage(caught, "No se pudo exportar este período. Prueba uno más corto."));
     } finally {
       setBusy(false);
     }
@@ -578,19 +581,19 @@ function ExportMenu({
       <Menu
         label={
           <>
-            <Download className="size-4" /> {busy ? "Exporting…" : "Export"}
+            <Download className="size-4" /> {busy ? "Exportando…" : "Exportar"}
           </>
         }
         disabled={busy}
         triggerClassName="btn-outline aria-disabled:cursor-progress aria-disabled:opacity-60"
         menuClassName="w-56"
       >
-        <MenuItem onSelect={() => void run("todos-csv")}>Todos (CSV)</MenuItem>
-        <MenuItem onSelect={() => void run("people-csv")}>People (CSV)</MenuItem>
-        <MenuItem onSelect={() => void run("activity-csv")}>Activity log (CSV)</MenuItem>
+        <MenuItem onSelect={() => void run("todos-csv")}>Tareas (CSV)</MenuItem>
+        <MenuItem onSelect={() => void run("people-csv")}>Personas (CSV)</MenuItem>
+        <MenuItem onSelect={() => void run("activity-csv")}>Actividad (CSV)</MenuItem>
         <MenuItem onSelect={() => void run("excel")}>Excel (.xlsx)</MenuItem>
-        <MenuItem onSelect={() => void run("json")}>Everything (JSON)</MenuItem>
-        <p className="px-3 pt-1 pb-1.5 text-[11px] text-muted">Uses the current date range and filters.</p>
+        <MenuItem onSelect={() => void run("json")}>Todo (JSON)</MenuItem>
+        <p className="px-3 pt-1 pb-1.5 text-[11px] text-muted">Usa el período y los filtros actuales.</p>
       </Menu>
       {error && (
         <p

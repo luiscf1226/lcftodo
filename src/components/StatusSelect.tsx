@@ -23,7 +23,7 @@ export function StatusSelect({ value, onChange }: { value: Status; onChange: (s:
   const meta = STATUS_META[value];
   return (
     <label className="relative inline-flex">
-      <span className="sr-only">Status</span>
+      <span className="sr-only">Estado</span>
       <select
         value={value}
         onChange={(e) => onChange(e.target.value as Status)}

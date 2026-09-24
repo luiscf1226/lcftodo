@@ -6,25 +6,25 @@ import { slackEscape } from "./slack";
 type Rendered = { subject: string; html: string; text: string };
 
 const STATUS_LABEL: Record<DigestItem["status"], string> = {
-  todo: "To do",
-  doing: "In progress",
-  done: "Done",
-  not_done: "Didn't finish",
+  todo: "Por hacer",
+  doing: "En progreso",
+  done: "Hecho",
+  not_done: "Sin terminar",
 };
 
 function footer(links: { app: string | null; unsubscribe: string | null }, what: string) {
   const html: string[] = [];
   const text: string[] = [];
   if (links.app) {
-    html.push(`<a href="${escapeHtml(links.app)}">Open LCF Todos</a>`);
-    text.push(`Open LCF Todos: ${links.app}`);
+    html.push(`<a href="${escapeHtml(links.app)}">Abrir LCF Todos</a>`);
+    text.push(`Abrir LCF Todos: ${links.app}`);
   }
   if (links.unsubscribe) {
-    html.push(`<a href="${escapeHtml(links.unsubscribe)}">Unsubscribe from ${what}</a>`);
-    text.push(`Unsubscribe from ${what}: ${links.unsubscribe}`);
+    html.push(`<a href="${escapeHtml(links.unsubscribe)}">Dejar de recibir ${what}</a>`);
+    text.push(`Dejar de recibir ${what}: ${links.unsubscribe}`);
   } else {
-    html.push(`You can turn off ${what} in Notifications settings.`);
-    text.push(`You can turn off ${what} in Notifications settings.`);
+    html.push(`Puedes desactivar ${what} en la configuración de Notificaciones.`);
+    text.push(`Puedes desactivar ${what} en la configuración de Notificaciones.`);
   }
   return {
     html: `<p style="margin-top:24px;font-size:12px;color:#64748b">${html.join(" · ")}</p>`,
@@ -41,12 +41,12 @@ function section(title: string, items: DigestItem[], showDate: boolean) {
   const html =
     `<h3 style="margin:20px 0 6px;font-size:15px">${escapeHtml(title)} (${items.length})</h3><ul style="margin:0;padding-left:20px">` +
     shown.map((i) => `<li>${escapeHtml(line(i))}</li>`).join("") +
-    (more > 0 ? `<li>+${more} more</li>` : "") +
+    (more > 0 ? `<li>+${more} más</li>` : "") +
     `</ul>`;
   const text =
     `\n${title} (${items.length})\n` +
     shown.map((i) => `- ${line(i)}`).join("\n") +
-    (more > 0 ? `\n- +${more} more` : "") +
+    (more > 0 ? `\n- +${more} más` : "") +
     "\n";
   return { html, text };
 }
@@ -58,14 +58,14 @@ export function renderDigestEmail(
   links: { app: string | null; unsubscribe: string | null },
 ): Rendered {
   const parts = [
-    section("Today", digest.today, false),
-    section("Overdue", digest.overdue, true),
-    section("Didn't finish yesterday", digest.didntFinish, false),
+    section("Hoy", digest.today, false),
+    section("Pendientes", digest.overdue, true),
+    section("Sin terminar ayer", digest.didntFinish, false),
   ];
-  const foot = footer(links, "the daily digest");
-  const greeting = `Good morning${name ? `, ${name}` : ""}! Here is your plan for ${date}.`;
+  const foot = footer(links, "el resumen diario");
+  const greeting = `¡Buenos días${name ? `, ${name}` : ""}! Este es tu plan para el ${date}.`;
   return {
-    subject: `Your todos for ${date}: ${digest.today.length} today${digest.overdue.length ? `, ${digest.overdue.length} overdue` : ""}`,
+    subject: `Tus tareas para el ${date}: ${digest.today.length} para hoy${digest.overdue.length ? `, ${digest.overdue.length} pendientes` : ""}`,
     html:
       `<div style="font-family:system-ui,-apple-system,Segoe UI,sans-serif;font-size:14px;color:#0f172a">` +
       `<p>${escapeHtml(greeting)}</p>${parts.map((p) => p.html).join("")}${foot.html}</div>`,
@@ -78,10 +78,10 @@ export function renderAssignmentEmail(
   todo: { title: string; project: string; date: string },
   links: { app: string | null; unsubscribe: string | null },
 ): Rendered {
-  const summary = `${actor} assigned you "${todo.title}" in ${todo.project} (due ${todo.date}).`;
-  const foot = footer(links, "assignment emails");
+  const summary = `${actor} te asignó "${todo.title}" en ${todo.project} (vence el ${todo.date}).`;
+  const foot = footer(links, "los correos de asignaciones");
   return {
-    subject: `${actor} assigned you: ${todo.title}`.slice(0, 200),
+    subject: `${actor} te asignó: ${todo.title}`.slice(0, 200),
     html:
       `<div style="font-family:system-ui,-apple-system,Segoe UI,sans-serif;font-size:14px;color:#0f172a">` +
       `<p>${escapeHtml(summary)}</p>${foot.html}</div>`,
@@ -94,7 +94,7 @@ export function slackAssignmentText(
   assignee: string,
   todo: { title: string; project: string; date: string },
 ) {
-  return `${slackEscape(actor)} assigned *${slackEscape(todo.title)}* to ${slackEscape(assignee)} in ${slackEscape(todo.project)} (due ${todo.date}).`;
+  return `${slackEscape(actor)} asignó *${slackEscape(todo.title)}* a ${slackEscape(assignee)} en ${slackEscape(todo.project)} (vence el ${todo.date}).`;
 }
 
 export function slackSummaryText(
@@ -102,9 +102,9 @@ export function slackSummaryText(
   counts: { today: number; open: number; done: number; overdue: number; didntFinish: number },
 ) {
   return (
-    `*Daily summary for ${date}*\n` +
-    `• Today: ${counts.today} todos (${counts.open} open, ${counts.done} done)\n` +
-    `• Overdue: ${counts.overdue}\n` +
-    `• Didn't finish yesterday: ${counts.didntFinish}`
+    `*Resumen diario del ${date}*\n` +
+    `• Hoy: ${counts.today} tareas (${counts.open} pendientes, ${counts.done} hechas)\n` +
+    `• Atrasadas: ${counts.overdue}\n` +
+    `• Sin terminar ayer: ${counts.didntFinish}`
   );
 }

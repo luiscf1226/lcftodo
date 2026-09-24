@@ -20,5 +20,5 @@ export async function collectPages<T>(
     if (result.isDone) return rows;
     cursor = result.continueCursor;
   }
-  throw new Error("This export is too large. Narrow the date range or filters and try again.");
+  throw new Error("Esta exportación es demasiado grande. Reduce el período o ajusta los filtros e inténtalo de nuevo.");
 }

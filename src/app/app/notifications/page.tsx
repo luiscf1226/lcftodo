@@ -13,7 +13,7 @@ import { errorMessage } from "@/lib/errors";
 export default function NotificationsPage() {
   return (
     <div className="mx-auto max-w-3xl space-y-8">
-      <PageHeader title="Notifications" subtitle="What was assigned to you, and how you get told about it." />
+      <PageHeader title="Notificaciones" subtitle="Tus tareas asignadas y cómo recibes avisos." />
       <Inbox />
       <EmailSettings />
       <SlackSettings />
@@ -33,18 +33,18 @@ function Inbox() {
     <section aria-labelledby="inbox-heading">
       <div className="mb-2 flex items-center justify-between gap-2">
         <h2 id="inbox-heading" className="font-medium">
-          Inbox
+          Bandeja de entrada
         </h2>
         {unread > 0 && (
           <button className="btn-ghost text-sm" onClick={() => markAllRead().catch((e) => showToast(errorMessage(e)))}>
-            <CheckCheck className="size-4" /> Mark all read
+            <CheckCheck className="size-4" /> Marcar todo como leído
           </button>
         )}
       </div>
       {items === undefined ? (
         <Skeleton className="h-24" />
       ) : items.length === 0 ? (
-        <Empty title="Nothing yet" body="You'll see a notification here when a teammate assigns you a todo." />
+        <Empty title="Todavía no hay nada" body="Verás una notificación cuando un compañero te asigne una tarea." />
       ) : (
         <ul className="divide-y divide-line card">
           {items.map((n) => (
@@ -55,11 +55,11 @@ function Inbox() {
               />
               <div className="min-w-0 flex-1">
                 <p>
-                  <span className="font-medium">{nameOf(n.actorId) || "A teammate"}</span> assigned you{" "}
+                  <span className="font-medium">{nameOf(n.actorId) || "Un compañero"}</span> te asignó{" "}
                   <span className="font-medium">{n.todoTitle}</span>
                 </p>
                 <p className="mt-0.5 text-xs text-muted">
-                  {n.projectName} · due {n.date}
+                  {n.projectName} · vence el {n.date}
                 </p>
               </div>
               {!n.read && (
@@ -67,7 +67,7 @@ function Inbox() {
                   className="btn-ghost shrink-0 px-2 py-1 text-xs"
                   onClick={() => markRead({ notificationId: n._id }).catch((e) => showToast(errorMessage(e)))}
                 >
-                  Mark read<span className="sr-only">: {n.todoTitle}</span>
+                  Marcar como leído<span className="sr-only">: {n.todoTitle}</span>
                 </button>
               )}
             </li>
@@ -117,7 +117,7 @@ function EmailSettings() {
   return (
     <section aria-labelledby="email-heading">
       <h2 id="email-heading" className="mb-2 font-medium">
-        Email
+        Correo electrónico
       </h2>
       {prefs === undefined ? (
         <Skeleton className="h-24" />
@@ -125,18 +125,18 @@ function EmailSettings() {
         <div className="card px-4 py-2">
           {!prefs.hasEmail && (
             <p className="py-2 text-xs text-muted">
-              We don&apos;t have an email address for you yet, so no emails will be sent.
+              Aún no tenemos tu dirección de correo, así que no recibirás mensajes.
             </p>
           )}
           <Toggle
-            label="Daily digest"
-            hint="Every morning (team time): your todos for today, overdue work and what didn't finish yesterday."
+            label="Resumen diario"
+            hint="Cada mañana, según la hora del equipo: tareas de hoy, pendientes y tareas sin terminar ayer."
             checked={prefs.emailDigest}
             onChange={(emailDigest) => save({ emailDigest })}
           />
           <Toggle
-            label="Assigned to me"
-            hint="An email when a teammate assigns you a todo. You'll still see it in the inbox above."
+            label="Tareas que me asignan"
+            hint="Recibe un correo cuando un compañero te asigne una tarea. También aparecerá en la bandeja de entrada."
             checked={prefs.emailAssigned}
             onChange={(emailAssigned) => save({ emailAssigned })}
           />
@@ -165,7 +165,7 @@ function SlackSettings() {
       });
       if (change.webhookUrl !== undefined) {
         setUrl("");
-        showToast(change.webhookUrl ? "Slack webhook saved." : "Slack webhook removed.");
+        showToast(change.webhookUrl ? "Webhook de Slack guardado." : "Webhook de Slack eliminado.");
       }
     } catch (e) {
       showToast(errorMessage(e));
@@ -186,15 +186,15 @@ function SlackSettings() {
       <div className="space-y-3 card px-4 py-3">
         <p className="text-sm text-muted">
           {settings.configured
-            ? "This team posts to a Slack channel through an incoming webhook."
-            : "Post team updates to a Slack channel with an incoming webhook."}
-          {!settings.canEdit && " Only team admins can change this."}
+            ? "Este equipo publica en un canal de Slack mediante un webhook."
+            : "Publica las novedades del equipo en un canal de Slack mediante un webhook."}
+          {!settings.canEdit && " Solo los administradores del equipo pueden cambiar esto."}
         </p>
         {settings.canEdit && (
           <>
             <form onSubmit={onSubmit} className="flex flex-wrap gap-2">
               <label htmlFor="slack-url" className="sr-only">
-                Slack incoming webhook URL
+                URL del webhook de Slack
               </label>
               <input
                 id="slack-url"
@@ -205,14 +205,14 @@ function SlackSettings() {
                 spellCheck={false}
                 placeholder={
                   settings.configured
-                    ? "Webhook saved — paste a new URL to replace it"
+                    ? "Webhook guardado: pega otra URL para reemplazarlo"
                     : "https://hooks.slack.com/services/..."
                 }
                 value={url}
                 onChange={(e) => setUrl(e.target.value)}
               />
               <button type="submit" className="btn-primary" disabled={saving || !url.trim()}>
-                Save
+                Guardar
               </button>
               {settings.configured && (
                 <button
@@ -221,21 +221,21 @@ function SlackSettings() {
                   disabled={saving}
                   onClick={() => void save({ webhookUrl: "" })}
                 >
-                  Remove
+                  Eliminar
                 </button>
               )}
             </form>
             <div>
               <Toggle
-                label="Assignments"
-                hint="Post when someone assigns a todo to a teammate."
+                label="Asignaciones"
+                hint="Publicar cuando alguien asigne una tarea a un compañero."
                 checked={settings.postAssignments}
                 disabled={saving}
                 onChange={(postAssignments) => void save({ postAssignments })}
               />
               <Toggle
-                label="Daily summary"
-                hint="Post the team's counts for the day every morning."
+                label="Resumen diario"
+                hint="Publicar cada mañana el resumen de tareas del equipo."
                 checked={settings.postDigest}
                 disabled={saving}
                 onChange={(postDigest) => void save({ postDigest })}

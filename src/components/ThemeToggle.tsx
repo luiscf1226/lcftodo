@@ -6,9 +6,9 @@ import { useSyncExternalStore } from "react";
 import { THEME_CHANGE_EVENT, readThemePreference, saveThemePreference, type ThemePreference } from "@/lib/theme";
 
 const OPTIONS: { value: ThemePreference; label: string; icon: typeof Sun }[] = [
-  { value: "system", label: "System", icon: Monitor },
-  { value: "light", label: "Light", icon: Sun },
-  { value: "dark", label: "Dark", icon: Moon },
+  { value: "system", label: "Sistema", icon: Monitor },
+  { value: "light", label: "Claro", icon: Sun },
+  { value: "dark", label: "Oscuro", icon: Moon },
 ];
 
 function subscribe(callback: () => void) {
@@ -32,8 +32,8 @@ export function ThemeToggle({ className, compact = false }: { className?: string
         type="button"
         onClick={() => saveThemePreference(next.value)}
         className={clsx("btn-ghost p-1.5 text-muted", className)}
-        aria-label={`Theme: ${label}. Switch to ${next.label.toLowerCase()}`}
-        title={`Theme: ${label}`}
+        aria-label={`Tema: ${label}. Cambiar a ${next.label.toLowerCase()}`}
+        title={`Tema: ${label}. Cambiar a ${next.label.toLowerCase()}`}
       >
         <Icon className="size-5" aria-hidden />
       </button>
@@ -43,7 +43,7 @@ export function ThemeToggle({ className, compact = false }: { className?: string
   return (
     <div
       role="group"
-      aria-label="Theme"
+      aria-label="Tema"
       className={clsx("inline-flex rounded-lg border border-line bg-surface-2 p-0.5", className)}
     >
       {OPTIONS.map(({ value, label, icon: Icon }) => {
@@ -53,8 +53,8 @@ export function ThemeToggle({ className, compact = false }: { className?: string
             key={value}
             type="button"
             aria-pressed={checked}
-            aria-label={`${label} theme`}
-            title={`${label} theme`}
+            aria-label={`Tema ${label.toLowerCase()}`}
+            title={`Tema ${label.toLowerCase()}`}
             onClick={() => saveThemePreference(value)}
             className={clsx(
               "grid size-7 place-items-center rounded-md transition-colors focus-visible:outline-2 focus-visible:outline-accent",

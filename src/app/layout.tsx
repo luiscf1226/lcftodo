@@ -14,7 +14,7 @@ const geistMono = Geist_Mono({ variable: "--font-geist-mono", subsets: ["latin"]
 // Icons come from the file conventions next to this layout: icon.svg, favicon.ico, apple-icon.png.
 export const metadata: Metadata = {
   title: "LCF Todos",
-  description: "Daily and weekly todos for your team.",
+  description: "Tareas diarias y semanales para tu equipo.",
   applicationName: "LCF Todos",
   appleWebApp: { capable: true, title: "LCF Todos", statusBarStyle: "default" },
   formatDetection: { telephone: false },
@@ -32,7 +32,7 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
   return (
     // The inline script sets data-theme / .dark before first paint, so React must accept the DOM's values.
     <html
-      lang="en"
+      lang="es"
       data-theme="system"
       suppressHydrationWarning
       className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}

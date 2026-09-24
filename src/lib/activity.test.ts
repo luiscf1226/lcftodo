@@ -26,6 +26,6 @@ group("describe (#37)", () => {
   });
 
   test("status changes use the shared status labels", () => {
-    expect(describe(entry("status"))).toBe("marked “Ship” Didn't finish (was To do)");
+    expect(describe(entry("status"))).toBe("marcó “Ship” como Sin terminar (antes: Por hacer)");
   });
 });

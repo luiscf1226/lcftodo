@@ -2,7 +2,9 @@
 
 import clsx from "clsx";
 import type { RecurrenceKind, RecurrenceRule } from "../../convex/lib/constants";
-import { WEEKDAY_ORDER, weekdayName, weekdayOf } from "../../convex/lib/recurrence";
+import { WEEKDAY_ORDER, weekdayOf } from "../../convex/lib/recurrence";
+
+const WEEKDAY_LABELS = ["Dom", "Lun", "Mar", "Mié", "Jue", "Vie", "Sáb"];
 
 // Picks a recurrence rule (#23): none, daily, weekdays, or weekly on chosen days.
 export function RepeatPicker({
@@ -34,13 +36,13 @@ export function RepeatPicker({
           else onChange({ kind });
         }}
       >
-        <option value="">Does not repeat</option>
-        <option value="daily">Every day</option>
-        <option value="weekdays">Every weekday (Mon–Fri)</option>
-        <option value="weekly">Weekly on…</option>
+        <option value="">No se repite</option>
+        <option value="daily">Todos los días</option>
+        <option value="weekdays">Días laborables (lun–vie)</option>
+        <option value="weekly">Cada semana los…</option>
       </select>
       {value?.kind === "weekly" && (
-        <div className="flex flex-wrap gap-1" role="group" aria-label="Repeat on">
+        <div className="flex flex-wrap gap-1" role="group" aria-label="Repetir los">
           {WEEKDAY_ORDER.map((d) => (
             <button
               key={d}
@@ -54,13 +56,13 @@ export function RepeatPicker({
                   : "border-line text-muted hover:text-fg",
               )}
             >
-              {weekdayName(d)}
+              {WEEKDAY_LABELS[d]}
             </button>
           ))}
         </div>
       )}
       {value?.kind === "weekly" && weekdays.length === 0 && (
-        <p className="text-xs text-danger">Pick at least one day.</p>
+        <p className="text-xs text-danger">Elige al menos un día.</p>
       )}
     </div>
   );

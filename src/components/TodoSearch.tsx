@@ -41,8 +41,8 @@ export function SearchButton({ compact = false }: { compact?: boolean }) {
         type="button"
         onClick={openSearch}
         className="btn-ghost p-1.5 text-muted"
-        aria-label="Search todos"
-        title={`Search (${shortcut})`}
+        aria-label="Buscar tareas"
+        title={`Buscar (${shortcut})`}
       >
         <Search className="size-5" />
       </button>
@@ -54,7 +54,7 @@ export function SearchButton({ compact = false }: { compact?: boolean }) {
       onClick={openSearch}
       className="flex w-full items-center gap-2.5 rounded-lg border border-line px-2.5 py-1.5 text-sm text-muted hover:bg-surface-2 hover:text-fg focus-visible:outline-2 focus-visible:outline-accent"
     >
-      <Search className="size-4" /> <span className="flex-1 text-left">Search</span>
+      <Search className="size-4" /> <span className="flex-1 text-left">Buscar</span>
       <kbd className="rounded border border-line px-1 font-sans text-[11px]">{shortcut}</kbd>
     </button>
   );
@@ -80,7 +80,7 @@ export function TodoSearch() {
   }, []);
 
   return (
-    <Modal open={open} onClose={() => setOpen(false)} title="Search todos">
+    <Modal open={open} onClose={() => setOpen(false)} title="Buscar tareas">
       {/* Only mounted while open, so every open starts with a blank query. */}
       <SearchBody onDone={() => setOpen(false)} />
     </Modal>
@@ -125,8 +125,8 @@ function SearchBody({ onDone }: { onDone: () => void }) {
           data-autofocus
           type="search"
           className="input pl-9"
-          placeholder="Search todo titles…"
-          aria-label="Search todo titles"
+          placeholder="Buscar por título…"
+          aria-label="Buscar tareas por título"
           role="combobox"
           aria-expanded={count > 0}
           aria-controls={listId}
@@ -146,17 +146,17 @@ function SearchBody({ onDone }: { onDone: () => void }) {
       <div className="mt-3 max-h-[60dvh] overflow-y-auto" aria-live="polite">
         {!text.trim() ? (
           <p className="px-1 py-6 text-center text-sm text-muted">
-            Find a todo by title across every project and week.
+            Busca una tarea por título en cualquier proyecto y semana.
           </p>
         ) : pending && !results ? (
-          <p className="px-1 py-6 text-center text-sm text-muted">Searching…</p>
+          <p className="px-1 py-6 text-center text-sm text-muted">Buscando…</p>
         ) : count === 0 ? (
-          <p className="px-1 py-6 text-center text-sm text-muted">No todos match “{term}”.</p>
+          <p className="px-1 py-6 text-center text-sm text-muted">No hay tareas que coincidan con “{term}”.</p>
         ) : (
           <ul
             id={listId}
             role="listbox"
-            aria-label="Search results"
+            aria-label="Resultados de búsqueda"
             className={clsx("space-y-0.5", pending && "opacity-60")}
           >
             {results!.map((r, i) => (
@@ -177,7 +177,7 @@ function SearchBody({ onDone }: { onDone: () => void }) {
                   <span className="flex flex-wrap items-center gap-x-2 text-xs text-muted">
                     <span className="inline-flex items-center gap-1">
                       <span className="size-2 rounded-full" style={{ background: r.projectColor }} /> {r.projectName}
-                      {r.projectArchived && " (archived)"}
+                      {r.projectArchived && " (archivado)"}
                     </span>
                     <span>·</span>
                     <time dateTime={r.date}>{fmt(r.date, "EEE, MMM d, yyyy")}</time>
@@ -188,7 +188,9 @@ function SearchBody({ onDone }: { onDone: () => void }) {
           </ul>
         )}
       </div>
-      <p className="mt-2 hidden text-[11px] text-muted sm:block">↑↓ to move · Enter to open the week · Esc to close</p>
+      <p className="mt-2 hidden text-[11px] text-muted sm:block">
+        ↑↓ para moverte · Enter para abrir la semana · Esc para cerrar
+      </p>
     </div>
   );
 }

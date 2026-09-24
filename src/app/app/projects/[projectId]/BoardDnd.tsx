@@ -79,7 +79,7 @@ export function useMoveTodo() {
       await move(args);
       return true;
     } catch (error) {
-      showToast(errorMessage(error, "Couldn't move the todo."));
+      showToast(errorMessage(error, "No se pudo mover la tarea."));
       return false;
     }
   };
@@ -127,27 +127,27 @@ export function BoardDnd({
     useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates }),
   );
 
-  const titleOf = (id: UniqueIdentifier) => [...byDay.values()].flat().find((t) => t._id === id)?.title ?? "todo";
+  const titleOf = (id: UniqueIdentifier) => [...byDay.values()].flat().find((t) => t._id === id)?.title ?? "tarea";
 
   const describe = (over: { id: UniqueIdentifier } | null) => {
     if (!over || !dragging) return undefined;
     const at = locate(dragging.columns, over.id);
     if (!at) return undefined;
     const size = dragging.columns.get(at.day)?.length ?? 0;
-    return `${dayName(at.day)}, position ${Math.min(at.index + 1, Math.max(size, 1))} of ${Math.max(size, 1)}`;
+    return `${dayName(at.day)}, posición ${Math.min(at.index + 1, Math.max(size, 1))} de ${Math.max(size, 1)}`;
   };
 
   const announcements: Announcements = {
-    onDragStart: ({ active }) => `Picked up ${titleOf(active.id)}.`,
+    onDragStart: ({ active }) => `Seleccionaste ${titleOf(active.id)}.`,
     onDragOver: ({ active, over }) => {
       const where = describe(over);
-      return where ? `${titleOf(active.id)} is over ${where}.` : `${titleOf(active.id)} is no longer over a day.`;
+      return where ? `${titleOf(active.id)} está sobre ${where}.` : `${titleOf(active.id)} ya no está sobre un día.`;
     },
     onDragEnd: ({ active, over }) => {
       const where = describe(over);
-      return where ? `Dropped ${titleOf(active.id)} on ${where}.` : `Dropped ${titleOf(active.id)}.`;
+      return where ? `Soltaste ${titleOf(active.id)} en ${where}.` : `Soltaste ${titleOf(active.id)}.`;
     },
-    onDragCancel: ({ active }) => `Moving ${titleOf(active.id)} was cancelled.`,
+    onDragCancel: ({ active }) => `Se canceló el movimiento de ${titleOf(active.id)}.`,
   };
 
   const onDragStart = ({ active }: DragStartEvent) => {
@@ -208,7 +208,7 @@ export function BoardDnd({
         announcements,
         screenReaderInstructions: {
           draggable:
-            "To move a todo, press Space or Enter on its handle, then use the arrow keys to move it within a day or to another day. Press Space or Enter again to drop it, or Escape to cancel. The Move menu next to the handle offers the same moves.",
+            "Para mover una tarea, pulsa Espacio o Enter en su control y usa las flechas para cambiar su posición o el día. Pulsa Espacio o Enter otra vez para soltarla, o Escape para cancelar. El menú Mover ofrece las mismas opciones.",
         },
       }}
       onDragStart={onDragStart}
@@ -278,7 +278,7 @@ export function SortableTodo({
   const rest = list.filter((t) => t._id !== todo._id);
   const moveWithin = async (to: number) => {
     if (await move({ todoId: todo._id, date: day, order: orderAt(rest, to) })) {
-      announce(`Moved ${todo.title} to position ${to + 1} of ${list.length} on ${dayName(day)}.`);
+      announce(`Moviste ${todo.title} a la posición ${to + 1} de ${list.length} el ${dayName(day)}.`);
     }
   };
   const moveToDay = async (target: string) => {
@@ -287,7 +287,7 @@ export function SortableTodo({
     // todos, and a timestamp sorts after every existing order.
     const order = other ? orderBetween(other.at(-1)?.order, undefined) : Date.now();
     if (await move({ todoId: todo._id, date: target, order })) {
-      announce(`Moved ${todo.title} to ${fmt(target, "EEEE, MMM d")}.`);
+      announce(`Moviste ${todo.title} al ${fmt(target, "EEEE, MMM d")}.`);
     }
   };
 
@@ -302,7 +302,7 @@ export function SortableTodo({
           ref={setActivatorNodeRef}
           type="button"
           className="grid h-7 w-5 cursor-grab touch-none place-items-center rounded text-muted hover:text-fg focus-visible:outline-2 focus-visible:outline-accent active:cursor-grabbing"
-          aria-label={`Drag ${todo.title}`}
+          aria-label={`Arrastrar ${todo.title}`}
           {...attributes}
           {...listeners}
         >
@@ -314,21 +314,21 @@ export function SortableTodo({
               •••
             </span>
           }
-          aria-label={`Move ${todo.title}`}
+          aria-label={`Mover ${todo.title}`}
           triggerClassName="grid h-5 w-5 place-items-center rounded text-muted hover:text-fg focus-visible:outline-2 focus-visible:outline-accent"
           menuClassName="left-0 right-auto! w-44"
         >
           <MenuItem disabled={index <= 0} onSelect={() => void moveWithin(index - 1)}>
-            <ArrowUp className="size-4" /> Move up
+            <ArrowUp className="size-4" /> Subir
           </MenuItem>
           <MenuItem disabled={index < 0 || index >= list.length - 1} onSelect={() => void moveWithin(index + 1)}>
-            <ArrowDown className="size-4" /> Move down
+            <ArrowDown className="size-4" /> Bajar
           </MenuItem>
           <MenuItem onSelect={() => void moveToDay(shiftDays(day, -1))}>
-            <ArrowLeft className="size-4" /> Previous day
+            <ArrowLeft className="size-4" /> Día anterior
           </MenuItem>
           <MenuItem onSelect={() => void moveToDay(shiftDays(day, 1))}>
-            <ArrowRight className="size-4" /> Next day
+            <ArrowRight className="size-4" /> Día siguiente
           </MenuItem>
         </Menu>
       </div>

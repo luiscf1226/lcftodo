@@ -30,10 +30,10 @@ export function SetupChecklist({ orgId }: { orgId: string }) {
 
   if (!status || dismissed || stored) return null;
   const steps = [
-    { done: true, label: "Create your team", href: null },
-    { done: status.hasProject, label: "Create your first project", href: "/app/projects" },
-    { done: status.hasInvited, label: "Invite people to selected projects", href: "/app/team" },
-    { done: status.hasAssigned, label: "Assign someone a todo", href: null },
+    { done: true, label: "Crea tu equipo", href: null },
+    { done: status.hasProject, label: "Crea tu primer proyecto", href: "/app/projects" },
+    { done: status.hasInvited, label: "Invita a personas a tus proyectos", href: "/app/team" },
+    { done: status.hasAssigned, label: "Asigna una tarea a alguien", href: null },
   ];
   if (steps.every((s) => s.done)) return null;
   const doneCount = steps.filter((s) => s.done).length;
@@ -48,18 +48,18 @@ export function SetupChecklist({ orgId }: { orgId: string }) {
       <div className="mb-3 flex items-start justify-between gap-2">
         <div>
           <h2 id="setup-heading" className="font-medium">
-            Set up your team
+            Configura tu equipo
           </h2>
           <p className="text-sm text-muted">
-            {doneCount} of {steps.length} done
+            {doneCount} de {steps.length} completados
           </p>
         </div>
         <button
           type="button"
           className="btn-ghost p-1.5 text-muted"
           onClick={dismiss}
-          aria-label="Hide setup checklist"
-          title="Hide"
+          aria-label="Ocultar lista de configuración"
+          title="Ocultar"
         >
           <X className="size-4" />
         </button>
@@ -83,7 +83,7 @@ export function SetupChecklist({ orgId }: { orgId: string }) {
             ) : (
               <span className={clsx(step.done && "text-muted line-through")}>{step.label}</span>
             )}
-            <span className="sr-only">{step.done ? "(done)" : "(to do)"}</span>
+            <span className="sr-only">{step.done ? "(completado)" : "(pendiente)"}</span>
           </li>
         ))}
       </ol>

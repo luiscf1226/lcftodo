@@ -69,7 +69,7 @@ export function TeamBackupExport() {
         "application/json",
       );
     } catch (caught) {
-      setError(errorMessage(caught, "Couldn’t export the team. Please try again."));
+      setError(errorMessage(caught, "No se pudo exportar el equipo. Inténtalo de nuevo."));
     } finally {
       setBusy(false);
     }
@@ -78,10 +78,10 @@ export function TeamBackupExport() {
   return (
     <section className="mb-5 flex flex-wrap items-center justify-between gap-3 rounded-xl border border-[var(--line)] bg-surface px-4 py-3">
       <div>
-        <h2 className="text-sm font-semibold">Full team export</h2>
+        <h2 className="text-sm font-semibold">Exportación completa del equipo</h2>
         <p className="text-sm text-muted">
-          Admins only. Team settings, projects, todos, recurring series, comments, activity, memberships and project
-          access, all time, as JSON.
+          Solo administradores. Incluye configuración, proyectos, tareas, series recurrentes, comentarios, actividad,
+          miembros y permisos de acceso de todos los tiempos en formato JSON.
         </p>
         {error && (
           <p className="mt-1 text-sm text-danger" role="alert">
@@ -90,7 +90,7 @@ export function TeamBackupExport() {
         )}
       </div>
       <button className="btn-outline" disabled={busy} aria-busy={busy} onClick={() => void run()}>
-        <Download className="size-4" /> {busy ? "Exporting…" : "Download JSON"}
+        <Download className="size-4" /> {busy ? "Exportando…" : "Descargar JSON"}
       </button>
     </section>
   );
