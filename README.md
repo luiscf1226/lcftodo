@@ -1,9 +1,12 @@
 # LCF Todos
 
 Team todo app: sign up, create a team, create projects, invite teammates, plan todos per
-day across the week, track them as **To do / Doing / Done / Didn't finish**, and keep a full
+day across the week, track them as **Por hacer / En progreso / Hecho / Sin terminar**, and keep a full
 history (day by day, per person, activity log) you can export to CSV, Excel (.xlsx) or JSON.
 Find any todo by title with **⌘K / Ctrl+K**.
+
+The interface, Clerk sign-in screens and notifications are in Spanish. Pick a light
+(**Claro**), dark (**Oscuro**) or **Sistema** theme from the **Tema** control.
 
 Stack: **Next.js 16** · **Clerk** (auth + Organizations = teams) · **Convex** (backend) · Tailwind 4.
 Product plan: [`docs/PLAN.md`](docs/PLAN.md).
@@ -65,12 +68,12 @@ attempts in Clerk and retry them after resolving configuration issues.
 
 ### Project access and invitations
 
-Admins manage access from **Team**:
+Admins manage access from **Equipo** (Team):
 
 - **Open vs. restricted access.** Every team starts (and every team that existed before
   this feature stays) on *open* access: every member sees every project, exactly as before.
-  An admin turns on *Restrict access*; from then on non-admin members only see projects
-  they're granted — in Projects, Today, boards, History, exports, and every Convex call
+  An admin turns on *Restringir acceso*; from then on non-admin members only see projects
+  they're granted — in Proyectos, Hoy, boards, Historial, exports, and every Convex call
   (direct ids behave as "not found"). Admins always see everything. When restricting, the
   admin can seed grants from existing work (projects each member created or has todos in
   during the last year) so nobody silently loses their current work. Turning restriction off
@@ -94,7 +97,7 @@ Admins manage access from **Team**:
 Optional Convex env var: `APP_URL` (e.g. `https://todos.example.com`). When set,
 invitation emails link to `${APP_URL}/sign-up`; otherwise Clerk's hosted pages are used.
 
-New admins see a setup checklist on **Today** (team → first project → invite → assign);
+New admins see a setup checklist on **Hoy** (Today) (team → first project → invite → assign);
 the general product tour (**Tutorial**) is unchanged.
 
 ### 3. Run
@@ -112,11 +115,11 @@ npm test                  # backend tests (convex-test)
 - `activity` is an append-only log; deleting a todo or project keeps its history.
 - Search (`convex/search.ts`) uses the `todos.search_title` search index, filtered by
   the caller's team, and links each result to its project week.
-- *Carry* on a day moves unfinished todos to the next day and marks the originals
-  *Didn't finish*, so slippage stays visible in History.
+- *Pasar* on a day moves unfinished todos to the next day and marks the originals
+  *Sin terminar*, so slippage stays visible in History.
 - Project reads and writes go through `canReadProject` / `requireProjectAccess`
   (`convex/lib/auth.ts`), which apply the open/restricted policy above.
-- Invite teammates to selected projects from **Team**; Clerk's organization profile below
+- Invite teammates to selected projects from **Equipo**; Clerk's organization profile below
   it still handles roles and team settings. Only admins can delete projects.
 
 ## Deploy

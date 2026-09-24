@@ -2,13 +2,14 @@
 
 import { useMutation, useQuery } from "convex/react";
 import { formatDistanceToNow } from "date-fns";
+import { es } from "date-fns/locale";
 import { Archive, CornerDownRight, Repeat, Trash2 } from "lucide-react";
 import Link from "next/link";
 import { useState, type FormEvent } from "react";
 import type { Doc, Id } from "../../convex/_generated/dataModel";
 import { api } from "../../convex/_generated/api";
 import type { RecurrenceRule } from "../../convex/lib/constants";
-import { describeRule } from "../../convex/lib/recurrence";
+import { WEEKDAY_ORDER } from "../../convex/lib/recurrence";
 import { describe } from "@/lib/activity";
 import { fmt, shiftDays, weekStart } from "@/lib/dates";
 import { errorMessage } from "@/lib/errors";
@@ -31,12 +32,21 @@ type Props = {
   readOnly?: boolean;
 };
 
+const WEEKDAYS = ["dom", "lun", "mar", "mié", "jue", "vie", "sáb"];
+function describeRule(rule: RecurrenceRule) {
+  if (rule.kind === "daily") return "Todos los días";
+  if (rule.kind === "weekdays") return "Días laborables";
+  return `Cada semana los ${WEEKDAY_ORDER.filter((day) => rule.weekdays?.includes(day))
+    .map((day) => WEEKDAYS[day])
+    .join(", ")}`;
+}
+
 export function TodoDialog(props: Props) {
   return (
     <Modal
       open={props.open}
       onClose={props.onClose}
-      title={props.todo ? (props.readOnly ? "Todo" : "Edit todo") : "New todo"}
+      title={props.todo ? (props.readOnly ? "Tarea" : "Editar tarea") : "Nueva tarea"}
     >
       <TodoForm key={props.todo?._id ?? props.date} {...props} />
     </Modal>
@@ -118,7 +128,7 @@ function TodoForm({ onClose, projectId, date, todo, projects, onProjectIdChange,
             className="flex items-center gap-2 rounded-lg border border-line bg-surface-2 px-3 py-2 text-sm text-muted"
             role="status"
           >
-            <Archive className="size-4 shrink-0" /> This project is archived, so this todo is read-only.
+            <Archive className="size-4 shrink-0" /> Este proyecto está archivado. La tarea es de solo lectura.
           </p>
         )}
         {todo?.carriedFrom && (
@@ -126,7 +136,7 @@ function TodoForm({ onClose, projectId, date, todo, projects, onProjectIdChange,
             <CornerDownRight className="size-4 shrink-0" />
             {carriedFrom ? (
               <>
-                Carried from{" "}
+                Pasada desde{" "}
                 <Link
                   href={`/app/projects/${carriedFrom.projectId}?week=${weekStart(carriedFrom.date)}`}
                   className="font-medium text-fg underline underline-offset-2 hover:text-accent"
@@ -136,7 +146,7 @@ function TodoForm({ onClose, projectId, date, todo, projects, onProjectIdChange,
                 </Link>
               </>
             ) : (
-              "Carried over from a previous day"
+              "Pasada desde un día anterior"
             )}
           </p>
         )}
@@ -145,24 +155,24 @@ function TodoForm({ onClose, projectId, date, todo, projects, onProjectIdChange,
             <p className="flex items-center gap-2 text-muted">
               <Repeat className="size-4 shrink-0" />
               {series === null
-                ? "Part of a recurring todo that no longer exists."
+                ? "Forma parte de una serie recurrente que ya no existe."
                 : series.stoppedFrom
-                  ? `Was repeating: ${describeRule(series.rule)} (stopped)`
-                  : `Repeats: ${describeRule(series.rule)}`}
+                  ? `Se repetía: ${describeRule(series.rule)} (detenida)`
+                  : `Se repite: ${describeRule(series.rule)}`}
             </p>
             {activeSeries && !readOnly && (
               <div
                 className="flex flex-wrap items-center gap-x-4 gap-y-1"
                 role="radiogroup"
-                aria-label="Apply changes to"
+                aria-label="Aplicar cambios a"
               >
                 <label className="inline-flex items-center gap-1.5">
-                  <input type="radio" name="scope" checked={scope === "this"} onChange={() => setScope("this")} /> Only
-                  this todo
+                  <input type="radio" name="scope" checked={scope === "this"} onChange={() => setScope("this")} /> Solo
+                  esta tarea
                 </label>
                 <label className="inline-flex items-center gap-1.5">
                   <input type="radio" name="scope" checked={scope === "series"} onChange={() => setScope("series")} />{" "}
-                  This and future todos
+                  Esta y las tareas futuras
                 </label>
               </div>
             )}
@@ -171,7 +181,7 @@ function TodoForm({ onClose, projectId, date, todo, projects, onProjectIdChange,
         <fieldset disabled={readOnly} className="space-y-4">
           <div>
             <label className="label" htmlFor="todo-title">
-              Title
+              Título
             </label>
             <input
               id="todo-title"
@@ -179,7 +189,7 @@ function TodoForm({ onClose, projectId, date, todo, projects, onProjectIdChange,
               className="input"
               value={title}
               onChange={(e) => setTitle(e.target.value)}
-              placeholder="What needs to get done?"
+              placeholder="¿Qué hay que hacer?"
               maxLength={LIMITS.todoTitle}
               required
             />
@@ -187,7 +197,7 @@ function TodoForm({ onClose, projectId, date, todo, projects, onProjectIdChange,
           {!todo && projects && (
             <div>
               <label className="label" htmlFor="todo-project">
-                Project
+                Proyecto
               </label>
               <select
                 id="todo-project"
@@ -212,7 +222,7 @@ function TodoForm({ onClose, projectId, date, todo, projects, onProjectIdChange,
           <div className="grid gap-4 sm:grid-cols-2">
             <div>
               <label className="label" htmlFor="todo-date">
-                {!todo && repeat ? "Starts" : "Day"}
+                {!todo && repeat ? "Empieza" : "Día"}
               </label>
               <input
                 id="todo-date"
@@ -222,12 +232,12 @@ function TodoForm({ onClose, projectId, date, todo, projects, onProjectIdChange,
                 onChange={(e) => setDay(e.target.value)}
                 required
                 disabled={editingSeries}
-                title={editingSeries ? "Change the day of a single todo with “Only this todo”" : undefined}
+                title={editingSeries ? "Para cambiar el día, elige «Solo esta tarea»" : undefined}
               />
             </div>
             <div>
               <label className="label" htmlFor="todo-assignee">
-                Assignee
+                Responsable
               </label>
               <select
                 id="todo-assignee"
@@ -235,8 +245,10 @@ function TodoForm({ onClose, projectId, date, todo, projects, onProjectIdChange,
                 value={assigneeId}
                 onChange={(e) => setAssigneeId(e.target.value)}
               >
-                <option value="">Unassigned</option>
-                {formerAssignee && <option value={formerAssignee}>{nameOf(formerAssignee)} (no project access)</option>}
+                <option value="">Sin asignar</option>
+                {formerAssignee && (
+                  <option value={formerAssignee}>{nameOf(formerAssignee)} (sin acceso al proyecto)</option>
+                )}
                 {members.map((m) => (
                   <option key={m.id} value={m.id}>
                     {m.name}
@@ -247,7 +259,7 @@ function TodoForm({ onClose, projectId, date, todo, projects, onProjectIdChange,
           </div>
           <div>
             <label className="label" htmlFor="todo-notes">
-              Notes
+              Notas
             </label>
             <textarea
               id="todo-notes"
@@ -255,13 +267,13 @@ function TodoForm({ onClose, projectId, date, todo, projects, onProjectIdChange,
               value={notes}
               onChange={(e) => setNotes(e.target.value)}
               maxLength={LIMITS.todoNotes}
-              placeholder="Optional details"
+              placeholder="Detalles opcionales"
             />
           </div>
           {(!todo || editingSeries) && (
             <div>
               <label className="label" htmlFor="todo-repeat">
-                Repeat
+                Repetir
               </label>
               {editingSeries ? (
                 <RepeatPicker
@@ -286,7 +298,7 @@ function TodoForm({ onClose, projectId, date, todo, projects, onProjectIdChange,
         {readOnly ? (
           <div className="flex justify-end">
             <button type="button" className="btn-outline" onClick={onClose}>
-              Close
+              Cerrar
             </button>
           </div>
         ) : (
@@ -298,7 +310,7 @@ function TodoForm({ onClose, projectId, date, todo, projects, onProjectIdChange,
                 disabled={busy}
                 onClick={() => void run(() => remove({ todoId: todo._id }))}
               >
-                <Trash2 className="size-4" /> Delete
+                <Trash2 className="size-4" /> Eliminar
               </button>
             )}
             {activeSeries && (
@@ -306,21 +318,21 @@ function TodoForm({ onClose, projectId, date, todo, projects, onProjectIdChange,
                 type="button"
                 className="btn-ghost text-muted"
                 disabled={busy}
-                title="Keep today's and earlier todos; remove later ones that haven't been started"
+                title="Conservar las tareas de hoy y anteriores; quitar las futuras que no hayan empezado"
                 // Stops after today: from tomorrow on nothing is generated.
                 onClick={() =>
                   void run(() => stopSeries({ recurrenceId: activeSeries._id, from: shiftDays(today, 1) }))
                 }
               >
-                <Repeat className="size-4" /> Stop repeating
+                <Repeat className="size-4" /> Detener repetición
               </button>
             )}
             <div className="ml-auto flex gap-2">
               <button type="button" className="btn-outline" onClick={onClose}>
-                Cancel
+                Cancelar
               </button>
               <button type="submit" className="btn-primary" disabled={busy || !title.trim() || ruleInvalid}>
-                {todo ? (editingSeries ? "Save series" : "Save") : "Add todo"}
+                {todo ? (editingSeries ? "Guardar serie" : "Guardar") : "Añadir tarea"}
               </button>
             </div>
           </div>
@@ -331,11 +343,11 @@ function TodoForm({ onClose, projectId, date, todo, projects, onProjectIdChange,
 
       {todo && (
         <div className="border-t border-line pt-4">
-          <h3 className="mb-2 text-xs font-medium tracking-wide text-muted uppercase">History</h3>
+          <h3 className="mb-2 text-xs font-medium tracking-wide text-muted uppercase">Historial</h3>
           {history === undefined ? (
-            <p className="text-sm text-muted">Loading…</p>
+            <p className="text-sm text-muted">Cargando…</p>
           ) : history.length === 0 ? (
-            <p className="text-sm text-muted">No changes yet.</p>
+            <p className="text-sm text-muted">Todavía no hay cambios.</p>
           ) : (
             <ul className="max-h-48 space-y-1.5 overflow-y-auto text-sm">
               {history.map((a) => (
@@ -344,7 +356,7 @@ function TodoForm({ onClose, projectId, date, todo, projects, onProjectIdChange,
                     <span className="font-medium">{nameOf(a.actorId)}</span> {describe(a, { withTitle: false })}
                   </span>
                   <span className="shrink-0 text-xs text-muted">
-                    {formatDistanceToNow(a._creationTime, { addSuffix: true })}
+                    {formatDistanceToNow(a._creationTime, { addSuffix: true, locale: es })}
                   </span>
                 </li>
               ))}

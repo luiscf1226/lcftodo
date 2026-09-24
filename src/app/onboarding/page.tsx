@@ -5,7 +5,7 @@ import { ThemeToggle } from "@/components/ThemeToggle";
 import { APP_HOME_PATH } from "@/lib/routes";
 import { TeamChooser } from "./TeamChooser";
 
-export const metadata: Metadata = { title: "Set up your team · LCF Todos" };
+export const metadata: Metadata = { title: "Configura tu equipo · LCF Todos" };
 
 // Reached by signed-in users without an active team: right after sign-up, after accepting an
 // invite into a session that has no team yet, or after being removed from their only team.

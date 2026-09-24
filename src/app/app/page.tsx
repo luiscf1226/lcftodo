@@ -85,12 +85,12 @@ export default function TodayPage() {
     <div className="mx-auto max-w-5xl">
       <PageHeader
         title={fmt(today, "EEEE, MMMM d")}
-        subtitle={organization ? `${organization.name} · this week at a glance` : undefined}
+        subtitle={organization ? `${organization.name} · resumen de esta semana` : undefined}
         actions={
           <div className="flex flex-wrap items-center gap-2">
             {activeProjects.length > 0 && (
               <button className="btn-primary" onClick={() => setCreating(true)}>
-                <Plus className="size-4" /> New todo
+                <Plus className="size-4" /> Nueva tarea
               </button>
             )}
             <div className="flex rounded-lg border border-line bg-surface p-0.5 text-sm" role="tablist">
@@ -102,7 +102,7 @@ export default function TodayPage() {
                   onClick={() => setScope(s)}
                   className={clsx("rounded-md px-3 py-1.5", scope === s ? "bg-surface-2 font-medium" : "text-muted")}
                 >
-                  {s === "mine" ? "My todos" : "Whole team"}
+                  {s === "mine" ? "Mis tareas" : "Todo el equipo"}
                 </button>
               ))}
             </div>
@@ -123,9 +123,9 @@ export default function TodayPage() {
       )}
       {projects && projects.length > 0 && activeProjects.length === 0 && (
         <p className="mb-6 flex flex-wrap items-center justify-between gap-2 card p-3 text-sm text-muted">
-          All your projects are archived. Create or restore one to add todos.
+          Todos tus proyectos están archivados. Crea o restaura uno para añadir tareas.
           <Link href="/app/projects" className="btn-outline">
-            Go to projects <ArrowRight className="size-4" />
+            Ver proyectos <ArrowRight className="size-4" />
           </Link>
         </p>
       )}
@@ -142,7 +142,7 @@ export default function TodayPage() {
       </div>
 
       <div className="mb-6 card p-4">
-        <p className="mb-3 text-xs font-medium tracking-wide text-muted uppercase">This week</p>
+        <p className="mb-3 text-xs font-medium tracking-wide text-muted uppercase">Esta semana</p>
         <div className="grid grid-cols-7 gap-1.5">
           {perDay.map(({ day, total, done }) => (
             <div key={day} className="flex flex-col items-center gap-1.5">
@@ -167,21 +167,21 @@ export default function TodayPage() {
         <Skeleton className="h-40" />
       ) : projects && projects.length === 0 && access?.restricted && !access.isAdmin ? (
         <Empty
-          title="No projects yet"
-          body="You haven't been added to any projects on this team. Ask a team admin to give you access, or create your own project."
+          title="Aún no hay proyectos"
+          body="Todavía no tienes acceso a ningún proyecto del equipo. Pide acceso a un administrador o crea tu propio proyecto."
           action={
             <Link href="/app/projects" className="btn-outline">
-              Go to projects <ArrowRight className="size-4" />
+              Ver proyectos <ArrowRight className="size-4" />
             </Link>
           }
         />
       ) : projects && projects.length === 0 ? (
         <Empty
-          title="Welcome! Start with a project"
-          body="Create a project, then add todos to each day of the week. Invite teammates from the Team page."
+          title="¡Bienvenido! Empieza con un proyecto"
+          body="Crea un proyecto y añade tareas a cada día de la semana. Invita a tus compañeros desde la página Equipo."
           action={
             <Link href="/app/projects" className="btn-primary">
-              Go to projects <ArrowRight className="size-4" />
+              Ver proyectos <ArrowRight className="size-4" />
             </Link>
           }
         />
@@ -189,11 +189,11 @@ export default function TodayPage() {
         <div className="grid gap-6 md:grid-cols-2">
           <section>
             <h2 className="mb-2 text-sm font-semibold">
-              Today <span className="font-normal text-muted">({todayItems.length})</span>
+              Hoy <span className="font-normal text-muted">({todayItems.length})</span>
             </h2>
             {todayItems.length === 0 ? (
               <p className="card p-4 text-sm text-muted">
-                Nothing planned for today. Type above and press Enter to add one.
+                No hay tareas para hoy. Escribe arriba y pulsa Enter para añadir una.
               </p>
             ) : (
               list(todayItems)
@@ -201,9 +201,9 @@ export default function TodayPage() {
           </section>
           <section>
             <h2 className="mb-2 text-sm font-semibold">
-              Still open from earlier this week <span className="font-normal text-muted">({overdue.length})</span>
+              Pendientes de días anteriores <span className="font-normal text-muted">({overdue.length})</span>
             </h2>
-            {overdue.length === 0 ? <p className="card p-4 text-sm text-muted">All caught up.</p> : list(overdue)}
+            {overdue.length === 0 ? <p className="card p-4 text-sm text-muted">Todo al día.</p> : list(overdue)}
           </section>
         </div>
       )}

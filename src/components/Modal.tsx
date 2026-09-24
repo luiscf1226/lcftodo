@@ -43,7 +43,7 @@ export function Modal({
             <h2 id={titleId} className="text-lg font-semibold">
               {title}
             </h2>
-            <button type="button" onClick={onClose} className="btn-ghost -mr-2 p-1.5" aria-label="Close">
+            <button type="button" onClick={onClose} className="btn-ghost -mr-2 p-1.5" aria-label="Cerrar">
               <X className="size-4" />
             </button>
           </div>

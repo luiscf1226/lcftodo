@@ -3,6 +3,7 @@
 import clsx from "clsx";
 import { useAction, useMutation, useQuery } from "convex/react";
 import { formatDistanceToNow } from "date-fns";
+import { es } from "date-fns/locale";
 import { Lock, LockOpen, Mail, RefreshCw, Send, UserMinus, X } from "lucide-react";
 import { useId, useMemo, useState, type FormEvent } from "react";
 import { api } from "../../convex/_generated/api";
@@ -68,8 +69,8 @@ function PolicyCard({ restricted, syncReady }: { restricted: boolean; syncReady:
       setConfirming(false);
       showToast(
         enabled
-          ? `Project access is now restricted${seeded ? ` · ${seeded} grant${seeded === 1 ? "" : "s"} added from existing work` : ""}.`
-          : "Every member can now see every project.",
+          ? `El acceso a proyectos está restringido${seeded ? ` · se añadieron ${seeded} ${seeded === 1 ? "permiso" : "permisos"} a partir del trabajo existente` : ""}.`
+          : "Todos los miembros pueden ver todos los proyectos.",
       );
     } catch (e) {
       setError(errorMessage(e));
@@ -88,22 +89,22 @@ function PolicyCard({ restricted, syncReady }: { restricted: boolean; syncReady:
           </span>
           <div className="min-w-0">
             <h2 id="access-policy" className="font-medium">
-              {restricted ? "Restricted project access" : "Open project access"}
+              {restricted ? "Acceso restringido a proyectos" : "Acceso abierto a proyectos"}
             </h2>
             <p className="text-sm text-muted">
               {restricted
-                ? "Members only see the projects you grant them. Admins see every project."
-                : "Every member sees every project. Restrict access to choose who sees which project."}
+                ? "Los miembros solo ven los proyectos autorizados. Los administradores ven todos."
+                : "Todos los miembros ven todos los proyectos. Restringe el acceso para elegir quién ve cada uno."}
             </p>
           </div>
         </div>
         {restricted ? (
           <button type="button" className="btn-outline" disabled={busy} onClick={() => void apply(false)}>
-            Open to everyone
+            Abrir a todos
           </button>
         ) : (
           <button type="button" className="btn-primary" onClick={() => setConfirming(true)}>
-            <Lock className="size-4" /> Restrict access
+            <Lock className="size-4" /> Restringir acceso
           </button>
         )}
       </div>
@@ -113,11 +114,11 @@ function PolicyCard({ restricted, syncReady }: { restricted: boolean; syncReady:
         </p>
       )}
 
-      <Modal open={confirming} onClose={() => setConfirming(false)} title="Restrict project access?">
+      <Modal open={confirming} onClose={() => setConfirming(false)} title="¿Restringir acceso a proyectos?">
         <div className="space-y-4 text-sm">
           <p className="text-muted">
-            Members will only see projects they&apos;ve been granted, in Projects, Today, boards, History and exports.
-            Admins keep access to everything. You can undo this anytime.
+            Los miembros solo verán los proyectos autorizados en Proyectos, Hoy, los tableros, el historial y las
+            exportaciones. Los administradores conservarán el acceso completo. Puedes deshacerlo cuando quieras.
           </p>
           <div className="flex items-start gap-2 rounded-lg border border-line bg-surface-2 px-3 py-2.5">
             <input
@@ -128,7 +129,8 @@ function PolicyCard({ restricted, syncReady }: { restricted: boolean; syncReady:
               onChange={(e) => setSeed(e.target.checked)}
             />
             <label htmlFor={seedId} className="text-fg">
-              Keep current work visible: grant each member the projects they created or have todos in
+              Mantener visible el trabajo actual: dar acceso a cada miembro a los proyectos que creó o donde tiene
+              tareas
             </label>
           </div>
           {error && (
@@ -138,7 +140,7 @@ function PolicyCard({ restricted, syncReady }: { restricted: boolean; syncReady:
           )}
           <div className="flex justify-end gap-2">
             <button type="button" className="btn-outline" onClick={() => setConfirming(false)}>
-              Cancel
+              Cancelar
             </button>
             <button
               type="button"
@@ -147,7 +149,7 @@ function PolicyCard({ restricted, syncReady }: { restricted: boolean; syncReady:
               onClick={() => void apply(true)}
               data-autofocus
             >
-              {busy ? "Restricting…" : "Restrict access"}
+              {busy ? "Restringiendo…" : "Restringir acceso"}
             </button>
           </div>
         </div>
@@ -171,7 +173,7 @@ function ProjectPicker({
     <fieldset>
       <legend className="label">{legend}</legend>
       {projects.length === 0 ? (
-        <p className="text-sm text-muted">Create a project first to grant access to it.</p>
+        <p className="text-sm text-muted">Crea un proyecto antes de dar acceso.</p>
       ) : (
         <div className="flex flex-wrap gap-1.5">
           {projects.map((p) => (
@@ -223,10 +225,10 @@ function InviteForm({ projects, restricted }: { projects: ProjectLite[]; restric
       const { outcome } = await invite({ email, role, projectIds: [...selected] });
       showToast(
         outcome === "granted"
-          ? `${email.trim()} is already on the team, so they got access right away.`
+          ? `${email.trim()} ya forma parte del equipo y recibió acceso de inmediato.`
           : outcome === "merged"
-            ? `Added the projects to ${email.trim()}'s pending invitation.`
-            : `Invitation sent to ${email.trim()}.`,
+            ? `Se añadieron los proyectos a la invitación pendiente de ${email.trim()}.`
+            : `Invitación enviada a ${email.trim()}.`,
       );
       setEmail("");
       setSelected(new Set());
@@ -240,16 +242,16 @@ function InviteForm({ projects, restricted }: { projects: ProjectLite[]; restric
   return (
     <section className="card p-4" aria-labelledby="invite-heading">
       <h2 id="invite-heading" className="flex items-center gap-2 font-medium">
-        <Mail className="size-4" /> Invite people
+        <Mail className="size-4" /> Invitar personas
       </h2>
       <p className="mb-3 text-sm text-muted">
-        They get an email from Clerk and create their own account; you never see or set their password.
+        Recibirán un correo de Clerk para crear su propia cuenta. No tendrás acceso a su contraseña.
       </p>
       <form onSubmit={submit} className="space-y-3">
         <div className="grid gap-3 sm:grid-cols-[1fr_10rem]">
           <div>
             <label className="label" htmlFor="invite-email">
-              Email
+              Correo electrónico
             </label>
             <input
               id="invite-email"
@@ -264,7 +266,7 @@ function InviteForm({ projects, restricted }: { projects: ProjectLite[]; restric
           </div>
           <div>
             <label className="label" htmlFor="invite-role">
-              Role
+              Rol
             </label>
             <select
               id="invite-role"
@@ -272,17 +274,17 @@ function InviteForm({ projects, restricted }: { projects: ProjectLite[]; restric
               value={role}
               onChange={(e) => setRole(e.target.value as typeof role)}
             >
-              <option value="org:member">Member</option>
-              <option value="org:admin">Admin (all projects)</option>
+              <option value="org:member">Miembro</option>
+              <option value="org:admin">Administrador (todos los proyectos)</option>
             </select>
           </div>
         </div>
         {role === "org:member" && (
-          <ProjectPicker projects={live} selected={selected} onToggle={toggle} legend="Projects they can see" />
+          <ProjectPicker projects={live} selected={selected} onToggle={toggle} legend="Proyectos que pueden ver" />
         )}
         {role === "org:member" && !restricted && selected.size > 0 && (
           <p className="text-xs text-muted">
-            Project access is open right now, so they&apos;ll see every project until you restrict access above.
+            El acceso está abierto ahora, así que verán todos los proyectos hasta que lo restrinjas arriba.
           </p>
         )}
         {error && (
@@ -292,7 +294,7 @@ function InviteForm({ projects, restricted }: { projects: ProjectLite[]; restric
         )}
         <div className="flex justify-end">
           <button type="submit" className="btn-primary" disabled={busy || !email.trim()}>
-            <Send className="size-4" /> {busy ? "Sending…" : "Send invitation"}
+            <Send className="size-4" /> {busy ? "Enviando…" : "Enviar invitación"}
           </button>
         </div>
       </form>
@@ -320,16 +322,16 @@ function Invitations({ invitations, projects }: { invitations: Invitation[]; pro
     <section className="card p-4" aria-labelledby="invitations-heading">
       <div className="mb-2 flex items-center justify-between gap-2">
         <h2 id="invitations-heading" className="font-medium">
-          Invitations
+          Invitaciones
         </h2>
         {invitations.some((i) => i.status === "pending") && (
           <button type="button" className="btn-ghost text-muted" onClick={() => void doRefresh()} disabled={refreshing}>
-            <RefreshCw className={clsx("size-4", refreshing && "animate-spin")} /> Refresh status
+            <RefreshCw className={clsx("size-4", refreshing && "animate-spin")} /> Actualizar estado
           </button>
         )}
       </div>
       {invitations.length === 0 ? (
-        <p className="text-sm text-muted">No invitations yet.</p>
+        <p className="text-sm text-muted">Todavía no hay invitaciones.</p>
       ) : (
         <ul className="divide-y divide-line">
           {invitations.map((i) => (
@@ -367,17 +369,17 @@ function InvitationRow({ invitation: i, names }: { invitation: Invitation; names
           <span
             className={clsx("rounded-full px-2 py-0.5 text-xs font-medium ring-1 ring-inset", STATUS_STYLE[status])}
           >
-            {status}
+            {{ pending: "Pendiente", accepted: "Aceptada", revoked: "Revocada", expired: "Vencida" }[status] ?? status}
           </span>
-          {i.role === "org:admin" && <span className="text-xs text-muted">Admin</span>}
+          {i.role === "org:admin" && <span className="text-xs text-muted">Administrador</span>}
         </p>
         <p className="truncate text-xs text-muted">
           {i.role === "org:admin"
-            ? "All projects"
+            ? "Todos los proyectos"
             : i.projectIds.length
-              ? i.projectIds.map((id) => names.get(id) ?? "Archived project").join(", ")
-              : "No projects"}
-          {" · "}invited {formatDistanceToNow(i.createdAt, { addSuffix: true })}
+              ? i.projectIds.map((id) => names.get(id) ?? "Proyecto archivado").join(", ")
+              : "Sin proyectos"}
+          {" · "}invitado {formatDistanceToNow(i.createdAt, { addSuffix: true, locale: es })}
         </p>
       </div>
       {status !== "accepted" && (
@@ -386,18 +388,18 @@ function InvitationRow({ invitation: i, names }: { invitation: Invitation; names
             type="button"
             className="btn-ghost px-2 text-sm"
             disabled={busy}
-            onClick={() => void run(() => resend({ id: i._id }), `Invitation re-sent to ${i.email}.`)}
+            onClick={() => void run(() => resend({ id: i._id }), `Invitación reenviada a ${i.email}.`)}
           >
-            <Send className="size-4" /> Resend
+            <Send className="size-4" /> Reenviar
           </button>
           {status === "pending" && (
             <button
               type="button"
               className="btn-ghost px-2 text-sm text-danger"
               disabled={busy}
-              onClick={() => void run(() => revoke({ id: i._id }), `Invitation to ${i.email} revoked.`)}
+              onClick={() => void run(() => revoke({ id: i._id }), `Invitación a ${i.email} revocada.`)}
             >
-              <X className="size-4" /> Revoke
+              <X className="size-4" /> Revocar
             </button>
           )}
         </div>
@@ -422,12 +424,12 @@ function MemberAccess({
   return (
     <section className="card p-4" aria-labelledby="members-access-heading">
       <h2 id="members-access-heading" className="font-medium">
-        Member access
+        Acceso de los miembros
       </h2>
       <p className="mb-2 text-sm text-muted">
         {restricted
-          ? "Pick the projects each member can see and be assigned to."
-          : "Grants take effect once you restrict access."}
+          ? "Elige los proyectos que cada miembro puede ver y donde puede recibir tareas."
+          : "Los permisos se aplicarán cuando restrinjas el acceso."}
       </p>
       <ul className="divide-y divide-line">
         {members.map((m) => (
@@ -468,7 +470,7 @@ function MemberRow({
         const { openAssigned } = await revoke({ projectId, userId: member.id });
         if (openAssigned > 0) {
           showToast(
-            `${openAssigned} open todo${openAssigned === 1 ? " is" : "s are"} still assigned to ${member.name} in ${project?.name}. Reassign from the board.`,
+            `${openAssigned} ${openAssigned === 1 ? "tarea pendiente sigue asignada" : "tareas pendientes siguen asignadas"} a ${member.name} en ${project?.name}. Reasígnalas desde el tablero.`,
           );
         }
       } else {
@@ -487,19 +489,19 @@ function MemberRow({
       </div>
       <div className="min-w-0 flex-1">
         {isAdmin ? (
-          <p className="text-sm text-muted">Admin · all projects</p>
+          <p className="text-sm text-muted">Administrador · todos los proyectos</p>
         ) : (
           <ProjectPicker
             projects={projects}
             selected={granted}
             onToggle={(id) => void toggle(id)}
-            legend={`Projects for ${member.name}`}
+            legend={`Proyectos de ${member.name}`}
           />
         )}
       </div>
       {onRemove && (
         <button type="button" className="btn-ghost self-start px-2 text-sm text-danger" onClick={onRemove}>
-          <UserMinus className="size-4" /> Remove
+          <UserMinus className="size-4" /> Quitar
         </button>
       )}
     </li>
@@ -516,7 +518,7 @@ function RemoveMember({ member, onClose }: { member: Member; onClose: () => void
     setError(null);
     try {
       await remove({ userId: member.id });
-      showToast(`${member.name} was removed from the team.`);
+      showToast(`${member.name} fue eliminado del equipo.`);
       onClose();
     } catch (e) {
       setError(errorMessage(e));
@@ -525,11 +527,11 @@ function RemoveMember({ member, onClose }: { member: Member; onClose: () => void
   }
 
   return (
-    <Modal open onClose={onClose} title={`Remove ${member.name}?`}>
+    <Modal open onClose={onClose} title={`¿Quitar a ${member.name}?`}>
       <div className="space-y-4 text-sm">
         <p className="text-muted">
-          They lose access to every project right away. Their todos keep them as the (former) assignee so history stays
-          accurate; reassign open work from each board.
+          Perderá acceso a todos los proyectos de inmediato. Seguirá figurando como antiguo responsable de sus tareas
+          para conservar el historial. Reasigna las tareas pendientes desde cada tablero.
         </p>
         {error && (
           <p className="text-danger" role="alert">
@@ -538,10 +540,10 @@ function RemoveMember({ member, onClose }: { member: Member; onClose: () => void
         )}
         <div className="flex justify-end gap-2">
           <button type="button" className="btn-outline" onClick={onClose}>
-            Cancel
+            Cancelar
           </button>
           <button type="button" className="btn-danger" disabled={busy} onClick={() => void confirm()}>
-            {busy ? "Removing…" : "Remove from team"}
+            {busy ? "Quitando…" : "Quitar del equipo"}
           </button>
         </div>
       </div>

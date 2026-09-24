@@ -100,11 +100,11 @@ export function WeekBoard({ projectId }: { projectId: Id<"projects"> }) {
     if (deleting) return <Skeleton className="h-40" />;
     return (
       <Empty
-        title="Project not found"
-        body="It may have been deleted, belong to another team, or you may no longer have access to it."
+        title="Proyecto no encontrado"
+        body="Es posible que se haya eliminado, pertenezca a otro equipo o ya no tengas acceso."
         action={
           <Link href="/app/projects" className="btn-outline">
-            Back to projects
+            Volver a proyectos
           </Link>
         }
       />
@@ -120,7 +120,7 @@ export function WeekBoard({ projectId }: { projectId: Id<"projects"> }) {
       <div className="mb-4 flex flex-wrap items-start justify-between gap-3">
         <div className="min-w-0">
           <Link href="/app/projects" className="text-xs text-muted hover:text-fg">
-            ← Projects
+            ← Proyectos
           </Link>
           {project === undefined ? (
             <Skeleton className="mt-1 h-8 w-48" />
@@ -129,7 +129,7 @@ export function WeekBoard({ projectId }: { projectId: Id<"projects"> }) {
               <span className="size-3 shrink-0 rounded-full" style={{ background: project.color }} />
               <span className="truncate">{project.name}</span>
               {project.archived && (
-                <span className="rounded-full bg-surface-2 px-2 py-0.5 text-xs font-medium text-muted">Archived</span>
+                <span className="rounded-full bg-surface-2 px-2 py-0.5 text-xs font-medium text-muted">Archivado</span>
               )}
             </h1>
           )}
@@ -149,8 +149,8 @@ export function WeekBoard({ projectId }: { projectId: Id<"projects"> }) {
           className="mb-4 flex items-center gap-2 rounded-lg border border-line bg-surface-2 px-3 py-2 text-sm text-muted"
           role="status"
         >
-          <Archive className="size-4 shrink-0" /> This project is archived. Its todos are read-only; restore the project
-          to make changes.
+          <Archive className="size-4 shrink-0" /> Este proyecto está archivado. Sus tareas son de solo lectura.
+          Restáuralo para hacer cambios.
         </p>
       )}
 
@@ -158,7 +158,7 @@ export function WeekBoard({ projectId }: { projectId: Id<"projects"> }) {
         <div className="flex items-center rounded-lg border border-line bg-surface">
           <button
             className="btn-ghost rounded-r-none px-2"
-            aria-label="Previous week"
+            aria-label="Semana anterior"
             onClick={() => setWeek(shiftDays(start, -7))}
           >
             <ChevronLeft className="size-4" />
@@ -166,7 +166,7 @@ export function WeekBoard({ projectId }: { projectId: Id<"projects"> }) {
           <span className="min-w-40 px-1 text-center text-sm font-medium tabular-nums">{weekLabel(start)}</span>
           <button
             className="btn-ghost rounded-l-none px-2"
-            aria-label="Next week"
+            aria-label="Semana siguiente"
             onClick={() => setWeek(shiftDays(start, 7))}
           >
             <ChevronRight className="size-4" />
@@ -174,25 +174,25 @@ export function WeekBoard({ projectId }: { projectId: Id<"projects"> }) {
         </div>
         {start !== weekStart(today) && (
           <button className="btn-outline" onClick={() => setWeek(today)}>
-            This week
+            Esta semana
           </button>
         )}
         <input
           type="date"
-          aria-label="Jump to date"
+          aria-label="Ir a una fecha"
           className="input w-auto py-1.5"
           value={start}
           onChange={(e) => e.target.value && setWeek(e.target.value)}
         />
         <select
-          aria-label="Filter by assignee"
+          aria-label="Filtrar por responsable"
           className="input w-auto py-1.5"
           value={filter}
           onChange={(e) => setFilter(e.target.value)}
         >
-          <option value="all">Everyone</option>
-          {userId && <option value={userId}>Only me</option>}
-          <option value="unassigned">Unassigned</option>
+          <option value="all">Todos</option>
+          {userId && <option value={userId}>Solo yo</option>}
+          <option value="unassigned">Sin asignar</option>
           {members
             .filter((m) => m.id !== userId)
             .map((m) => (
@@ -208,7 +208,9 @@ export function WeekBoard({ projectId }: { projectId: Id<"projects"> }) {
               {STATUS_META[s].label} <span className="font-medium text-fg tabular-nums">{counts[s]}</span>
             </span>
           ))}
-          {total > 0 && <span className="font-medium text-fg">{Math.round((counts.done / total) * 100)}% done</span>}
+          {total > 0 && (
+            <span className="font-medium text-fg">{Math.round((counts.done / total) * 100)}% completado</span>
+          )}
         </div>
       </div>
 
@@ -236,7 +238,7 @@ export function WeekBoard({ projectId }: { projectId: Id<"projects"> }) {
                     </div>
                     {isToday && (
                       <span className="rounded-full bg-accent px-1.5 py-px text-[10px] font-semibold text-accent-fg">
-                        TODAY
+                        HOY
                       </span>
                     )}
                     <span className="ml-auto text-xs text-muted tabular-nums">
@@ -302,7 +304,7 @@ function QuickAdd({ projectId, date, onMore }: { projectId: Id<"projects">; date
   if (!adding) {
     return (
       <button className="btn-ghost flex-1 justify-start px-2 py-1.5 text-muted" onClick={() => setAdding(true)}>
-        <Plus className="size-4" /> Add
+        <Plus className="size-4" /> Añadir
       </button>
     );
   }
@@ -341,7 +343,7 @@ function QuickAddForm({
           setTitle("");
           mention.clearAssignee();
         } catch (error) {
-          showToast(errorMessage(error, "Couldn't add the todo."));
+          showToast(errorMessage(error, "No se pudo añadir la tarea."));
         } finally {
           setBusy(false);
         }
@@ -352,8 +354,8 @@ function QuickAddForm({
           ref={inputRef}
           autoFocus
           className="input py-1.5"
-          placeholder="New todo… @ to assign"
-          aria-label={`New todo for ${fmt(date, "EEEE")}`}
+          placeholder="Nueva tarea… @ para asignar"
+          aria-label={`Nueva tarea para el ${fmt(date, "EEEE")}`}
           value={title}
           maxLength={LIMITS.todoTitle}
           enterKeyHint="done"
@@ -369,7 +371,7 @@ function QuickAddForm({
       <AssigneeChip mention={mention} className="self-start" />
       <div className="flex gap-1">
         <button type="submit" className="btn-primary flex-1 py-1 text-xs" disabled={busy || !title.trim()}>
-          Add
+          Añadir
         </button>
         <button
           type="button"
@@ -380,7 +382,7 @@ function QuickAddForm({
             onMore();
           }}
         >
-          More…
+          Más…
         </button>
       </div>
     </form>
@@ -394,19 +396,19 @@ function CarryOver({ projectId, date, count }: { projectId: Id<"projects">; date
     <button
       className="btn-ghost px-2 py-1.5 text-xs text-muted"
       disabled={busy}
-      title={`Move ${count} unfinished todo${count === 1 ? "" : "s"} to the next day and mark these as didn't finish`}
+      title={`Pasar ${count} ${count === 1 ? "tarea pendiente" : "tareas pendientes"} al día siguiente y marcarlas como sin terminar`}
       onClick={async () => {
         setBusy(true);
         try {
           await carry({ projectId, date });
         } catch (error) {
-          showToast(errorMessage(error, "Couldn't carry unfinished todos."));
+          showToast(errorMessage(error, "No se pudieron pasar las tareas pendientes."));
         } finally {
           setBusy(false);
         }
       }}
     >
-      <CornerDownRight className="size-3.5" /> Carry {count}
+      <CornerDownRight className="size-3.5" /> Pasar {count}
     </button>
   );
 }
@@ -428,35 +430,35 @@ function ProjectMenu({
     try {
       await setArchived({ projectId: project._id, archived: !project.archived });
     } catch (error) {
-      showToast(errorMessage(error, `Couldn't ${project.archived ? "restore" : "archive"} the project.`));
+      showToast(errorMessage(error, `No se pudo ${project.archived ? "restaurar" : "archivar"} el proyecto.`));
     }
   };
 
   return (
     <Menu
       label={<MoreHorizontal className="size-4" />}
-      aria-label="Project options"
+      aria-label="Opciones del proyecto"
       triggerClassName="btn-outline px-2"
       menuClassName="w-44"
     >
       <MenuItem onSelect={onEdit}>
-        <Pencil className="size-4" /> Edit
+        <Pencil className="size-4" /> Editar
       </MenuItem>
       {isAdmin && (
         <>
           <MenuItem onSelect={() => void archive()}>
             {project.archived ? (
               <>
-                <ArchiveRestore className="size-4" /> Restore
+                <ArchiveRestore className="size-4" /> Restaurar
               </>
             ) : (
               <>
-                <Archive className="size-4" /> Archive
+                <Archive className="size-4" /> Archivar
               </>
             )}
           </MenuItem>
           <MenuItem className="text-danger" onSelect={onDelete}>
-            <Trash2 className="size-4" /> Delete
+            <Trash2 className="size-4" /> Eliminar
           </MenuItem>
         </>
       )}
@@ -484,10 +486,10 @@ function DeleteProject({
     onClose();
   };
   return (
-    <Modal open={open} onClose={close} title="Delete project?">
+    <Modal open={open} onClose={close} title="¿Eliminar proyecto?">
       <p className="text-sm text-muted">
-        This permanently deletes <span className="font-medium text-fg">{project.name}</span> and all its todos. The
-        activity history is kept. Consider archiving instead.
+        Esto elimina permanentemente <span className="font-medium text-fg">{project.name}</span> y todas sus tareas. El
+        historial de actividad se conserva. También puedes archivarlo.
       </p>
       {/* Shown inside the dialog: a toast would sit behind the modal backdrop. */}
       {error && (
@@ -497,7 +499,7 @@ function DeleteProject({
       )}
       <div className="mt-5 flex justify-end gap-2">
         <button className="btn-outline" onClick={close}>
-          Cancel
+          Cancelar
         </button>
         <button
           className="btn-danger"
@@ -511,13 +513,13 @@ function DeleteProject({
               await remove({ projectId: project._id });
               router.replace("/app/projects");
             } catch (caught) {
-              setError(errorMessage(caught, "Couldn't delete the project."));
+              setError(errorMessage(caught, "No se pudo eliminar el proyecto."));
               onDeleting(false);
               setBusy(false);
             }
           }}
         >
-          {busy ? "Deleting…" : "Delete project"}
+          {busy ? "Eliminando…" : "Eliminar proyecto"}
         </button>
       </div>
     </Modal>

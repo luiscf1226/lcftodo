@@ -9,7 +9,7 @@ export type PersonStats = {
   open: number;
 };
 
-export const UNASSIGNED = "Unassigned";
+export const UNASSIGNED = "Sin asignar";
 
 // Whole-number completion %, or null when nobody was assigned anything.
 export const completion = (p: Pick<PersonStats, "assigned" | "done">) =>

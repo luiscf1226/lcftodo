@@ -10,29 +10,31 @@ export function describe(a: Doc<"activity">, { withTitle = true } = {}) {
   const t = withTitle && a.todoTitle ? ` “${a.todoTitle}”` : "";
   switch (a.action) {
     case "created":
-      return `added${t} for ${day(a.date)}`;
+      return `añadió${t} para el ${day(a.date)}`;
     case "updated":
-      return a.from && a.to ? `renamed “${a.from}” to “${a.to}”` : `edited${t}`;
+      return a.from && a.to ? `cambió el nombre de “${a.from}” a “${a.to}”` : `editó${t}`;
     case "status":
-      return `marked${t} ${statusLabel(a.to)}${a.from ? ` (was ${statusLabel(a.from)})` : ""}`;
+      return `marcó${t} como ${statusLabel(a.to)}${a.from ? ` (antes: ${statusLabel(a.from)})` : ""}`;
     case "moved":
-      return `moved${t} from ${day(a.from)} to ${day(a.to)}`;
+      return `movió${t} del ${day(a.from)} al ${day(a.to)}`;
     case "carried_over":
-      return `carried${t} over from ${day(a.from)} to ${day(a.to)}`;
+      return `pasó${t} del ${day(a.from)} al ${day(a.to)}`;
     case "deleted":
-      return `deleted${t}`;
+      return `eliminó${t}`;
     case "commented":
-      return withTitle && a.todoTitle ? `commented on${t}` : "commented";
+      return withTitle && a.todoTitle ? `comentó en${t}` : "comentó";
     case "project_created":
-      return `created project ${a.projectName}`;
+      return `creó el proyecto ${a.projectName}`;
     case "project_updated":
-      return a.from && a.to ? `renamed project “${a.from}” to “${a.to}”` : `edited project ${a.projectName}`;
+      return a.from && a.to
+        ? `cambió el nombre del proyecto “${a.from}” a “${a.to}”`
+        : `editó el proyecto ${a.projectName}`;
     case "project_archived":
-      return `archived project ${a.projectName}`;
+      return `archivó el proyecto ${a.projectName}`;
     case "project_restored":
-      return `restored project ${a.projectName}`;
+      return `restauró el proyecto ${a.projectName}`;
     case "project_deleted":
-      return `deleted project ${a.projectName}`;
+      return `eliminó el proyecto ${a.projectName}`;
     default:
       // Adding an action to ACTIONS without describing it here is a type error.
       return unreachable(a.action);

@@ -20,7 +20,7 @@ export function ProjectDialog({
   project?: Doc<"projects">;
 }) {
   return (
-    <Modal open={open} onClose={onClose} title={project ? "Edit project" : "New project"}>
+    <Modal open={open} onClose={onClose} title={project ? "Editar proyecto" : "Nuevo proyecto"}>
       <ProjectForm key={project?._id ?? "new"} onClose={onClose} project={project} />
     </Modal>
   );
@@ -52,7 +52,7 @@ function ProjectForm({ onClose, project }: { onClose: () => void; project?: Doc<
       }
     } catch (caught) {
       // Server validation messages (length, color) are meant to be shown as-is.
-      setError(errorMessage(caught, "Couldn't save the project. Try again."));
+      setError(errorMessage(caught, "No se pudo guardar el proyecto. Inténtalo de nuevo."));
       setBusy(false);
     }
   }
@@ -61,7 +61,7 @@ function ProjectForm({ onClose, project }: { onClose: () => void; project?: Doc<
     <form onSubmit={submit} className="space-y-4">
       <div>
         <label className="label" htmlFor="project-name">
-          Name
+          Nombre
         </label>
         <input
           id="project-name"
@@ -71,12 +71,12 @@ function ProjectForm({ onClose, project }: { onClose: () => void; project?: Doc<
           onChange={(e) => setName(e.target.value)}
           maxLength={LIMITS.projectName}
           required
-          placeholder="e.g. Website relaunch"
+          placeholder="Ej.: Rediseño del sitio web"
         />
       </div>
       <div>
         <label className="label" htmlFor="project-desc">
-          Description
+          Descripción
         </label>
         <textarea
           id="project-desc"
@@ -84,7 +84,7 @@ function ProjectForm({ onClose, project }: { onClose: () => void; project?: Doc<
           value={description}
           onChange={(e) => setDescription(e.target.value)}
           maxLength={LIMITS.projectDescription}
-          placeholder="Optional"
+          placeholder="Opcional"
         />
       </div>
       <fieldset>
@@ -113,10 +113,10 @@ function ProjectForm({ onClose, project }: { onClose: () => void; project?: Doc<
       )}
       <div className="flex justify-end gap-2">
         <button type="button" className="btn-outline" onClick={onClose}>
-          Cancel
+          Cancelar
         </button>
         <button type="submit" className="btn-primary" disabled={busy || !name.trim()}>
-          {project ? "Save" : "Create project"}
+          {project ? "Guardar" : "Crear proyecto"}
         </button>
       </div>
     </form>

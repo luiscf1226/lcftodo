@@ -20,8 +20,8 @@ function todoCard(scope: Locator, title: string) {
 
 // The first-run tutorial is a modal that can open on any /app page until it is completed.
 async function autoDismissTutorial(page: Page) {
-  await page.addLocatorHandler(page.getByRole("dialog", { name: "Getting started" }), async (dialog) => {
-    await dialog.getByRole("button", { name: "Close" }).click();
+  await page.addLocatorHandler(page.getByRole("dialog", { name: "Primeros pasos" }), async (dialog) => {
+    await dialog.getByRole("button", { name: "Cerrar" }).click();
   });
 }
 
@@ -51,20 +51,20 @@ test("sign in, plan a week, carry over, review history and export CSV", async ({
     // The Clerk instance requires an organization, so a new user's session is pending and
     // the proxy sends them to /onboarding, which hosts Clerk's choose-organization task (#31).
     await expect(page).toHaveURL(/\/onboarding/);
-    await expect(page.getByRole("heading", { name: "Create your team" })).toBeVisible();
-    await page.getByRole("textbox", { name: "Team name" }).fill(teamName);
-    await page.getByRole("button", { name: "Create team" }).click();
+    await expect(page.getByRole("heading", { name: "Crea tu equipo" })).toBeVisible();
+    await page.getByRole("textbox", { name: "Nombre del equipo" }).fill(teamName);
+    await page.getByRole("button", { name: "Crear equipo" }).click();
     await expect(page).toHaveURL(/\/app$/);
-    await expect(page.getByText(`${teamName} · this week at a glance`)).toBeVisible();
+    await expect(page.getByText(`${teamName} · resumen de esta semana`)).toBeVisible();
   });
 
   await test.step("create a project", async () => {
-    await page.getByRole("link", { name: "Projects" }).first().click();
-    await expect(page.getByRole("heading", { name: "Projects" })).toBeVisible();
-    await page.getByRole("button", { name: "New project" }).first().click();
-    const dialog = page.getByRole("dialog", { name: "New project" });
-    await dialog.getByLabel("Name").fill(projectName);
-    await dialog.getByRole("button", { name: "Create project" }).click();
+    await page.getByRole("link", { name: "Proyectos" }).first().click();
+    await expect(page.getByRole("heading", { name: "Proyectos" })).toBeVisible();
+    await page.getByRole("button", { name: "Nuevo proyecto" }).first().click();
+    const dialog = page.getByRole("dialog", { name: "Nuevo proyecto" });
+    await dialog.getByLabel("Nombre").fill(projectName);
+    await dialog.getByRole("button", { name: "Crear proyecto" }).click();
     await expect(page).toHaveURL(/\/app\/projects\/[^/?]+/);
     await expect(page.getByRole("heading", { name: projectName })).toBeVisible();
   });
@@ -73,8 +73,8 @@ test("sign in, plan a week, carry over, review history and export CSV", async ({
   const tuesdayColumn = page.getByRole("region", { name: fmt(tuesday, "EEEE, MMMM d") });
 
   await test.step("add todos", async () => {
-    await mondayColumn.getByRole("button", { name: "Add", exact: true }).click();
-    const input = mondayColumn.getByPlaceholder(/new todo/i);
+    await mondayColumn.getByRole("button", { name: "Añadir", exact: true }).click();
+    const input = mondayColumn.getByPlaceholder(/nueva tarea/i);
     await input.fill(carried);
     await input.press("Enter");
     await expect(mondayColumn.getByRole("button", { name: carried, exact: true })).toBeVisible();
@@ -85,25 +85,25 @@ test("sign in, plan a week, carry over, review history and export CSV", async ({
   });
 
   await test.step("change status", async () => {
-    await todoCard(mondayColumn, carried).getByLabel("Status").selectOption({ label: "Doing" });
-    await todoCard(mondayColumn, finished).getByLabel("Status").selectOption({ label: "Done" });
-    await expect(todoCard(mondayColumn, carried).getByLabel("Status")).toHaveValue("doing");
-    await expect(todoCard(mondayColumn, finished).getByLabel("Status")).toHaveValue("done");
+    await todoCard(mondayColumn, carried).getByLabel("Estado").selectOption({ label: "En progreso" });
+    await todoCard(mondayColumn, finished).getByLabel("Estado").selectOption({ label: "Hecho" });
+    await expect(todoCard(mondayColumn, carried).getByLabel("Estado")).toHaveValue("doing");
+    await expect(todoCard(mondayColumn, finished).getByLabel("Estado")).toHaveValue("done");
   });
 
   await test.step("carry over unfinished todos", async () => {
-    await mondayColumn.getByRole("button", { name: "Carry 1" }).click();
-    await expect(todoCard(mondayColumn, carried).getByLabel("Status")).toHaveValue("not_done");
-    await expect(todoCard(mondayColumn, finished).getByLabel("Status")).toHaveValue("done");
+    await mondayColumn.getByRole("button", { name: "Pasar 1" }).click();
+    await expect(todoCard(mondayColumn, carried).getByLabel("Estado")).toHaveValue("not_done");
+    await expect(todoCard(mondayColumn, finished).getByLabel("Estado")).toHaveValue("done");
     const copy = todoCard(tuesdayColumn, carried);
-    await expect(copy.getByLabel("Status")).toHaveValue("doing");
-    await expect(copy.getByText("carried")).toBeVisible();
+    await expect(copy.getByLabel("Estado")).toHaveValue("doing");
+    await expect(copy.getByText("pasada")).toBeVisible();
   });
 
   await test.step("review History", async () => {
-    await page.getByRole("link", { name: "History" }).first().click();
-    await expect(page.getByRole("heading", { name: "History" })).toBeVisible();
-    await page.getByLabel("Project", { exact: true }).selectOption({ label: projectName });
+    await page.getByRole("link", { name: "Historial" }).first().click();
+    await expect(page.getByRole("heading", { name: "Historial" })).toBeVisible();
+    await page.getByLabel("Proyecto", { exact: true }).selectOption({ label: projectName });
     const mondayRow = page.getByRole("button", { name: new RegExp(fmt(monday, "EEE, MMM d")) });
     await expect(mondayRow).toContainText("1/2");
     await mondayRow.click();
@@ -112,9 +112,9 @@ test("sign in, plan a week, carry over, review history and export CSV", async ({
   });
 
   await test.step("export todos as CSV", async () => {
-    await page.getByRole("button", { name: "Export" }).click();
+    await page.getByRole("button", { name: "Exportar" }).click();
     const downloadPromise = page.waitForEvent("download");
-    await page.getByRole("menuitem", { name: "Todos (CSV)" }).click();
+    await page.getByRole("menuitem", { name: "Tareas (CSV)" }).click();
     const download = await downloadPromise;
     expect(download.suggestedFilename()).toMatch(/^todos_\d{4}-\d{2}-\d{2}_to_\d{4}-\d{2}-\d{2}\.csv$/);
 
@@ -122,7 +122,7 @@ test("sign in, plan a week, carry over, review history and export CSV", async ({
     const [header, ...rows] = csv.split("\r\n");
     expect(header).toBe("date,project,title,status,assignee,created_by,notes,completed_at,carried_over");
     const row = (title: string) => rows.find((r) => r.includes(`,${title},`));
-    expect(row(carried)).toContain(`${monday},${projectName},${carried},Didn't finish,`);
-    expect(row(finished)).toContain(`${monday},${projectName},${finished},Done,`);
+    expect(row(carried)).toContain(`${monday},${projectName},${carried},Sin terminar,`);
+    expect(row(finished)).toContain(`${monday},${projectName},${finished},Hecho,`);
   });
 });

@@ -39,9 +39,9 @@ function TeamSettingsForm({ settings }: { settings: Settings }) {
     setError(null);
     try {
       await update({ timeZone, autoCarryOver });
-      showToast("Team settings saved.");
+      showToast("Configuración del equipo guardada.");
     } catch (caught) {
-      setError(errorMessage(caught, "Couldn't save team settings. Try again."));
+      setError(errorMessage(caught, "No se pudo guardar la configuración. Inténtalo de nuevo."));
     } finally {
       setBusy(false);
     }
@@ -50,14 +50,14 @@ function TeamSettingsForm({ settings }: { settings: Settings }) {
   return (
     <form onSubmit={submit} className="mb-6 space-y-4 card p-4">
       <div>
-        <h2 className="text-sm font-semibold">Team settings</h2>
+        <h2 className="text-sm font-semibold">Configuración del equipo</h2>
         <p className="text-xs text-muted">
-          {settings.canEdit ? "Applies to everyone on the team." : "Only team admins can change these."}
+          {settings.canEdit ? "Se aplica a todo el equipo." : "Solo los administradores pueden cambiar esto."}
         </p>
       </div>
       <div className="max-w-sm">
         <label className="label" htmlFor="team-tz">
-          Time zone
+          Zona horaria
         </label>
         <select
           id="team-tz"
@@ -74,8 +74,8 @@ function TeamSettingsForm({ settings }: { settings: Settings }) {
         </select>
         <p className="mt-1 text-xs text-muted">
           {settings.timeZone
-            ? "Today, the week board, history ranges and exports all use this zone."
-            : "Not set yet: each person currently sees days in their own browser's zone."}
+            ? "La vista de hoy, el tablero semanal, el historial y las exportaciones usan esta zona."
+            : "Sin configurar: cada persona ve los días según la zona horaria de su navegador."}
         </p>
       </div>
       <label className="flex items-start gap-2 text-sm">
@@ -87,11 +87,11 @@ function TeamSettingsForm({ settings }: { settings: Settings }) {
           onChange={(e) => setAutoCarryOver(e.target.checked)}
         />
         <span>
-          Carry over unfinished todos automatically every night
+          Pasar las tareas pendientes al día siguiente automáticamente
           <span className="block text-xs text-muted">
-            Shortly after midnight in the team&apos;s time zone, open todos from the previous day move to the new day
-            and the originals are marked &ldquo;didn&apos;t finish&rdquo;. Archived projects are skipped. Shown as
-            &ldquo;System&rdquo; in history.
+            Poco después de la medianoche en la zona horaria del equipo, las tareas pendientes pasan al día siguiente y
+            las originales se marcan como &ldquo;sin terminar&rdquo;. Se omiten los proyectos archivados. En el
+            historial aparece como &ldquo;Sistema&rdquo;.
           </span>
         </span>
       </label>
@@ -103,7 +103,7 @@ function TeamSettingsForm({ settings }: { settings: Settings }) {
       {settings.canEdit && (
         <div className="flex justify-end">
           <button type="submit" className="btn-primary" disabled={!dirty || busy}>
-            {busy ? "Saving…" : "Save settings"}
+            {busy ? "Guardando…" : "Guardar configuración"}
           </button>
         </div>
       )}

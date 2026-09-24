@@ -24,11 +24,11 @@ export default function ProjectsPage() {
   return (
     <div className="mx-auto max-w-5xl">
       <PageHeader
-        title="Projects"
-        subtitle="Progress shown for this week."
+        title="Proyectos"
+        subtitle="Progreso de esta semana."
         actions={
           <button className="btn-primary" onClick={() => setCreating(true)}>
-            <Plus className="size-4" /> New project
+            <Plus className="size-4" /> Nuevo proyecto
           </button>
         }
       />
@@ -41,15 +41,15 @@ export default function ProjectsPage() {
         </div>
       ) : active.length === 0 && archived.length === 0 ? (
         <Empty
-          title={awaitingAccess ? "You haven't been added to any projects yet" : "No projects yet"}
+          title={awaitingAccess ? "Todavía no tienes acceso a ningún proyecto" : "Aún no hay proyectos"}
           body={
             awaitingAccess
-              ? "A team admin can give you access to existing projects. You can also create your own."
-              : "Projects group your team's todos. Create one to start planning the week."
+              ? "Un administrador puede darte acceso a proyectos existentes. También puedes crear uno."
+              : "Los proyectos agrupan las tareas del equipo. Crea uno para planificar la semana."
           }
           action={
             <button className="btn-primary" onClick={() => setCreating(true)}>
-              <Plus className="size-4" /> New project
+              <Plus className="size-4" /> Nuevo proyecto
             </button>
           }
         />
@@ -63,7 +63,7 @@ export default function ProjectsPage() {
           {archived.length > 0 && (
             <details className="mt-8">
               <summary className="flex cursor-pointer items-center gap-1.5 text-sm text-muted">
-                <Archive className="size-4" /> Archived ({archived.length})
+                <Archive className="size-4" /> Archivados ({archived.length})
               </summary>
               <div className="mt-3 grid gap-3 opacity-75 sm:grid-cols-2 lg:grid-cols-3">
                 {archived.map((p) => (
@@ -103,7 +103,7 @@ function ProjectCard({ project: p }: { project: ProjectWithStats }) {
           )}
         </div>
         <p className="mt-2 text-xs text-muted">
-          {p.total === 0 ? "No todos this week" : `${p.counts.done}/${p.total} done · ${pct}%`}
+          {p.total === 0 ? "Sin tareas esta semana" : `${p.counts.done}/${p.total} completadas · ${pct}%`}
         </p>
       </div>
     </Link>

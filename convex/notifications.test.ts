@@ -299,8 +299,8 @@ describe("daily digest", () => {
     await dispatchAt(t, `${TODAY}T07:07:00Z`);
     await dispatchAt(t, `${TODAY}T08:07:00Z`);
     expect(slackPosts()).toHaveLength(1);
-    expect(slackPosts()[0].body.text).toContain(`Daily summary for ${TODAY}`);
-    expect(slackPosts()[0].body.text).toContain("Today: 1 todos (1 open, 0 done)");
+    expect(slackPosts()[0].body.text).toContain(`Resumen diario del ${TODAY}`);
+    expect(slackPosts()[0].body.text).toContain("Hoy: 1 tareas (1 pendientes, 0 hechas)");
   });
 });
 
@@ -353,7 +353,7 @@ describe("assignment notifications", () => {
     expect(n).toMatchObject({ todoId, todoTitle: "Review <copy>", actorId: alice.subject, read: false });
     expect(emails()).toHaveLength(1);
     const [mail] = emailsTo("bob@example.com");
-    expect(mail.body.subject).toBe("Alice assigned you: Review <copy>");
+    expect(mail.body.subject).toBe("Alice te asignó: Review <copy>");
     expect(mail.body.html).toContain("Review &lt;copy&gt;");
     expect(mail.headers["Idempotency-Key"]).toBe(`assigned/${n._id}`);
 
@@ -383,7 +383,7 @@ describe("assignment notifications", () => {
     expect(emails()).toHaveLength(0);
     expect(await b.query(api.notifications.unreadCount, {})).toBe(1);
     expect(slackPosts()).toHaveLength(1);
-    expect(slackPosts()[0].body.text).toBe(`Alice assigned *Deploy* to Bob in Launch (due ${TODAY}).`);
+    expect(slackPosts()[0].body.text).toBe(`Alice asignó *Deploy* a Bob en Launch (vence el ${TODAY}).`);
     // Other teams see nothing.
     expect(await e.query(api.notifications.list, {})).toEqual([]);
   });

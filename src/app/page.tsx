@@ -2,22 +2,27 @@ import { auth } from "@clerk/nextjs/server";
 import { CalendarCheck2, History, Users } from "lucide-react";
 import Link from "next/link";
 import { redirect } from "next/navigation";
+import { ThemeToggle } from "@/components/ThemeToggle";
 
 export default async function Home() {
   const { userId } = await auth();
   if (userId) redirect("/app");
 
   const features = [
-    { icon: Users, title: "Built for your team", body: "Create a team, invite teammates, and plan projects together." },
+    {
+      icon: Users,
+      title: "Para tu equipo",
+      body: "Crea un equipo, invita a tus compañeros y planifica proyectos juntos.",
+    },
     {
       icon: CalendarCheck2,
-      title: "Day by day, week by week",
-      body: "Plan todos per day and track them as to do, doing, done or didn't finish.",
+      title: "Día a día, semana a semana",
+      body: "Planifica tareas por día y sigue su progreso hasta terminarlas.",
     },
     {
       icon: History,
-      title: "Full history & export",
-      body: "Every change is logged. Review past weeks and export to CSV or JSON.",
+      title: "Historial y exportación",
+      body: "Cada cambio queda registrado. Revisa semanas anteriores y exporta a CSV o JSON.",
     },
   ];
 
@@ -28,24 +33,30 @@ export default async function Home() {
           <span className="grid size-7 place-items-center rounded-lg bg-accent text-accent-fg">✓</span>
           LCF Todos
         </span>
-        <Link href="/sign-in" className="btn-ghost">
-          Sign in
-        </Link>
+        <div className="flex items-center gap-2">
+          <ThemeToggle compact className="sm:hidden" />
+          <span className="hidden sm:inline-flex">
+            <ThemeToggle />
+          </span>
+          <Link href="/sign-in" className="btn-ghost">
+            Iniciar sesión
+          </Link>
+        </div>
       </header>
 
       <section className="flex flex-1 flex-col items-center justify-center py-16 text-center">
         <h1 className="max-w-2xl text-4xl font-semibold tracking-tight text-balance sm:text-5xl">
-          Your team&apos;s todos, planned by the day.
+          Las tareas de tu equipo, organizadas por día.
         </h1>
         <p className="mt-4 max-w-xl text-base text-pretty text-muted sm:text-lg">
-          Projects, daily plans, weekly boards and a complete history — for you and your team.
+          Proyectos, planes diarios, tableros semanales y un historial completo para todo tu equipo.
         </p>
         <div className="mt-8 flex flex-wrap justify-center gap-3">
           <Link href="/sign-up" className="btn-primary px-5 py-2.5">
-            Create your team
+            Crear equipo
           </Link>
           <Link href="/sign-in" className="btn-outline px-5 py-2.5">
-            I have an account
+            Ya tengo una cuenta
           </Link>
         </div>
 

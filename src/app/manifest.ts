@@ -8,7 +8,7 @@ export default function manifest(): MetadataRoute.Manifest {
     id: "/app",
     name: "LCF Todos",
     short_name: "LCF Todos",
-    description: "Daily and weekly todos for your team.",
+    description: "Tareas diarias y semanales para tu equipo.",
     start_url: "/app",
     scope: "/",
     display: "standalone",
@@ -24,8 +24,8 @@ export default function manifest(): MetadataRoute.Manifest {
       { src: "/icons/lcf-todos.svg", sizes: "any", type: "image/svg+xml", purpose: "any" },
     ],
     shortcuts: [
-      { name: "Today", url: "/app", icons: [{ src: "/icons/lcf-todos-192.png", sizes: "192x192" }] },
-      { name: "Projects", url: "/app/projects", icons: [{ src: "/icons/lcf-todos-192.png", sizes: "192x192" }] },
+      { name: "Hoy", url: "/app", icons: [{ src: "/icons/lcf-todos-192.png", sizes: "192x192" }] },
+      { name: "Proyectos", url: "/app/projects", icons: [{ src: "/icons/lcf-todos-192.png", sizes: "192x192" }] },
     ],
   };
 }

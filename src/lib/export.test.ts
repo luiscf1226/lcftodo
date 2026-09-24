@@ -28,6 +28,6 @@ describe("collectPages", () => {
   });
 
   test("throws instead of returning a partial export when the page limit is hit", async () => {
-    await expect(collectPages(pager(5_000, 1_000).fetchPage, 3)).rejects.toThrow(/too large/);
+    await expect(collectPages(pager(5_000, 1_000).fetchPage, 3)).rejects.toThrow(/demasiado grande/);
   });
 });

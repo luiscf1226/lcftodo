@@ -58,8 +58,8 @@ export function TodayQuickAdd({ date, projects, projectId, onProjectIdChange, on
     } catch (error) {
       // Keep the todo that failed in the input so it can be retried.
       setTitle(titles[added]);
-      const message = errorMessage(error, "Couldn't add the todo.");
-      showToast(added ? `Added ${added} of ${titles.length}. ${message}` : message);
+      const message = errorMessage(error, "No se pudo añadir la tarea.");
+      showToast(added ? `Se añadieron ${added} de ${titles.length}. ${message}` : message);
     } finally {
       setBusy(false);
       inputRef.current?.focus();
@@ -86,8 +86,8 @@ export function TodayQuickAdd({ date, projects, projectId, onProjectIdChange, on
         <input
           ref={inputRef}
           className="w-full bg-transparent px-1 py-1.5 text-sm outline-none placeholder:text-muted"
-          placeholder="Add a todo for today… @ to assign"
-          aria-label="New todo for today"
+          placeholder="Añade una tarea para hoy… @ para asignar"
+          aria-label="Nueva tarea para hoy"
           aria-keyshortcuts="/ n"
           value={title}
           maxLength={LIMITS.todoTitle}
@@ -110,7 +110,7 @@ export function TodayQuickAdd({ date, projects, projectId, onProjectIdChange, on
       {projects.length > 1 && (
         <select
           className="max-w-36 truncate rounded-md bg-transparent px-1.5 py-1 text-xs text-muted hover:bg-surface-2"
-          aria-label="Project"
+          aria-label="Proyecto"
           value={projectId}
           onChange={(e) => onProjectIdChange(e.target.value as Id<"projects">)}
         >
@@ -125,12 +125,12 @@ export function TodayQuickAdd({ date, projects, projectId, onProjectIdChange, on
         type="button"
         className="btn-ghost px-2 text-muted"
         onClick={onMore}
-        aria-label="More options"
-        title="More options (day, assignee, notes)"
+        aria-label="Más opciones"
+        title="Más opciones (día, responsable y notas)"
       >
         <SlidersHorizontal className="size-4" />
       </button>
-      <button type="submit" className="btn-primary px-2.5" disabled={busy || !title.trim()} aria-label="Add todo">
+      <button type="submit" className="btn-primary px-2.5" disabled={busy || !title.trim()} aria-label="Añadir tarea">
         <Plus className="size-4" />
       </button>
     </form>

@@ -30,74 +30,77 @@ type Step = { title: string; icon: LucideIcon; body: ReactNode };
 
 const STEPS: Step[] = [
   {
-    title: "Welcome to LCF Todos",
+    title: "Bienvenido a LCF Todos",
     icon: Sparkles,
     body: (
       <>
-        <p>Plan your team&apos;s work day by day, see what got done, and carry over what didn&apos;t.</p>
-        <p>This quick tour takes about a minute and shows you where everything lives.</p>
+        <p>
+          Planifica el trabajo del equipo día a día, revisa los avances y pasa las tareas pendientes al día siguiente.
+        </p>
+        <p>Este recorrido dura alrededor de un minuto y te muestra las funciones principales.</p>
       </>
     ),
   },
   {
-    title: "Today",
+    title: "Hoy",
     icon: LayoutDashboard,
     body: (
       <>
         <p>
-          <strong>Today</strong> is your home screen: today&apos;s todos, anything overdue, and a count of this
-          week&apos;s todos by status.
+          <strong>Hoy</strong> es tu pantalla principal: muestra las tareas de hoy, las pendientes y un resumen de esta
+          semana por estado.
         </p>
         <p>
-          Switch between <strong>My todos</strong> and <strong>Whole team</strong> at the top. Click any todo to edit
-          its title, notes, day, or assignee.
+          Cambia entre <strong>Mis tareas</strong> y <strong>Todo el equipo</strong> arriba. Abre cualquier tarea para
+          editar el título, las notas, el día o el responsable.
         </p>
       </>
     ),
   },
   {
-    title: "Quick-add bar",
+    title: "Añadir tareas rápidamente",
     icon: SquarePen,
     body: (
       <>
         <p>
-          Type in the bar at the top of Today and press <Kbd>Enter</Kbd>. The input stays focused, so you can add todos
-          one after another.
+          Escribe en la barra de la parte superior de Hoy y pulsa <Kbd>Enter</Kbd>. El campo conserva el foco para que
+          puedas añadir varias tareas seguidas.
         </p>
         <ul className="list-disc space-y-1 pl-5">
-          <li>Paste a multi-line list to create one todo per line.</li>
+          <li>Pega una lista de varias líneas para crear una tarea por línea.</li>
           <li>
-            Press <Kbd>/</Kbd> or <Kbd>n</Kbd> anywhere on Today to jump to the bar.
+            Pulsa <Kbd>/</Kbd> o <Kbd>n</Kbd> en Hoy para ir a la barra.
           </li>
-          <li>Pick the project next to the input, or open more options for the day, assignee, and notes.</li>
+          <li>Elige el proyecto junto al campo o abre más opciones para el día, el responsable y las notas.</li>
         </ul>
       </>
     ),
   },
   {
-    title: "Projects and the week board",
+    title: "Proyectos y tablero semanal",
     icon: FolderKanban,
     body: (
       <>
         <p>
-          Group work into color-coded <strong>Projects</strong>. Each project opens a <strong>week board</strong> with a
-          column for every day from Monday to Sunday.
+          Agrupa el trabajo en <strong>Proyectos</strong> identificados por color. Cada uno tiene un{" "}
+          <strong>tablero semanal</strong>
+          con una columna por día, de lunes a domingo.
         </p>
         <ul className="list-disc space-y-1 pl-5">
-          <li>Move between weeks with the arrows, or jump to a date.</li>
-          <li>Add todos straight into a day and filter the board by assignee.</li>
-          <li>Edit, archive, or delete a project from its menu.</li>
+          <li>Cambia de semana con las flechas o ve a una fecha.</li>
+          <li>Añade tareas a un día y filtra el tablero por responsable.</li>
+          <li>Edita, archiva o elimina un proyecto desde su menú.</li>
         </ul>
       </>
     ),
   },
   {
-    title: "Statuses and carry-over",
+    title: "Estados y tareas pendientes",
     icon: CornerDownRight,
     body: (
       <>
-        <p>Every todo has a status. Change it from the pill on the todo.</p>
-        <ul className="flex flex-wrap gap-2" aria-label="Statuses">
+        <p>Cada tarea tiene un estado. Puedes cambiarlo desde la etiqueta de la tarea.</p>
+        <ul className="flex flex-wrap gap-2" aria-label="Estados">
           {STATUSES.map((s) => (
             <li
               key={s}
@@ -112,57 +115,58 @@ const STEPS: Step[] = [
           ))}
         </ul>
         <p>
-          At the end of a day, <strong>Carry</strong> on the week board moves unfinished todos to the next day and marks
-          the originals as didn&apos;t finish.
+          Al final del día, <strong>Pasar</strong> mueve las tareas pendientes al día siguiente y marca las originales
+          como sin terminar.
         </p>
       </>
     ),
   },
   {
-    title: "History",
+    title: "Historial",
     icon: History,
     body: (
       <>
         <p>
-          <strong>History</strong> shows what your team planned, finished, and missed. Filter by date range, project, or
-          person, and switch between the Days, People, and Activity views.
+          <strong>Historial</strong> muestra lo que el equipo planificó, terminó y dejó pendiente. Filtra por fechas,
+          proyecto o persona, y cambia entre Día a día, Personas y Actividad.
         </p>
         <p>
-          Use <strong>Export</strong> to download the current view as CSV, Excel, or JSON.
+          Usa <strong>Exportar</strong> para descargar la vista actual como CSV, Excel o JSON.
         </p>
       </>
     ),
   },
   {
-    title: "Your team",
+    title: "Tu equipo",
     icon: Users,
     body: (
       <>
         <p>
-          Everything you see belongs to the current team. Switch teams, or create a new one, from the team switcher at
-          the top of the sidebar.
+          Todo lo que ves pertenece al equipo actual. Cambia de equipo o crea uno nuevo desde el selector en la parte
+          superior de la barra lateral.
         </p>
         <p>
-          Open <strong>Team</strong> to invite teammates by email, manage roles, and edit team settings.
+          Abre <strong>Equipo</strong> para invitar compañeros por correo, administrar roles y editar la configuración.
         </p>
         <p>
-          Admins can invite people to selected projects and restrict project access, so each member only sees the
-          projects they&apos;re added to. New admins get a setup checklist on <strong>Today</strong>.
+          Los administradores pueden invitar personas a proyectos concretos y restringir el acceso. Los nuevos
+          administradores verán una lista de configuración en <strong>Hoy</strong>.
         </p>
       </>
     ),
   },
   {
-    title: "Make it yours",
+    title: "A tu gusto",
     icon: Palette,
     body: (
       <>
         <p>
-          Use the <strong>Theme</strong> menu to choose Light, Dark, or System, which follows your device.
+          Usa el selector <strong>Tema</strong> para elegir Claro, Oscuro o Sistema, que sigue la configuración de tu
+          dispositivo.
         </p>
         <p>
-          You can reopen this tour from <strong>Tutorial</strong> in the sidebar, or with the{" "}
-          <CircleHelp className="inline size-3.5 align-[-2px]" aria-label="help" /> button on mobile.
+          Puedes volver a abrir este recorrido desde <strong>Tutorial</strong> en la barra lateral o con el botón{" "}
+          <CircleHelp className="inline size-3.5 align-[-2px]" aria-label="ayuda" /> en el móvil.
         </p>
       </>
     ),
@@ -183,7 +187,7 @@ export function OnboardingTutorial({
   onClose: () => void;
 }) {
   return (
-    <Modal open={open} onClose={onClose} title="Getting started">
+    <Modal open={open} onClose={onClose} title="Primeros pasos">
       <Tutorial completed={completed} onClose={onClose} />
     </Modal>
   );
@@ -224,7 +228,7 @@ function Tutorial({ completed, onClose }: { completed: boolean; onClose: () => v
       await completeOnboarding();
       onClose();
     } catch (caught) {
-      setError(errorMessage(caught, "Couldn't save that. Try again."));
+      setError(errorMessage(caught, "No se pudo guardar. Inténtalo de nuevo."));
       setBusy(false);
     }
   }
@@ -232,7 +236,7 @@ function Tutorial({ completed, onClose }: { completed: boolean; onClose: () => v
   return (
     <div className="space-y-4">
       <p id={stepLabelId} className="text-xs font-medium text-muted" aria-live="polite">
-        Step {index + 1} of {STEPS.length}
+        Paso {index + 1} de {STEPS.length}
       </p>
       <ol className="flex gap-1.5" aria-labelledby={stepLabelId}>
         {STEPS.map((s, i) => (
@@ -243,7 +247,7 @@ function Tutorial({ completed, onClose }: { completed: boolean; onClose: () => v
           >
             <span className="sr-only">
               {s.title}
-              {i < index ? " (seen)" : ""}
+              {i < index ? " (visto)" : ""}
             </span>
           </li>
         ))}
@@ -273,12 +277,12 @@ function Tutorial({ completed, onClose }: { completed: boolean; onClose: () => v
             onChange={(e) => setDontShowAgain(e.target.checked)}
           />
           <label htmlFor={checkboxId} className="text-sm text-fg">
-            I&apos;ve finished the tutorial — don&apos;t show again
+            Terminé el tutorial. No volver a mostrarlo.
           </label>
         </div>
       )}
       {isLast && completed && (
-        <p className="text-sm text-muted">You&apos;ve already finished the tutorial. Reopen it anytime.</p>
+        <p className="text-sm text-muted">Ya terminaste el tutorial. Puedes volver a abrirlo cuando quieras.</p>
       )}
       {error && (
         <p className="text-sm text-danger" role="alert">
@@ -289,20 +293,20 @@ function Tutorial({ completed, onClose }: { completed: boolean; onClose: () => v
       <div className="flex items-center justify-between gap-2 pt-1">
         {index === 0 ? (
           <button type="button" className="btn-ghost text-muted" onClick={onClose}>
-            Skip for now
+            Omitir por ahora
           </button>
         ) : (
           <button type="button" className="btn-ghost" onClick={() => setIndex(index - 1)} disabled={busy}>
-            <ArrowLeft className="size-4" /> Back
+            <ArrowLeft className="size-4" /> Atrás
           </button>
         )}
         {isLast ? (
           <button type="button" className="btn-primary" onClick={() => void finish()} disabled={busy}>
-            {busy ? "Saving…" : "Finish"}
+            {busy ? "Guardando…" : "Terminar"}
           </button>
         ) : (
           <button type="button" className="btn-primary" onClick={() => setIndex(index + 1)} data-autofocus>
-            Next <ArrowRight className="size-4" />
+            Siguiente <ArrowRight className="size-4" />
           </button>
         )}
       </div>

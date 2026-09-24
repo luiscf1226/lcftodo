@@ -409,7 +409,7 @@ export const assignmentData = internalQuery({
         slack?.webhookUrl && slack.postAssignments
           ? {
               webhookUrl: slack.webhookUrl,
-              text: slackAssignmentText(actorName, assignee?.name ?? "a teammate", details),
+              text: slackAssignmentText(actorName, assignee?.name ?? "un compañero", details),
             }
           : null,
     };

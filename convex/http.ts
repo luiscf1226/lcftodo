@@ -157,7 +157,7 @@ http.route({
 // can't unsubscribe anyone; POST (the form, or RFC 8058 one-click) applies it.
 function page(title: string, body: string, status = 200) {
   const html =
-    `<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">` +
+    `<!doctype html><html lang="es"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">` +
     `<meta name="robots" content="noindex"><title>${escapeHtml(title)}</title></head>` +
     `<body style="font-family:system-ui,-apple-system,Segoe UI,sans-serif;max-width:32rem;margin:4rem auto;padding:0 1rem;color:#0f172a">` +
     `<h1 style="font-size:1.25rem">${escapeHtml(title)}</h1>${body}</body></html>`;
@@ -172,11 +172,11 @@ function page(title: string, body: string, status = 200) {
   });
 }
 
-const KIND_LABEL = { digest: "the daily digest email", assigned: "assignment emails" } as const;
+const KIND_LABEL = { digest: "el resumen diario", assigned: "los correos de asignaciones" } as const;
 const invalidLink = () =>
   page(
-    "Link not valid",
-    "<p>This unsubscribe link is invalid. You can change email settings in LCF Todos under Notifications.</p>",
+    "Enlace no válido",
+    "<p>Este enlace para cancelar la suscripción no es válido. Puedes cambiar la configuración de correo en Notificaciones de LCF Todos.</p>",
     400,
   );
 
@@ -189,9 +189,9 @@ http.route({
     if (!target) return invalidLink();
     const action = `${UNSUBSCRIBE_PATH}?token=${encodeURIComponent(token)}`;
     return page(
-      "Unsubscribe",
-      `<p>Stop receiving ${KIND_LABEL[target.kind]} from LCF Todos?</p>` +
-        `<form method="post" action="${escapeHtml(action)}"><button type="submit" style="padding:.5rem 1rem;font:inherit">Unsubscribe</button></form>`,
+      "Cancelar suscripción",
+      `<p>¿Dejar de recibir ${KIND_LABEL[target.kind]} de LCF Todos?</p>` +
+        `<form method="post" action="${escapeHtml(action)}"><button type="submit" style="padding:.5rem 1rem;font:inherit">Dejar de recibir</button></form>`,
     );
   }),
 });
@@ -204,8 +204,8 @@ http.route({
     if (!target) return invalidLink();
     await ctx.runMutation(internal.notifications.unsubscribe, target);
     return page(
-      "You're unsubscribed",
-      `<p>You won't receive ${KIND_LABEL[target.kind]} anymore. You can turn it back on in LCF Todos under Notifications.</p>`,
+      "Suscripción cancelada",
+      `<p>Ya no recibirás ${KIND_LABEL[target.kind]}. Puedes volver a activar estos correos en Notificaciones de LCF Todos.</p>`,
     );
   }),
 });

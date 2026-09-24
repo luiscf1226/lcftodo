@@ -5,7 +5,7 @@ import { useQuery } from "convex/react";
 import { useMemo } from "react";
 import { api } from "../../convex/_generated/api";
 import type { Id } from "../../convex/_generated/dataModel";
-import { SYSTEM_ACTOR_ID, SYSTEM_ACTOR_NAME } from "../../convex/lib/constants";
+import { SYSTEM_ACTOR_ID } from "../../convex/lib/constants";
 
 export type Member = { id: string; name: string; imageUrl?: string; role?: string };
 
@@ -36,13 +36,13 @@ export function useMembers(extraIds: string[] = []) {
 
   const byId = useMemo(() => {
     // Scheduled jobs (nightly carry-over, #22) act as "System".
-    const map = new Map<string, Member>([[SYSTEM_ACTOR_ID, { id: SYSTEM_ACTOR_ID, name: SYSTEM_ACTOR_NAME }]]);
+    const map = new Map<string, Member>([[SYSTEM_ACTOR_ID, { id: SYSTEM_ACTOR_ID, name: "Sistema" }]]);
     for (const u of former ?? []) map.set(u.clerkId, { id: u.clerkId, name: u.name, imageUrl: u.imageUrl });
     for (const m of members) map.set(m.id, m);
     return map;
   }, [members, former]);
 
-  const nameOf = (id?: string) => (id ? (byId.get(id)?.name ?? "Former member") : "");
+  const nameOf = (id?: string) => (id ? (byId.get(id)?.name ?? "Antiguo miembro") : "");
 
   return { members, byId, nameOf };
 }

@@ -81,7 +81,7 @@ export function MentionSuggestions({ mention, className }: { mention: Mention; c
     <div
       id={id}
       role="listbox"
-      aria-label="Assign to"
+      aria-label="Asignar a"
       className={clsx(
         "absolute left-0 z-20 mt-1 w-full min-w-52 overflow-hidden rounded-lg border border-line bg-surface p-1 shadow-lg",
         className,
@@ -121,14 +121,14 @@ export function AssigneeChip({ mention, className }: { mention: Mention; classNa
       )}
     >
       <Avatar member={assignee} size={16} />
-      <span className="truncate" title={`Assigned to ${assignee.name}`}>
-        <span className="sr-only">Assigned to </span>
+      <span className="truncate" title={`Asignada a ${assignee.name}`}>
+        <span className="sr-only">Asignada a </span>
         {assignee.name.split(" ")[0]}
       </span>
       <button
         type="button"
         className="grid size-6 shrink-0 place-items-center rounded-full hover:bg-surface hover:text-fg"
-        aria-label={`Remove ${assignee.name} as assignee`}
+        aria-label={`Quitar a ${assignee.name} como responsable`}
         onPointerDown={(e) => e.preventDefault()}
         onClick={clearAssignee}
       >

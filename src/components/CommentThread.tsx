@@ -2,6 +2,7 @@
 
 import { useMutation, useQuery } from "convex/react";
 import { formatDistanceToNow } from "date-fns";
+import { es } from "date-fns/locale";
 import { Pencil, Trash2 } from "lucide-react";
 import { useState, type FormEvent, type KeyboardEvent } from "react";
 import type { Id } from "../../convex/_generated/dataModel";
@@ -32,7 +33,7 @@ export function CommentThread({ todoId, readOnly }: { todoId: Id<"todos">; readO
       await add({ todoId, body });
       setBody("");
     } catch (err) {
-      setError(errorMessage(err, "Couldn't post the comment."));
+      setError(errorMessage(err, "No se pudo publicar el comentario."));
     } finally {
       setBusy(false);
     }
@@ -41,12 +42,12 @@ export function CommentThread({ todoId, readOnly }: { todoId: Id<"todos">; readO
   return (
     <section className="border-t border-line pt-4" aria-labelledby="comments-heading">
       <h3 id="comments-heading" className="mb-2 text-xs font-medium tracking-wide text-muted uppercase">
-        Comments{comments && comments.length > 0 ? ` (${comments.length})` : ""}
+        Comentarios{comments && comments.length > 0 ? ` (${comments.length})` : ""}
       </h3>
       {comments === undefined ? (
-        <p className="text-sm text-muted">Loading…</p>
+        <p className="text-sm text-muted">Cargando…</p>
       ) : comments.length === 0 ? (
-        <p className="text-sm text-muted">No comments yet.</p>
+        <p className="text-sm text-muted">Todavía no hay comentarios.</p>
       ) : (
         <ul className="max-h-64 space-y-3 overflow-y-auto text-sm">
           {comments.map((c) => (
@@ -57,12 +58,12 @@ export function CommentThread({ todoId, readOnly }: { todoId: Id<"todos">; readO
       {!readOnly && (
         <form onSubmit={submit} className="mt-3 space-y-2">
           <label htmlFor={`comment-${todoId}`} className="sr-only">
-            Add a comment
+            Añadir comentario
           </label>
           <textarea
             id={`comment-${todoId}`}
             className="min-h-16 input"
-            placeholder="Add a comment… (⌘/Ctrl + Enter to send)"
+            placeholder="Añade un comentario… (⌘/Ctrl + Enter para enviar)"
             value={body}
             maxLength={LIMITS.comment}
             onChange={(e) => setBody(e.target.value)}
@@ -75,7 +76,7 @@ export function CommentThread({ todoId, readOnly }: { todoId: Id<"todos">; readO
           )}
           <div className="flex justify-end">
             <button type="submit" className="btn-primary" disabled={busy || !body.trim()}>
-              Comment
+              Comentar
             </button>
           </div>
         </form>
@@ -121,7 +122,8 @@ function CommentRow({
 
   async function save() {
     if (!draft.trim() || busy) return;
-    if (await run(() => edit({ commentId: comment._id, body: draft }), "Couldn't save the comment.")) setEditing(false);
+    if (await run(() => edit({ commentId: comment._id, body: draft }), "No se pudo guardar el comentario."))
+      setEditing(false);
   }
 
   return (
@@ -133,8 +135,8 @@ function CommentRow({
         <div className="flex flex-wrap items-baseline gap-x-2">
           <span className="font-medium">{authorName}</span>
           <span className="text-xs text-muted">
-            {formatDistanceToNow(comment._creationTime, { addSuffix: true })}
-            {comment.editedAt && " · edited"}
+            {formatDistanceToNow(comment._creationTime, { addSuffix: true, locale: es })}
+            {comment.editedAt && " · editado"}
           </span>
           {!editing && (comment.canEdit || comment.canDelete) && (
             <span className="ml-auto flex gap-0.5">
@@ -142,7 +144,7 @@ function CommentRow({
                 <button
                   type="button"
                   className="btn-ghost min-h-0 px-1 py-0.5"
-                  aria-label="Edit comment"
+                  aria-label="Editar comentario"
                   onClick={() => {
                     setDraft(comment.body);
                     setEditing(true);
@@ -155,9 +157,11 @@ function CommentRow({
                 <button
                   type="button"
                   className="btn-ghost min-h-0 px-1 py-0.5 text-danger"
-                  aria-label="Delete comment"
+                  aria-label="Eliminar comentario"
                   disabled={busy}
-                  onClick={() => void run(() => remove({ commentId: comment._id }), "Couldn't delete the comment.")}
+                  onClick={() =>
+                    void run(() => remove({ commentId: comment._id }), "No se pudo eliminar el comentario.")
+                  }
                 >
                   <Trash2 className="size-3.5" />
                 </button>
@@ -168,7 +172,7 @@ function CommentRow({
         {editing ? (
           <div className="mt-1 space-y-1.5">
             <label htmlFor={`edit-${comment._id}`} className="sr-only">
-              Edit comment
+              Editar comentario
             </label>
             <textarea
               id={`edit-${comment._id}`}
@@ -188,7 +192,7 @@ function CommentRow({
             />
             <div className="flex justify-end gap-1">
               <button type="button" className="btn-ghost py-1 text-xs" onClick={() => setEditing(false)}>
-                Cancel
+                Cancelar
               </button>
               <button
                 type="button"
@@ -196,7 +200,7 @@ function CommentRow({
                 disabled={busy || !draft.trim()}
                 onClick={() => void save()}
               >
-                Save
+                Guardar
               </button>
             </div>
           </div>

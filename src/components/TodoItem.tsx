@@ -48,7 +48,7 @@ export function TodoItem({
     try {
       await setStatus({ todoId: todo._id, status });
     } catch (error) {
-      showToast(errorMessage(error, "Couldn't update the todo status."));
+      showToast(errorMessage(error, "No se pudo actualizar el estado de la tarea."));
     }
   };
 
@@ -56,7 +56,7 @@ export function TodoItem({
     <div className="group flex items-start gap-2.5 rounded-lg border border-line bg-surface px-2.5 py-2 text-sm transition-colors hover:border-muted/40">
       <button
         type="button"
-        aria-label={done ? "Mark as to do" : "Mark as done"}
+        aria-label={done ? "Marcar como pendiente" : "Marcar como hecha"}
         disabled={readOnly}
         onClick={(e) => {
           e.stopPropagation();
@@ -96,26 +96,23 @@ export function TodoItem({
             </span>
           )}
           {todo.carriedFrom && (
-            <span
-              className="inline-flex items-center gap-0.5 text-xs text-muted"
-              title="Carried over from a previous day"
-            >
-              <CornerDownRight className="size-3" /> carried
+            <span className="inline-flex items-center gap-0.5 text-xs text-muted" title="Pasada desde un día anterior">
+              <CornerDownRight className="size-3" /> pasada
             </span>
           )}
           {todo.recurrenceId && (
-            <span className="inline-flex items-center text-xs text-muted" title="Recurring todo">
+            <span className="inline-flex items-center text-xs text-muted" title="Tarea recurrente">
               <Repeat className="size-3" aria-hidden />
-              <span className="sr-only">Recurring</span>
+              <span className="sr-only">Recurrente</span>
             </span>
           )}
           {!!todo.commentCount && (
             <span
               className="inline-flex items-center gap-0.5 text-xs text-muted"
-              title={`${todo.commentCount} comment${todo.commentCount === 1 ? "" : "s"}`}
+              title={`${todo.commentCount} ${todo.commentCount === 1 ? "comentario" : "comentarios"}`}
             >
               <MessageSquare className="size-3" aria-hidden /> {todo.commentCount}
-              <span className="sr-only"> comment{todo.commentCount === 1 ? "" : "s"}</span>
+              <span className="sr-only"> {todo.commentCount === 1 ? "comentario" : "comentarios"}</span>
             </span>
           )}
           {assignee && (

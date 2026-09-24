@@ -21,7 +21,7 @@ export function useRecurringTodos(from: string, to: string, projectId?: Id<"proj
   useEffect(() => {
     if (!key) return;
     ensure({ from, to, projectId }).catch((error) => {
-      showToast(errorMessage(error, "Couldn't create this week's recurring todos."));
+      showToast(errorMessage(error, "No se pudieron crear las tareas recurrentes de esta semana."));
     });
   }, [key, from, to, projectId, ensure]);
 }

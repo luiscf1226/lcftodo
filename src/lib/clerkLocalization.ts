@@ -1,28 +1,29 @@
 import type { ClerkProvider } from "@clerk/nextjs";
 import type { ComponentProps } from "react";
+import { esES } from "@clerk/localizations/es-ES";
 
-// Clerk calls teams "organizations"; the app calls them teams. Only the onboarding task is
-// overridden here, everything else keeps Clerk's default English strings.
+// Clerk calls teams "organizations"; the app calls them teams.
 export const clerkLocalization: ComponentProps<typeof ClerkProvider>["localization"] = {
+  ...esES,
   taskChooseOrganization: {
-    title: "Set up your team",
-    subtitle: "Create a team for your crew, or join one you've been invited to",
+    title: "Configura tu equipo",
+    subtitle: "Crea un equipo o únete a uno al que te hayan invitado",
     createOrganization: {
-      title: "Create your team",
-      subtitle: "Name your team. You can invite teammates next",
-      formButtonSubmit: "Create team",
-      formFieldLabel__name: "Team name",
-      formFieldInputPlaceholder__name: "e.g. Design crew",
+      title: "Crea tu equipo",
+      subtitle: "Ponle un nombre. Después podrás invitar a tus compañeros",
+      formButtonSubmit: "Crear equipo",
+      formFieldLabel__name: "Nombre del equipo",
+      formFieldInputPlaceholder__name: "Ej.: Equipo de diseño",
     },
     chooseOrganization: {
-      title: "Choose a team",
-      subtitle: "Join a team you've been invited to, or create a new one",
-      subtitle__createOrganizationDisabled: "Join a team you've been invited to",
-      action__createOrganization: "Create a new team",
+      title: "Elige un equipo",
+      subtitle: "Únete a un equipo al que te hayan invitado o crea uno nuevo",
+      subtitle__createOrganizationDisabled: "Únete a un equipo al que te hayan invitado",
+      action__createOrganization: "Crear un equipo nuevo",
     },
     organizationCreationDisabled: {
-      title: "You need an invite",
-      subtitle: "Ask a teammate to invite you to their team",
+      title: "Necesitas una invitación",
+      subtitle: "Pide a un compañero que te invite a su equipo",
     },
   },
 };

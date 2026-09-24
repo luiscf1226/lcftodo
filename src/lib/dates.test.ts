@@ -1,5 +1,11 @@
 import { describe, expect, test, vi } from "vitest";
-import { dayStartMs, todayKey, weekStart } from "./dates";
+import { dayStartMs, fmt, todayKey, weekLabel, weekStart } from "./dates";
+
+test("formats visible dates in Spanish", () => {
+  expect(fmt("2026-09-23", "EEEE, MMMM d")).toBe("miércoles 23 de septiembre");
+  expect(fmt("2026-09-23", "EEEE, MMM d")).toBe("miércoles 23 sep");
+  expect(weekLabel("2026-09-21")).toBe("21 sep – 27 sep 2026");
+});
 
 describe("weekStart", () => {
   test("falls back to the current week for an invalid date", () => {
