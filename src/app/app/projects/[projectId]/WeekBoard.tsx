@@ -20,6 +20,7 @@ import { showToast } from "@/components/ToastViewport";
 import { AssigneeChip, MentionSuggestions, useAssigneeMention } from "@/components/AssigneeMention";
 import { Menu, MenuItem } from "@/components/Menu";
 import { useToday } from "@/components/useToday";
+import { useRecurringTodos } from "@/components/useRecurringTodos";
 import { fmt, fromKey, shiftDays, weekDays, weekLabel, weekStart } from "@/lib/dates";
 import { errorMessage } from "@/lib/errors";
 import { emptyStatusCounts, LIMITS, STATUS_META, STATUSES } from "@/lib/status";
@@ -38,6 +39,7 @@ export function WeekBoard({ projectId }: { projectId: Id<"projects"> }) {
 
   const project = useQuery(api.projects.get, { projectId });
   const todos = useQuery(api.todos.listForProject, { projectId, from: days[0], to: days[6] });
+  useRecurringTodos(days[0], days[6], projectId);
   const { members, byId } = useMembers();
   const [filter, setFilter] = useState<string>("all");
   const [editing, setEditing] = useState<Editing>(null);

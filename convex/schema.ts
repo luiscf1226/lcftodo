@@ -1,6 +1,6 @@
 import { defineSchema, defineTable } from "convex/server";
 import { v } from "convex/values";
-import { ACTIONS, STATUSES } from "./lib/constants";
+import { ACTIONS, RECURRENCE_KINDS, STATUSES } from "./lib/constants";
 
 // Validators are derived from the shared constants so a new status or action
 // is added in one place (#37).
@@ -8,6 +8,11 @@ const literals = <T extends string>(values: readonly T[]) => v.union(...values.m
 
 export const status = literals(STATUSES);
 export const action = literals(ACTIONS);
+export const recurrenceRule = v.object({
+  kind: literals(RECURRENCE_KINDS),
+  // Only for "weekly": the chosen days, 0 = Sunday … 6 = Saturday.
+  weekdays: v.optional(v.array(v.number())),
+});
 
 export default defineSchema({
   memberships: defineTable({
@@ -87,8 +92,17 @@ export default defineSchema({
     order: v.number(),
     completedAt: v.optional(v.number()),
     carriedFrom: v.optional(v.id("todos")),
+    // Denormalized count of `comments` rows, shown on the card (#24). Missing = 0.
+    commentCount: v.optional(v.number()),
+    // Recurring occurrences (#23): the series and the day it was generated for. `recurrenceDate`
+    // stays put when the occurrence is moved, so generation never re-creates it.
+    recurrenceId: v.optional(v.id("recurrences")),
+    recurrenceDate: v.optional(v.string()),
+    // Set when this one occurrence was edited on its own; series edits then leave it alone.
+    recurrenceDetached: v.optional(v.boolean()),
   })
     .index("by_project_date", ["projectId", "date"])
+    .index("by_recurrence", ["recurrenceId", "recurrenceDate"])
     .index("by_org_date", ["orgId", "date"])
     // Full-text search on titles, always scoped to one team (#26).
     .searchIndex("search_title", { searchField: "title", filterFields: ["orgId"] }),
@@ -110,4 +124,36 @@ export default defineSchema({
     .index("by_project", ["projectId"])
     .index("by_project_actor", ["projectId", "actorId"])
     .index("by_todo", ["todoId"]),
+
+  // Comments on a todo (#24). Deleted with their todo.
+  comments: defineTable({
+    orgId: v.string(),
+    projectId: v.id("projects"),
+    todoId: v.id("todos"),
+    authorId: v.string(),
+    body: v.string(),
+    editedAt: v.optional(v.number()),
+  })
+    .index("by_todo", ["todoId"])
+    .index("by_project", ["projectId"]),
+
+  // Recurring todo series (#23). Occurrences are ordinary todos with `recurrenceId`.
+  recurrences: defineTable({
+    orgId: v.string(),
+    projectId: v.id("projects"),
+    title: v.string(),
+    notes: v.optional(v.string()),
+    assigneeId: v.optional(v.string()),
+    rule: recurrenceRule,
+    // First day occurrences are generated for. Moved forward when the rule changes, so a new
+    // rule never back-fills days before the edit.
+    startDate: v.string(),
+    // Set by `stop`: no occurrences on or after this day.
+    stoppedFrom: v.optional(v.string()),
+    // Days whose occurrence was deleted on its own; generation skips them.
+    skipDates: v.optional(v.array(v.string())),
+    createdBy: v.string(),
+  })
+    .index("by_org", ["orgId"])
+    .index("by_project", ["projectId"]),
 });

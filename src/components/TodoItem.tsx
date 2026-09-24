@@ -2,7 +2,7 @@
 
 import clsx from "clsx";
 import { useMutation } from "convex/react";
-import { Check, CornerDownRight } from "lucide-react";
+import { Check, CornerDownRight, MessageSquare, Repeat } from "lucide-react";
 import type { Doc } from "../../convex/_generated/dataModel";
 import { api } from "../../convex/_generated/api";
 import { Avatar } from "./Avatar";
@@ -86,6 +86,18 @@ export function TodoItem({
           {todo.carriedFrom && (
             <span className="inline-flex items-center gap-0.5 text-xs text-muted" title="Carried over from a previous day">
               <CornerDownRight className="size-3" /> carried
+            </span>
+          )}
+          {todo.recurrenceId && (
+            <span className="inline-flex items-center text-xs text-muted" title="Recurring todo">
+              <Repeat className="size-3" aria-hidden />
+              <span className="sr-only">Recurring</span>
+            </span>
+          )}
+          {!!todo.commentCount && (
+            <span className="inline-flex items-center gap-0.5 text-xs text-muted" title={`${todo.commentCount} comment${todo.commentCount === 1 ? "" : "s"}`}>
+              <MessageSquare className="size-3" aria-hidden /> {todo.commentCount}
+              <span className="sr-only"> comment{todo.commentCount === 1 ? "" : "s"}</span>
             </span>
           )}
           {assignee && (
