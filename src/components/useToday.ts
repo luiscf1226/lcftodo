@@ -1,23 +1,27 @@
 "use client";
 
-import { addDays, startOfDay } from "date-fns";
 import { useEffect, useState } from "react";
-import { todayKey } from "@/lib/dates";
+import { dayStartMs, shiftDays, todayKey } from "@/lib/dates";
+import { useTeamTimeZone } from "./useTeamTimeZone";
 
 /**
- * Today's date key that stays current: it re-checks when the tab regains focus or becomes
- * visible (timers are throttled in background tabs) and at local midnight, so a page left open
- * overnight doesn't keep treating yesterday as "today".
+ * Today's date key in the team's time zone (#21; the browser's zone until the team sets one)
+ * that stays current: it re-checks when the tab regains focus or becomes visible (timers are
+ * throttled in background tabs) and at the team's midnight, so a page left open overnight
+ * doesn't keep treating yesterday as "today".
  */
 export function useToday() {
-  const [today, setToday] = useState(todayKey);
+  const timeZone = useTeamTimeZone();
+  // Bumped to re-read the clock; `today` itself is derived so a zone change applies immediately.
+  const [, setClock] = useState(0);
+  const today = todayKey(timeZone);
 
   useEffect(() => {
-    const refresh = () => setToday(todayKey());
+    const refresh = () => setClock((n) => n + 1);
     const onVisibility = () => document.visibilityState === "visible" && refresh();
-    // A second past midnight, to stay clear of clock jitter.
-    const untilMidnight = startOfDay(addDays(new Date(), 1)).getTime() - Date.now() + 1000;
-    const timer = window.setTimeout(refresh, untilMidnight);
+    // A second past the next midnight in the team's zone, to stay clear of clock jitter.
+    const untilMidnight = dayStartMs(shiftDays(today, 1), timeZone) - Date.now() + 1000;
+    const timer = window.setTimeout(refresh, Math.max(untilMidnight, 1000));
     window.addEventListener("focus", refresh);
     document.addEventListener("visibilitychange", onVisibility);
     return () => {
@@ -25,8 +29,8 @@ export function useToday() {
       window.removeEventListener("focus", refresh);
       document.removeEventListener("visibilitychange", onVisibility);
     };
-    // Re-arm the midnight timer each time the day changes.
-  }, [today]);
+    // Re-arm the midnight timer each time the day or the team zone changes.
+  }, [today, timeZone]);
 
   return today;
 }

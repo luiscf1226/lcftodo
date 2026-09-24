@@ -38,6 +38,20 @@ export default defineSchema({
     backfilledAt: v.number(),
   }).index("by_org", ["orgId"]),
 
+  // Per-team settings (#21, #22). One row per org, created on the first admin save.
+  teamSettings: defineTable({
+    orgId: v.string(),
+    // IANA zone, e.g. "Europe/Madrid". Missing = each browser uses its own zone.
+    timeZone: v.optional(v.string()),
+    autoCarryOver: v.boolean(),
+    // Team-local day ("YYYY-MM-DD") the nightly carry-over last ran for; keeps the cron idempotent.
+    lastAutoCarryDate: v.optional(v.string()),
+    updatedBy: v.string(),
+    updatedAt: v.number(),
+  })
+    .index("by_org", ["orgId"])
+    .index("by_autoCarryOver", ["autoCarryOver"]),
+
   users: defineTable({
     clerkId: v.string(),
     name: v.string(),

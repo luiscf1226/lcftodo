@@ -13,9 +13,11 @@ import { Empty, PageHeader, Skeleton } from "@/components/PageHeader";
 import { StatusPill } from "@/components/StatusSelect";
 import { Menu, MenuItem } from "@/components/Menu";
 import { useMembers } from "@/components/useMembers";
+import { useTeamTimeZone } from "@/components/useTeamTimeZone";
+import { useToday } from "@/components/useToday";
 import { describe } from "@/lib/activity";
 import { download, toCsv } from "@/lib/csv";
-import { fmt, fromKey, shiftDays, todayKey } from "@/lib/dates";
+import { browserTimeZone, dayStartMs, fmt, fromKey, shiftDays } from "@/lib/dates";
 import { errorMessage } from "@/lib/errors";
 import { collectPages } from "@/lib/export";
 import { completion, peopleStats, type PersonStats } from "@/lib/peopleStats";
@@ -23,9 +25,14 @@ import { emptyStatusCounts, STATUS_META, STATUSES } from "@/lib/status";
 import { downloadXlsx } from "@/lib/xlsx";
 
 export default function HistoryPage() {
-  const today = todayKey();
-  const [from, setFrom] = useState(shiftDays(today, -29));
-  const [to, setTo] = useState(today);
+  // Default range follows the team's "today" (#21) until the user picks dates.
+  const today = useToday();
+  const timeZone = useTeamTimeZone();
+  const [picked, setPicked] = useState<{ from?: string; to?: string }>({});
+  const from = picked.from ?? shiftDays(today, -29);
+  const to = picked.to ?? today;
+  const setFrom = (value: string) => setPicked((p) => ({ ...p, from: value }));
+  const setTo = (value: string) => setPicked((p) => ({ ...p, to: value }));
   const [projectId, setProjectId] = useState<Id<"projects"> | "">("");
   const [memberId, setMemberId] = useState("");
   const [tab, setTab] = useState<"days" | "people" | "activity">("days");
@@ -42,7 +49,7 @@ export default function HistoryPage() {
   const rangeActivity = useQuery(
     api.activity.exportPage,
     canViewRange
-      ? { fromMs: fromKey(from).getTime(), toMs: fromKey(shiftDays(to, 1)).getTime() - 1, paginationOpts: { numItems: 1000, cursor: null } }
+      ? { fromMs: dayStartMs(from, timeZone), toMs: dayStartMs(shiftDays(to, 1), timeZone) - 1, paginationOpts: { numItems: 1000, cursor: null } }
       : "skip",
   );
   const deletedProjects = useMemo(() => {
@@ -334,6 +341,8 @@ function ExportMenu({
   nameOf: Members["nameOf"];
 }) {
   const convex = useConvex();
+  // Activity is filtered by timestamp, so day boundaries use the team's zone (#21).
+  const timeZone = useTeamTimeZone();
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const stamp = `${from}_to_${to}`;
@@ -365,8 +374,8 @@ function ExportMenu({
     // Pages through every row on the server (filtered by index), so nothing is silently dropped (#15).
     const rows = await collectPages((cursor) =>
       convex.query(api.activity.exportPage, {
-        fromMs: fromKey(from).getTime(),
-        toMs: fromKey(shiftDays(to, 1)).getTime() - 1,
+        fromMs: dayStartMs(from, timeZone),
+        toMs: dayStartMs(shiftDays(to, 1), timeZone) - 1,
         // The server only filters by projects that still exist; a deleted one is filtered below.
         projectId: projectDeleted ? undefined : projectId,
         actorId: memberId || undefined,
@@ -403,7 +412,7 @@ function ExportMenu({
         ]);
       }
       if (kind === "json") {
-        const data = { exportedAt: new Date().toISOString(), from, to, todos: todoRows(), people: peopleRows(), activity: await activityRows() };
+        const data = { exportedAt: new Date().toISOString(), from, to, timeZone: timeZone ?? browserTimeZone(), todos: todoRows(), people: peopleRows(), activity: await activityRows() };
         download(`lcftodos_${stamp}.json`, JSON.stringify(data, null, 2), "application/json");
       }
     } catch (caught) {
