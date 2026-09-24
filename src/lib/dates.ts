@@ -1,9 +1,21 @@
 import { addDays, format, isValid, parseISO, startOfWeek } from "date-fns";
+import { dateKeyInZone, startOfDayInZone } from "../../convex/lib/timezone";
 
-// Dates are stored as local calendar days ("YYYY-MM-DD"), weeks start Monday.
+// Dates are stored as calendar days ("YYYY-MM-DD") in the team's time zone
+// (#21; the browser's zone when the team hasn't set one), weeks start Monday.
 export const toKey = (d: Date) => format(d, "yyyy-MM-dd");
 export const fromKey = (key: string) => parseISO(key);
-export const todayKey = () => toKey(new Date());
+
+/** Today's day key in `timeZone`, or in the browser's zone when not given. */
+export const todayKey = (timeZone?: string | null) =>
+  timeZone ? dateKeyInZone(Date.now(), timeZone) : toKey(new Date());
+
+/** The browser's IANA zone, used as the default when an admin sets the team zone. */
+export const browserTimeZone = () => Intl.DateTimeFormat().resolvedOptions().timeZone;
+
+/** The instant (ms) day `key` starts in `timeZone` (or the browser's zone). */
+export const dayStartMs = (key: string, timeZone?: string | null) =>
+  timeZone ? startOfDayInZone(key, timeZone) : fromKey(key).getTime();
 
 export function weekStart(key?: string | null) {
   const date = key ? fromKey(key) : new Date();

@@ -2,14 +2,10 @@ import { v } from "convex/values";
 import type { Doc } from "./_generated/dataModel";
 import { mutation, query } from "./_generated/server";
 import { getMember, log, requireMember, requireTodo, requireWritableProject } from "./lib/auth";
+import { carryOverDay } from "./lib/carryOver";
+import { deleteTodo } from "./lib/cascade";
 import { assignee, checkDate, checkRange, todoNotes, todoTitle } from "./lib/validate";
 import { status } from "./schema";
-
-function nextDay(date: string) {
-  const d = new Date(`${date}T00:00:00Z`);
-  d.setUTCDate(d.getUTCDate() + 1);
-  return d.toISOString().slice(0, 10);
-}
 
 const byOrder = (a: Doc<"todos">, b: Doc<"todos">) => a.order - b.order;
 
@@ -132,7 +128,12 @@ export const update = mutation({
     // membership has since been removed.
     const assigneeId =
       args.assigneeId && args.assigneeId === todo.assigneeId ? todo.assigneeId : await assignee(ctx, member.orgId, args.assigneeId);
-    await ctx.db.patch(todo._id, { title, notes, date: args.date, assigneeId });
+    const changed = todo.date !== args.date || todo.title !== title || todo.notes !== notes || todo.assigneeId !== assigneeId;
+    await ctx.db.patch(todo._id, {
+      title, notes, date: args.date, assigneeId,
+      // Editing one occurrence of a series detaches it: later series edits leave it alone (#23).
+      ...(todo.recurrenceId && changed ? { recurrenceDetached: true } : {}),
+    });
 
     if (todo.date !== args.date) {
       await log(ctx, member, project, {
@@ -175,7 +176,14 @@ export const remove = mutation({
     const member = await requireMember(ctx);
     const todo = await requireTodo(ctx, member, todoId);
     const project = await requireWritableProject(ctx, member, todo.projectId);
-    await ctx.db.delete(todo._id);
+    await deleteTodo(ctx, todo);
+    // Deleting one occurrence of a series: remember the day so it is not generated again (#23).
+    if (todo.recurrenceId && todo.recurrenceDate) {
+      const rec = await ctx.db.get(todo.recurrenceId);
+      if (rec && !rec.skipDates?.includes(todo.recurrenceDate)) {
+        await ctx.db.patch(rec._id, { skipDates: [...(rec.skipDates ?? []), todo.recurrenceDate] });
+      }
+    }
     await log(ctx, member, project, {
       action: "deleted", todoId: todo._id, todoTitle: todo.title, from: todo.status, date: todo.date,
     });
@@ -184,42 +192,13 @@ export const remove = mutation({
 
 // Copies every open (todo/doing) item of a project's day to the next day and
 // marks the originals "didn't finish", so the history shows what slipped.
+// The nightly cron shares this logic via carryOverDay (#22).
 export const carryOver = mutation({
   args: { projectId: v.id("projects"), date: v.string() },
   handler: async (ctx, { projectId, date }) => {
     const member = await requireMember(ctx);
     const project = await requireWritableProject(ctx, member, projectId);
     checkDate(date);
-    const to = nextDay(date);
-    const open = (
-      await ctx.db
-        .query("todos")
-        .withIndex("by_project_date", (q) => q.eq("projectId", projectId).eq("date", date))
-        .collect()
-    ).filter((t) => t.status === "todo" || t.status === "doing");
-
-    for (const t of open) {
-      await ctx.db.patch(t._id, { status: "not_done", completedAt: undefined });
-      // Record the "didn't finish" on the original's own history (#33).
-      await log(ctx, member, project, {
-        action: "status", todoId: t._id, todoTitle: t.title, from: t.status, to: "not_done", date,
-      });
-      const newId = await ctx.db.insert("todos", {
-        orgId: t.orgId,
-        projectId: t.projectId,
-        title: t.title,
-        notes: t.notes,
-        date: to,
-        status: t.status,
-        assigneeId: t.assigneeId,
-        createdBy: member.userId,
-        order: t.order,
-        carriedFrom: t._id,
-      });
-      await log(ctx, member, project, {
-        action: "carried_over", todoId: newId, todoTitle: t.title, from: date, to, date: to,
-      });
-    }
-    return open.length;
+    return await carryOverDay(ctx, member, project, date);
   },
 });

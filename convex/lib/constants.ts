@@ -17,6 +17,7 @@ export const ACTIONS = [
   "project_archived",
   "project_restored",
   "project_deleted",
+  "commented",
 ] as const;
 export type Action = (typeof ACTIONS)[number];
 
@@ -30,7 +31,16 @@ export const LIMITS = {
   todoNotes: 5000,
   projectName: 80,
   projectDescription: 500,
+  comment: 2000,
 } as const;
+
+// Recurring todos (#23). Weekdays use JavaScript's numbering: 0 = Sunday … 6 = Saturday.
+export const RECURRENCE_KINDS = ["daily", "weekdays", "weekly"] as const;
+export type RecurrenceKind = (typeof RECURRENCE_KINDS)[number];
+export type RecurrenceRule = { kind: RecurrenceKind; weekdays?: number[] };
+
+// Longest range one `recurrences.ensureOccurrences` call may fill (a week view needs 7).
+export const MAX_GENERATE_DAYS = 31;
 
 // Project palette. `color` is rendered into inline styles, so only these are accepted.
 export const PROJECT_COLORS = [
@@ -42,3 +52,8 @@ export const MAX_RANGE_DAYS = 366;
 
 // Rows per `activity.exportPage` call; larger requests are clamped to this.
 export const MAX_EXPORT_PAGE_SIZE = 1000;
+
+// Actor id recorded for changes made by scheduled jobs (e.g. nightly carry-over, #22).
+// The UI renders it as "System".
+export const SYSTEM_ACTOR_ID = "system";
+export const SYSTEM_ACTOR_NAME = "System";

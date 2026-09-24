@@ -4,6 +4,7 @@ import { useOrganization } from "@clerk/nextjs";
 import { useQuery } from "convex/react";
 import { useMemo } from "react";
 import { api } from "../../convex/_generated/api";
+import { SYSTEM_ACTOR_ID, SYSTEM_ACTOR_NAME } from "../../convex/lib/constants";
 
 export type Member = { id: string; name: string; imageUrl?: string; role?: string };
 
@@ -26,14 +27,15 @@ export function useMembers(extraIds: string[] = []) {
   );
 
   const missing = useMemo(() => {
-    const known = new Set(members.map((m) => m.id));
+    const known = new Set([SYSTEM_ACTOR_ID, ...members.map((m) => m.id)]);
     return [...new Set(extraIds)].filter((id) => !known.has(id)).sort();
   }, [members, extraIds]);
 
   const former = useQuery(api.users.byClerkIds, missing.length ? { clerkIds: missing } : "skip");
 
   const byId = useMemo(() => {
-    const map = new Map<string, Member>();
+    // Scheduled jobs (nightly carry-over, #22) act as "System".
+    const map = new Map<string, Member>([[SYSTEM_ACTOR_ID, { id: SYSTEM_ACTOR_ID, name: SYSTEM_ACTOR_NAME }]]);
     for (const u of former ?? []) map.set(u.clerkId, { id: u.clerkId, name: u.name, imageUrl: u.imageUrl });
     for (const m of members) map.set(m.id, m);
     return map;

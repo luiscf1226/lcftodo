@@ -1,0 +1,95 @@
+"use client";
+
+import { useMutation, useQuery } from "convex/react";
+import { useMemo, useState, type FormEvent } from "react";
+import { api } from "../../convex/_generated/api";
+import { browserTimeZone } from "@/lib/dates";
+import { errorMessage } from "@/lib/errors";
+import { Skeleton } from "./PageHeader";
+import { showToast } from "./ToastViewport";
+
+type Settings = { timeZone: string | null; autoCarryOver: boolean; canEdit: boolean };
+
+// Team time zone (#21) and nightly carry-over (#22). Admins edit; members see the values.
+export function TeamSettings() {
+  const settings = useQuery(api.teams.settings, {});
+  if (settings === undefined) return <Skeleton className="mb-6 h-40" />;
+  if (settings === null) return null;
+  return <TeamSettingsForm key={`${settings.timeZone}:${settings.autoCarryOver}`} settings={settings} />;
+}
+
+function TeamSettingsForm({ settings }: { settings: Settings }) {
+  const update = useMutation(api.teams.updateSettings);
+  // Default to the admin's own browser zone until the team has one.
+  const [timeZone, setTimeZone] = useState(() => settings.timeZone ?? browserTimeZone());
+  const [autoCarryOver, setAutoCarryOver] = useState(settings.autoCarryOver);
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const zones = useMemo(() => {
+    const all = typeof Intl.supportedValuesOf === "function" ? Intl.supportedValuesOf("timeZone") : [];
+    return all.includes(timeZone) ? all : [timeZone, ...all];
+  }, [timeZone]);
+  const dirty = timeZone !== settings.timeZone || autoCarryOver !== settings.autoCarryOver;
+  const disabled = !settings.canEdit || busy;
+
+  async function submit(e: FormEvent) {
+    e.preventDefault();
+    if (!dirty || disabled) return;
+    setBusy(true);
+    setError(null);
+    try {
+      await update({ timeZone, autoCarryOver });
+      showToast("Team settings saved.");
+    } catch (caught) {
+      setError(errorMessage(caught, "Couldn't save team settings. Try again."));
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  return (
+    <form onSubmit={submit} className="card mb-6 space-y-4 p-4">
+      <div>
+        <h2 className="text-sm font-semibold">Team settings</h2>
+        <p className="text-xs text-muted">
+          {settings.canEdit ? "Applies to everyone on the team." : "Only team admins can change these."}
+        </p>
+      </div>
+      <div className="max-w-sm">
+        <label className="label" htmlFor="team-tz">Time zone</label>
+        <select id="team-tz" className="input" value={timeZone} disabled={disabled} onChange={(e) => setTimeZone(e.target.value)}>
+          {zones.map((zone) => <option key={zone} value={zone}>{zone.replaceAll("_", " ")}</option>)}
+        </select>
+        <p className="mt-1 text-xs text-muted">
+          {settings.timeZone
+            ? "Today, the week board, history ranges and exports all use this zone."
+            : "Not set yet: each person currently sees days in their own browser's zone."}
+        </p>
+      </div>
+      <label className="flex items-start gap-2 text-sm">
+        <input
+          type="checkbox"
+          className="mt-0.5 size-4 accent-[var(--accent)]"
+          checked={autoCarryOver}
+          disabled={disabled}
+          onChange={(e) => setAutoCarryOver(e.target.checked)}
+        />
+        <span>
+          Carry over unfinished todos automatically every night
+          <span className="block text-xs text-muted">
+            Shortly after midnight in the team&apos;s time zone, open todos from the previous day move to the new day
+            and the originals are marked &ldquo;didn&apos;t finish&rdquo;. Archived projects are skipped. Shown as &ldquo;System&rdquo; in history.
+          </span>
+        </span>
+      </label>
+      {error && <p className="text-sm text-danger" role="alert">{error}</p>}
+      {settings.canEdit && (
+        <div className="flex justify-end">
+          <button type="submit" className="btn-primary" disabled={!dirty || busy}>
+            {busy ? "Saving…" : "Save settings"}
+          </button>
+        </div>
+      )}
+    </form>
+  );
+}
