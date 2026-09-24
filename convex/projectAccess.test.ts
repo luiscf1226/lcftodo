@@ -430,3 +430,54 @@ describe("invitations", () => {
     expect(await grantsOf(t, carol.subject)).toEqual([]);
   });
 });
+
+describe("comments, recurring todos and the nightly carry-over", () => {
+  test("comments on an inaccessible todo are hidden and can't be written", async () => {
+    const ctx = await setup();
+    const { a, b, borealisTodo, apolloTodo } = ctx;
+    const commentId = await a.mutation(api.comments.add, { todoId: borealisTodo, body: "Secret" });
+    await restrict(ctx);
+    expect(await b.query(api.comments.list, { todoId: borealisTodo })).toEqual([]);
+    await expect(b.mutation(api.comments.add, { todoId: borealisTodo, body: "hi" })).rejects.toThrow(/not found/);
+    await expect(b.mutation(api.comments.remove, { commentId })).rejects.toThrow(/Comment not found/);
+    await b.mutation(api.comments.add, { todoId: apolloTodo, body: "On it" });
+    expect(await b.query(api.comments.list, { todoId: apolloTodo })).toHaveLength(1);
+  });
+
+  test("recurring series respect project access and assignee eligibility", async () => {
+    const ctx = await setup();
+    await restrict(ctx);
+    const { a, b, apollo, borealis } = ctx;
+    const rule = { kind: "daily" as const };
+    await expect(a.mutation(api.recurrences.create, { projectId: apollo, startDate: DAY, title: "Standup", rule, assigneeId: carol.subject }))
+      .rejects.toThrow(/access to this project/);
+    const standup = await a.mutation(api.recurrences.create, { projectId: apollo, startDate: DAY, title: "Standup", rule, assigneeId: bob.subject });
+    const hidden = await a.mutation(api.recurrences.create, { projectId: borealis, startDate: DAY, title: "Borealis sync", rule });
+    expect((await b.query(api.recurrences.list, {})).map((r) => r._id)).toEqual([standup]);
+    expect(await b.query(api.recurrences.get, { recurrenceId: hidden })).toBeNull();
+    await expect(b.mutation(api.recurrences.stop, { recurrenceId: hidden, from: DAY })).rejects.toThrow(/Recurring todo not found/);
+
+    // After Bob loses access, new occurrences are generated unassigned.
+    await a.mutation(api.projectAccess.revoke, { projectId: apollo, userId: bob.subject });
+    await a.mutation(api.recurrences.ensureOccurrences, { from: "2026-10-05", to: "2026-10-05" });
+    const later = await a.query(api.todos.listForProject, { projectId: apollo, from: "2026-10-05", to: "2026-10-05" });
+    expect(later.map((t) => [t.title, t.assigneeId])).toEqual([["Standup", undefined]]);
+  });
+
+  test("the nightly carry-over keeps running and leaves copies for people without access unassigned", async () => {
+    const ctx = await setup();
+    await restrict(ctx);
+    const { t, a, apollo } = ctx;
+    await a.mutation(api.teams.updateSettings, { timeZone: "UTC", autoCarryOver: true });
+    await t.run(async (c) => {
+      const row = await c.db.query("teamSettings").withIndex("by_org", (q) => q.eq("orgId", "org_a")).unique();
+      await c.db.patch(row!._id, { lastAutoCarryDate: "2026-09-01" });
+    });
+    // Restricting created the settings row first; saving the time zone must not reset it.
+    expect(await ctx.b.query(api.projectAccess.me, {})).toMatchObject({ restricted: true });
+    await a.mutation(api.projectAccess.revoke, { projectId: apollo, userId: bob.subject });
+    expect(await t.mutation(internal.teams.carryOverTeam, { orgId: "org_a", date: "2026-09-24" })).toBe(2);
+    const next = await a.query(api.todos.listForTeam, { from: "2026-09-24", to: "2026-09-24" });
+    expect(next.map((x) => [x.title, x.assigneeId])).toEqual([["Apollo work", undefined], ["Borealis work", undefined]]);
+  });
+});

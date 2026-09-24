@@ -5,6 +5,7 @@ import {
   accessibleProjectIds, canReadProject, getMember, inScope, log, requireMember, requireTodo, requireWritableProject,
 } from "./lib/auth";
 import { carryOverDay } from "./lib/carryOver";
+import { deleteTodo } from "./lib/cascade";
 import { assignee, checkDate, checkRange, todoNotes, todoTitle } from "./lib/validate";
 import { status } from "./schema";
 
@@ -130,7 +131,12 @@ export const update = mutation({
     // or project access has since been removed (#46); only a new assignee is validated.
     const assigneeId =
       args.assigneeId && args.assigneeId === todo.assigneeId ? todo.assigneeId : await assignee(ctx, project, args.assigneeId);
-    await ctx.db.patch(todo._id, { title, notes, date: args.date, assigneeId });
+    const changed = todo.date !== args.date || todo.title !== title || todo.notes !== notes || todo.assigneeId !== assigneeId;
+    await ctx.db.patch(todo._id, {
+      title, notes, date: args.date, assigneeId,
+      // Editing one occurrence of a series detaches it: later series edits leave it alone (#23).
+      ...(todo.recurrenceId && changed ? { recurrenceDetached: true } : {}),
+    });
 
     if (todo.date !== args.date) {
       await log(ctx, member, project, {
@@ -173,7 +179,14 @@ export const remove = mutation({
     const member = await requireMember(ctx);
     const todo = await requireTodo(ctx, member, todoId);
     const project = await requireWritableProject(ctx, member, todo.projectId);
-    await ctx.db.delete(todo._id);
+    await deleteTodo(ctx, todo);
+    // Deleting one occurrence of a series: remember the day so it is not generated again (#23).
+    if (todo.recurrenceId && todo.recurrenceDate) {
+      const rec = await ctx.db.get(todo.recurrenceId);
+      if (rec && !rec.skipDates?.includes(todo.recurrenceDate)) {
+        await ctx.db.patch(rec._id, { skipDates: [...(rec.skipDates ?? []), todo.recurrenceDate] });
+      }
+    }
     await log(ctx, member, project, {
       action: "deleted", todoId: todo._id, todoTitle: todo.title, from: todo.status, date: todo.date,
     });

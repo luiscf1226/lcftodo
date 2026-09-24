@@ -63,14 +63,14 @@ active synced `memberships` row and takes the role from it (see `README.md` → 
 Deleting projects is admin-only.
 
 Project access (#46): `canReadProject` / `requireProjectAccess` / `accessibleProjectIds` in the
-same file gate every project, todo, activity/history and export function. Admins see all
+same file gate every project, todo, comment, recurring-series, search, activity/history and export function. Admins see all
 projects. A team without `teamSettings.restrictedProjectAccess` (the default, and every team that
 existed before #46) keeps open access; once an admin restricts it, members need a
 `projectMemberships` grant, and anything else is indistinguishable from "not found". Assignees must
 be active members with access to the project; losing access keeps the historical assignee on
-existing todos (admin reassigns) and carry-over copies are left unassigned. Invitation grants
+existing todos (admin reassigns); carry-over copies and new recurring occurrences are left unassigned. Invitation grants
 (`projectInvitations`) are applied exactly once from the Clerk webhook. New modules that expose
-project data (e.g. search) must use these helpers. See `README.md` → *Project access and invitations*.
+project data must use these helpers. The nightly carry-over runs as a system actor and is not gated. See `README.md` → *Project access and invitations*.
 
 ## Milestones
 

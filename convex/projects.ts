@@ -162,6 +162,16 @@ export const deleteBatch = internalMutation({
   handler: async (ctx, { projectId }) => {
     const project = await ctx.db.get(projectId);
     if (!project?.deleting) return;
+    // Comments (#24) and recurring series (#23) go first, then todos, each in bounded batches.
+    const [comments, series] = await Promise.all([
+      ctx.db.query("comments").withIndex("by_project", (q) => q.eq("projectId", projectId)).take(DELETE_BATCH_SIZE),
+      ctx.db.query("recurrences").withIndex("by_project", (q) => q.eq("projectId", projectId)).take(DELETE_BATCH_SIZE),
+    ]);
+    for (const row of [...comments, ...series]) await ctx.db.delete(row._id);
+    if (comments.length === DELETE_BATCH_SIZE || series.length === DELETE_BATCH_SIZE) {
+      await ctx.scheduler.runAfter(0, internal.projects.deleteBatch, { projectId });
+      return;
+    }
     const todos = await ctx.db
       .query("todos")
       .withIndex("by_project_date", (q) => q.eq("projectId", projectId))

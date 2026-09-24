@@ -21,6 +21,8 @@ export function describe(a: Doc<"activity">, { withTitle = true } = {}) {
       return `carried${t} over from ${day(a.from)} to ${day(a.to)}`;
     case "deleted":
       return `deleted${t}`;
+    case "commented":
+      return withTitle && a.todoTitle ? `commented on${t}` : "commented";
     case "project_created":
       return `created project ${a.projectName}`;
     case "project_updated":
