@@ -56,19 +56,27 @@ export function CommentThread({ todoId, readOnly }: { todoId: Id<"todos">; readO
       )}
       {!readOnly && (
         <form onSubmit={submit} className="mt-3 space-y-2">
-          <label htmlFor={`comment-${todoId}`} className="sr-only">Add a comment</label>
+          <label htmlFor={`comment-${todoId}`} className="sr-only">
+            Add a comment
+          </label>
           <textarea
             id={`comment-${todoId}`}
-            className="input min-h-16"
+            className="min-h-16 input"
             placeholder="Add a comment… (⌘/Ctrl + Enter to send)"
             value={body}
             maxLength={LIMITS.comment}
             onChange={(e) => setBody(e.target.value)}
             onKeyDown={(e) => submitOnModEnter(e, () => void submit())}
           />
-          {error && <p className="text-sm text-danger" role="alert">{error}</p>}
+          {error && (
+            <p className="text-sm text-danger" role="alert">
+              {error}
+            </p>
+          )}
           <div className="flex justify-end">
-            <button type="submit" className="btn-primary" disabled={busy || !body.trim()}>Comment</button>
+            <button type="submit" className="btn-primary" disabled={busy || !body.trim()}>
+              Comment
+            </button>
           </div>
         </form>
       )}
@@ -83,7 +91,15 @@ function submitOnModEnter(e: KeyboardEvent, submit: () => void) {
   }
 }
 
-function CommentRow({ comment, author, authorName }: { comment: Comment; author?: Parameters<typeof Avatar>[0]["member"]; authorName: string }) {
+function CommentRow({
+  comment,
+  author,
+  authorName,
+}: {
+  comment: Comment;
+  author?: Parameters<typeof Avatar>[0]["member"];
+  authorName: string;
+}) {
   const edit = useMutation(api.comments.edit);
   const remove = useMutation(api.comments.remove);
   const [editing, setEditing] = useState(false);
@@ -110,7 +126,9 @@ function CommentRow({ comment, author, authorName }: { comment: Comment; author?
 
   return (
     <li className="flex gap-2">
-      <span className="mt-0.5"><Avatar member={author} size={20} /></span>
+      <span className="mt-0.5">
+        <Avatar member={author} size={20} />
+      </span>
       <div className="min-w-0 flex-1">
         <div className="flex flex-wrap items-baseline gap-x-2">
           <span className="font-medium">{authorName}</span>
@@ -121,7 +139,15 @@ function CommentRow({ comment, author, authorName }: { comment: Comment; author?
           {!editing && (comment.canEdit || comment.canDelete) && (
             <span className="ml-auto flex gap-0.5">
               {comment.canEdit && (
-                <button type="button" className="btn-ghost min-h-0 px-1 py-0.5" aria-label="Edit comment" onClick={() => { setDraft(comment.body); setEditing(true); }}>
+                <button
+                  type="button"
+                  className="btn-ghost min-h-0 px-1 py-0.5"
+                  aria-label="Edit comment"
+                  onClick={() => {
+                    setDraft(comment.body);
+                    setEditing(true);
+                  }}
+                >
                   <Pencil className="size-3.5" />
                 </button>
               )}
@@ -141,11 +167,13 @@ function CommentRow({ comment, author, authorName }: { comment: Comment; author?
         </div>
         {editing ? (
           <div className="mt-1 space-y-1.5">
-            <label htmlFor={`edit-${comment._id}`} className="sr-only">Edit comment</label>
+            <label htmlFor={`edit-${comment._id}`} className="sr-only">
+              Edit comment
+            </label>
             <textarea
               id={`edit-${comment._id}`}
               autoFocus
-              className="input min-h-16"
+              className="min-h-16 input"
               value={draft}
               maxLength={LIMITS.comment}
               onChange={(e) => setDraft(e.target.value)}
@@ -159,8 +187,17 @@ function CommentRow({ comment, author, authorName }: { comment: Comment; author?
               }}
             />
             <div className="flex justify-end gap-1">
-              <button type="button" className="btn-ghost py-1 text-xs" onClick={() => setEditing(false)}>Cancel</button>
-              <button type="button" className="btn-primary py-1 text-xs" disabled={busy || !draft.trim()} onClick={() => void save()}>Save</button>
+              <button type="button" className="btn-ghost py-1 text-xs" onClick={() => setEditing(false)}>
+                Cancel
+              </button>
+              <button
+                type="button"
+                className="btn-primary py-1 text-xs"
+                disabled={busy || !draft.trim()}
+                onClick={() => void save()}
+              >
+                Save
+              </button>
             </div>
           </div>
         ) : (

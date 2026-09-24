@@ -5,7 +5,15 @@ export function Avatar({ member, size = 20 }: { member?: Member; size?: number }
   if (!member) return null;
   const style = { width: size, height: size };
   if (member.imageUrl) {
-    return <img src={member.imageUrl} alt={member.name} title={member.name} style={style} className="shrink-0 rounded-full object-cover" />;
+    return (
+      <img
+        src={member.imageUrl}
+        alt={member.name}
+        title={member.name}
+        style={style}
+        className="shrink-0 rounded-full object-cover"
+      />
+    );
   }
   return (
     <span

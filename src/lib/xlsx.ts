@@ -18,7 +18,10 @@ export function toSheetData(sheet: XlsxSheet): SheetData {
 // Column widths (in characters) that fit the longest value, within sane bounds.
 export function columnWidths(sheet: XlsxSheet) {
   return headersOf(sheet).map((h) => ({
-    width: Math.min(60, sheet.rows.reduce((max, r) => Math.max(max, String(r[h] ?? "").length), Math.max(8, h.length)) + 2),
+    width: Math.min(
+      60,
+      sheet.rows.reduce((max, r) => Math.max(max, String(r[h] ?? "").length), Math.max(8, h.length)) + 2,
+    ),
   }));
 }
 

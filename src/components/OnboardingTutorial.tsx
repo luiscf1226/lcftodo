@@ -49,8 +49,8 @@ const STEPS: Step[] = [
           week&apos;s todos by status.
         </p>
         <p>
-          Switch between <strong>My todos</strong> and <strong>Whole team</strong> at the top. Click any todo to
-          edit its title, notes, day, or assignee.
+          Switch between <strong>My todos</strong> and <strong>Whole team</strong> at the top. Click any todo to edit
+          its title, notes, day, or assignee.
         </p>
       </>
     ),
@@ -61,8 +61,8 @@ const STEPS: Step[] = [
     body: (
       <>
         <p>
-          Type in the bar at the top of Today and press <Kbd>Enter</Kbd>. The input stays focused, so you can add
-          todos one after another.
+          Type in the bar at the top of Today and press <Kbd>Enter</Kbd>. The input stays focused, so you can add todos
+          one after another.
         </p>
         <ul className="list-disc space-y-1 pl-5">
           <li>Paste a multi-line list to create one todo per line.</li>
@@ -80,8 +80,8 @@ const STEPS: Step[] = [
     body: (
       <>
         <p>
-          Group work into color-coded <strong>Projects</strong>. Each project opens a <strong>week board</strong>{" "}
-          with a column for every day from Monday to Sunday.
+          Group work into color-coded <strong>Projects</strong>. Each project opens a <strong>week board</strong> with a
+          column for every day from Monday to Sunday.
         </p>
         <ul className="list-disc space-y-1 pl-5">
           <li>Move between weeks with the arrows, or jump to a date.</li>
@@ -101,7 +101,10 @@ const STEPS: Step[] = [
           {STATUSES.map((s) => (
             <li
               key={s}
-              className={clsx("inline-flex items-center gap-1.5 rounded-full px-2 py-0.5 text-xs font-medium ring-1 ring-inset", STATUS_META[s].pill)}
+              className={clsx(
+                "inline-flex items-center gap-1.5 rounded-full px-2 py-0.5 text-xs font-medium ring-1 ring-inset",
+                STATUS_META[s].pill,
+              )}
             >
               <span className={clsx("size-1.5 rounded-full", STATUS_META[s].dot)} aria-hidden />
               {STATUS_META[s].label}
@@ -109,8 +112,8 @@ const STEPS: Step[] = [
           ))}
         </ul>
         <p>
-          At the end of a day, <strong>Carry</strong> on the week board moves unfinished todos to the next day and
-          marks the originals as didn&apos;t finish.
+          At the end of a day, <strong>Carry</strong> on the week board moves unfinished todos to the next day and marks
+          the originals as didn&apos;t finish.
         </p>
       </>
     ),
@@ -121,8 +124,8 @@ const STEPS: Step[] = [
     body: (
       <>
         <p>
-          <strong>History</strong> shows what your team planned, finished, and missed. Filter by date range,
-          project, or person, and switch between the Days, People, and Activity views.
+          <strong>History</strong> shows what your team planned, finished, and missed. Filter by date range, project, or
+          person, and switch between the Days, People, and Activity views.
         </p>
         <p>
           Use <strong>Export</strong> to download the current view as CSV, Excel, or JSON.
@@ -136,15 +139,15 @@ const STEPS: Step[] = [
     body: (
       <>
         <p>
-          Everything you see belongs to the current team. Switch teams, or create a new one, from the team
-          switcher at the top of the sidebar.
+          Everything you see belongs to the current team. Switch teams, or create a new one, from the team switcher at
+          the top of the sidebar.
         </p>
         <p>
           Open <strong>Team</strong> to invite teammates by email, manage roles, and edit team settings.
         </p>
         <p>
-          Admins can invite people to selected projects and restrict project access, so each member only sees
-          the projects they&apos;re added to. New admins get a setup checklist on <strong>Today</strong>.
+          Admins can invite people to selected projects and restrict project access, so each member only sees the
+          projects they&apos;re added to. New admins get a setup checklist on <strong>Today</strong>.
         </p>
       </>
     ),
@@ -247,7 +250,11 @@ function Tutorial({ completed, onClose }: { completed: boolean; onClose: () => v
       </ol>
 
       <section className="min-h-52 space-y-3 text-sm leading-relaxed text-muted [&_strong]:font-medium [&_strong]:text-fg">
-        <h3 ref={headingRef} tabIndex={-1} className="flex items-center gap-2 text-base font-semibold text-fg outline-none">
+        <h3
+          ref={headingRef}
+          tabIndex={-1}
+          className="flex items-center gap-2 text-base font-semibold text-fg outline-none"
+        >
           <span className="grid size-8 shrink-0 place-items-center rounded-lg bg-surface-2 text-accent" aria-hidden>
             <Icon className="size-4" />
           </span>
@@ -270,8 +277,14 @@ function Tutorial({ completed, onClose }: { completed: boolean; onClose: () => v
           </label>
         </div>
       )}
-      {isLast && completed && <p className="text-sm text-muted">You&apos;ve already finished the tutorial. Reopen it anytime.</p>}
-      {error && <p className="text-sm text-danger" role="alert">{error}</p>}
+      {isLast && completed && (
+        <p className="text-sm text-muted">You&apos;ve already finished the tutorial. Reopen it anytime.</p>
+      )}
+      {error && (
+        <p className="text-sm text-danger" role="alert">
+          {error}
+        </p>
+      )}
 
       <div className="flex items-center justify-between gap-2 pt-1">
         {index === 0 ? (

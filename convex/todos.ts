@@ -2,7 +2,14 @@ import { v } from "convex/values";
 import type { Doc } from "./_generated/dataModel";
 import { mutation, query } from "./_generated/server";
 import {
-  accessibleProjectIds, canReadProject, getMember, inScope, log, requireMember, requireTodo, requireWritableProject,
+  accessibleProjectIds,
+  canReadProject,
+  getMember,
+  inScope,
+  log,
+  requireMember,
+  requireTodo,
+  requireWritableProject,
 } from "./lib/auth";
 import { carryOverDay } from "./lib/carryOver";
 import { deleteTodo } from "./lib/cascade";
@@ -23,9 +30,7 @@ export const listForProject = query({
     checkRange(from, to);
     const todos = await ctx.db
       .query("todos")
-      .withIndex("by_project_date", (q) =>
-        q.eq("projectId", projectId).gte("date", from).lte("date", to),
-      )
+      .withIndex("by_project_date", (q) => q.eq("projectId", projectId).gte("date", from).lte("date", to))
       .collect();
     return todos.sort(byOrder);
   },
@@ -42,9 +47,7 @@ export const listForTeam = query({
     const [todos, projects, scope] = await Promise.all([
       ctx.db
         .query("todos")
-        .withIndex("by_org_date", (q) =>
-          q.eq("orgId", member.orgId).gte("date", from).lte("date", to),
-        )
+        .withIndex("by_org_date", (q) => q.eq("orgId", member.orgId).gte("date", from).lte("date", to))
         .collect(),
       ctx.db
         .query("projects")
@@ -133,10 +136,16 @@ export const update = mutation({
     // Preserve a historical assignee when editing other fields, even if their team membership
     // or project access has since been removed (#46); only a new assignee is validated.
     const assigneeId =
-      args.assigneeId && args.assigneeId === todo.assigneeId ? todo.assigneeId : await assignee(ctx, project, args.assigneeId);
-    const changed = todo.date !== args.date || todo.title !== title || todo.notes !== notes || todo.assigneeId !== assigneeId;
+      args.assigneeId && args.assigneeId === todo.assigneeId
+        ? todo.assigneeId
+        : await assignee(ctx, project, args.assigneeId);
+    const changed =
+      todo.date !== args.date || todo.title !== title || todo.notes !== notes || todo.assigneeId !== assigneeId;
     await ctx.db.patch(todo._id, {
-      title, notes, date: args.date, assigneeId,
+      title,
+      notes,
+      date: args.date,
+      assigneeId,
       // Editing one occurrence of a series detaches it: later series edits leave it alone (#23).
       ...(todo.recurrenceId && changed ? { recurrenceDetached: true } : {}),
     });
@@ -146,7 +155,12 @@ export const update = mutation({
 
     if (todo.date !== args.date) {
       await log(ctx, member, project, {
-        action: "moved", todoId: todo._id, todoTitle: title, from: todo.date, to: args.date, date: args.date,
+        action: "moved",
+        todoId: todo._id,
+        todoTitle: title,
+        from: todo.date,
+        to: args.date,
+        date: args.date,
       });
     }
     if (todo.title !== title || todo.notes !== notes || todo.assigneeId !== assigneeId) {
@@ -199,7 +213,12 @@ export const move = mutation({
 
     if (todo.date !== args.date) {
       await log(ctx, member, project, {
-        action: "moved", todoId: todo._id, todoTitle: todo.title, from: todo.date, to: args.date, date: args.date,
+        action: "moved",
+        todoId: todo._id,
+        todoTitle: todo.title,
+        from: todo.date,
+        to: args.date,
+        date: args.date,
       });
     }
   },
@@ -217,7 +236,12 @@ export const setStatus = mutation({
       completedAt: args.status === "done" ? Date.now() : undefined,
     });
     await log(ctx, member, project, {
-      action: "status", todoId: todo._id, todoTitle: todo.title, from: todo.status, to: args.status, date: todo.date,
+      action: "status",
+      todoId: todo._id,
+      todoTitle: todo.title,
+      from: todo.status,
+      to: args.status,
+      date: todo.date,
     });
   },
 });
@@ -237,7 +261,11 @@ export const remove = mutation({
       }
     }
     await log(ctx, member, project, {
-      action: "deleted", todoId: todo._id, todoTitle: todo.title, from: todo.status, date: todo.date,
+      action: "deleted",
+      todoId: todo._id,
+      todoTitle: todo.title,
+      from: todo.status,
+      date: todo.date,
     });
   },
 });

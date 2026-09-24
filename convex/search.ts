@@ -30,17 +30,19 @@ export const todos = query({
       .flatMap((t) => {
         const p = projects.get(t.projectId);
         if (!p || p.orgId !== member.orgId || p.deleting || !inScope(scope, p._id)) return [];
-        return [{
-          _id: t._id,
-          title: t.title,
-          date: t.date,
-          status: t.status,
-          assigneeId: t.assigneeId,
-          projectId: t.projectId,
-          projectName: p.name,
-          projectColor: p.color,
-          projectArchived: p.archived,
-        }];
+        return [
+          {
+            _id: t._id,
+            title: t.title,
+            date: t.date,
+            status: t.status,
+            assigneeId: t.assigneeId,
+            projectId: t.projectId,
+            projectName: p.name,
+            projectColor: p.color,
+            projectArchived: p.archived,
+          },
+        ];
       })
       .slice(0, SEARCH_LIMITS.results);
   },

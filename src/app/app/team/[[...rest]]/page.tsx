@@ -24,7 +24,7 @@ export default function TeamPage() {
         </div>
       )}
       {me && !me.isAdmin && me.restricted && (
-        <p className="card mb-5 p-4 text-sm text-muted" role="status">
+        <p className="mb-5 card p-4 text-sm text-muted" role="status">
           {me.grantedProjects
             ? `You have access to ${me.grantedProjects} project${me.grantedProjects === 1 ? "" : "s"}. Ask a team admin if you need more.`
             : "You don't have access to any projects yet. Ask a team admin to add you to one."}
@@ -35,7 +35,9 @@ export default function TeamPage() {
       <OrganizationProfile
         path="/app/team"
         routing="path"
-        appearance={{ elements: { rootBox: "w-full", cardBox: "w-full max-w-none shadow-none border border-[var(--line)]" } }}
+        appearance={{
+          elements: { rootBox: "w-full", cardBox: "w-full max-w-none shadow-none border border-[var(--line)]" },
+        }}
       />
     </div>
   );

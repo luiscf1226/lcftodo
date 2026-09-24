@@ -1,12 +1,22 @@
 "use client";
 
 import clsx from "clsx";
-import { createContext, useContext, useEffect, useId, useRef, useState, type KeyboardEvent, type ReactNode } from "react";
+import {
+  createContext,
+  useContext,
+  useEffect,
+  useId,
+  useRef,
+  useState,
+  type KeyboardEvent,
+  type ReactNode,
+} from "react";
 
 const MenuContext = createContext<{ close: (restoreFocus?: boolean) => void } | null>(null);
 
-const items = (menu: HTMLElement | null) =>
-  [...(menu?.querySelectorAll<HTMLElement>('[role="menuitem"]:not(:disabled)') ?? [])];
+const items = (menu: HTMLElement | null) => [
+  ...(menu?.querySelectorAll<HTMLElement>('[role="menuitem"]:not(:disabled)') ?? []),
+];
 
 /**
  * Button-triggered menu with menu/menuitem roles. Closes on outside click, Esc, Tab and after
@@ -105,7 +115,10 @@ export function Menu({
           role="menu"
           aria-labelledby={triggerId}
           onKeyDown={onMenuKeyDown}
-          className={clsx("absolute right-0 z-10 mt-1 rounded-xl border border-line bg-surface p-1 shadow-lg", menuClassName)}
+          className={clsx(
+            "absolute right-0 z-10 mt-1 rounded-xl border border-line bg-surface p-1 shadow-lg",
+            menuClassName,
+          )}
         >
           <MenuContext value={{ close }}>{children}</MenuContext>
         </div>

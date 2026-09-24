@@ -2,7 +2,7 @@ import type { Doc } from "../../convex/_generated/dataModel";
 import { fmt } from "./dates";
 import { STATUS_META, type Status } from "./status";
 
-const statusLabel = (s?: string) => (s && s in STATUS_META ? STATUS_META[s as Status].label : s ?? "");
+const statusLabel = (s?: string) => (s && s in STATUS_META ? STATUS_META[s as Status].label : (s ?? ""));
 const day = (d?: string) => (d ? fmt(d, "EEE, MMM d") : "");
 
 // Human sentence for an activity entry, without the actor's name.

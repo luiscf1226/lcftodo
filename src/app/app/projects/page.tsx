@@ -35,20 +35,30 @@ export default function ProjectsPage() {
 
       {projects === undefined ? (
         <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-          {[0, 1, 2].map((i) => <Skeleton key={i} className="h-32" />)}
+          {[0, 1, 2].map((i) => (
+            <Skeleton key={i} className="h-32" />
+          ))}
         </div>
       ) : active.length === 0 && archived.length === 0 ? (
         <Empty
           title={awaitingAccess ? "You haven't been added to any projects yet" : "No projects yet"}
-          body={awaitingAccess
-            ? "A team admin can give you access to existing projects. You can also create your own."
-            : "Projects group your team's todos. Create one to start planning the week."}
-          action={<button className="btn-primary" onClick={() => setCreating(true)}><Plus className="size-4" /> New project</button>}
+          body={
+            awaitingAccess
+              ? "A team admin can give you access to existing projects. You can also create your own."
+              : "Projects group your team's todos. Create one to start planning the week."
+          }
+          action={
+            <button className="btn-primary" onClick={() => setCreating(true)}>
+              <Plus className="size-4" /> New project
+            </button>
+          }
         />
       ) : (
         <>
           <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-            {active.map((p) => <ProjectCard key={p._id} project={p} />)}
+            {active.map((p) => (
+              <ProjectCard key={p._id} project={p} />
+            ))}
           </div>
           {archived.length > 0 && (
             <details className="mt-8">
@@ -56,7 +66,9 @@ export default function ProjectsPage() {
                 <Archive className="size-4" /> Archived ({archived.length})
               </summary>
               <div className="mt-3 grid gap-3 opacity-75 sm:grid-cols-2 lg:grid-cols-3">
-                {archived.map((p) => <ProjectCard key={p._id} project={p} />)}
+                {archived.map((p) => (
+                  <ProjectCard key={p._id} project={p} />
+                ))}
               </div>
             </details>
           )}
@@ -73,7 +85,10 @@ type ProjectWithStats = NonNullable<ReturnType<typeof useQuery<typeof api.projec
 function ProjectCard({ project: p }: { project: ProjectWithStats }) {
   const pct = p.total ? Math.round((p.counts.done / p.total) * 100) : 0;
   return (
-    <Link href={`/app/projects/${p._id}`} className="card group flex flex-col p-4 transition-colors hover:border-muted/40">
+    <Link
+      href={`/app/projects/${p._id}`}
+      className="group flex flex-col card p-4 transition-colors hover:border-muted/40"
+    >
       <div className="flex items-center gap-2">
         <span className="size-3 shrink-0 rounded-full" style={{ background: p.color }} />
         <h2 className="truncate font-medium">{p.name}</h2>

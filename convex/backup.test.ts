@@ -18,8 +18,10 @@ async function exportAll(caller: Caller, table: TeamExportTable, numItems = 2) {
   const rows: { orgId: string }[] = [];
   let cursor: string | null = null;
   for (;;) {
-    const page: { page: { orgId: string }[]; isDone: boolean; continueCursor: string } =
-      await caller.query(api.backup.teamExportPage, { table, paginationOpts: { numItems, cursor } });
+    const page: { page: { orgId: string }[]; isDone: boolean; continueCursor: string } = await caller.query(
+      api.backup.teamExportPage,
+      { table, paginationOpts: { numItems, cursor } },
+    );
     rows.push(...page.page);
     if (page.isDone) return rows;
     cursor = page.continueCursor;
@@ -29,34 +31,68 @@ async function exportAll(caller: Caller, table: TeamExportTable, numItems = 2) {
 async function seedTwoTeams(t: T) {
   const a = t.withIdentity(alice);
   const e = t.withIdentity(eve);
-  for (const [caller, prefix, orgId] of [[a, "A", "org_a"], [e, "E", "org_b"]] as const) {
+  for (const [caller, prefix, orgId] of [
+    [a, "A", "org_a"],
+    [e, "E", "org_b"],
+  ] as const) {
     const projectId = await caller.mutation(api.projects.create, { name: `${prefix} project`, color: "#6366f1" });
     const todoIds: Id<"todos">[] = [];
     for (let i = 0; i < 3; i++) {
-      const todoId = await caller.mutation(api.todos.create, { projectId, title: `${prefix} ${i}`, date: `2025-0${i + 1}-15` });
+      const todoId = await caller.mutation(api.todos.create, {
+        projectId,
+        title: `${prefix} ${i}`,
+        date: `2025-0${i + 1}-15`,
+      });
       await caller.mutation(api.todos.setStatus, { todoId, status: "done" });
       todoIds.push(todoId);
     }
     // Tables without activity side effects are seeded directly.
     await t.run(async (ctx) => {
-      await ctx.db.insert("teamSettings", { orgId, timeZone: "UTC", autoCarryOver: false, updatedBy: "x", updatedAt: 1 });
+      await ctx.db.insert("teamSettings", {
+        orgId,
+        timeZone: "UTC",
+        autoCarryOver: false,
+        updatedBy: "x",
+        updatedAt: 1,
+      });
       await ctx.db.insert("recurrences", {
-        orgId, projectId, title: "Standup", rule: { kind: "daily" }, startDate: "2025-01-01", createdBy: "x",
+        orgId,
+        projectId,
+        title: "Standup",
+        rule: { kind: "daily" },
+        startDate: "2025-01-01",
+        createdBy: "x",
       });
       for (const body of ["first", "second"]) {
         await ctx.db.insert("comments", { orgId, projectId, todoId: todoIds[0], authorId: "x", body });
       }
       await ctx.db.insert("projectMemberships", { orgId, projectId, userId: "x", grantedBy: "x", grantedAt: 1 });
       await ctx.db.insert("projectInvitations", {
-        orgId, invitationId: `inv_${orgId}`, email: `new@${orgId}.test`, role: "org:member", projectIds: [projectId],
-        status: "pending", invitedBy: "x", createdAt: 1, updatedAt: 1,
+        orgId,
+        invitationId: `inv_${orgId}`,
+        email: `new@${orgId}.test`,
+        role: "org:member",
+        projectIds: [projectId],
+        status: "pending",
+        invitedBy: "x",
+        createdAt: 1,
+        updatedAt: 1,
       });
     });
   }
-  for (const [orgId, userId] of [["org_a", "user_alice"], ["org_a", "user_bob"], ["org_b", "user_eve"]]) {
+  for (const [orgId, userId] of [
+    ["org_a", "user_alice"],
+    ["org_a", "user_bob"],
+    ["org_b", "user_eve"],
+  ]) {
     await t.mutation(internal.memberships.applyWebhook, {
-      orgId, userId, membershipId: `mem_${userId}`, role: userId === "user_bob" ? "org:member" : "org:admin",
-      active: true, createdAt: 1, updatedAt: 100,
+      orgId,
+      userId,
+      membershipId: `mem_${userId}`,
+      role: userId === "user_bob" ? "org:member" : "org:admin",
+      active: true,
+      createdAt: 1,
+      updatedAt: 100,
     });
   }
   return { a, e };
@@ -67,15 +103,28 @@ describe("backup.teamExportPage", () => {
     const t = convexTest(schema, modules);
     const { a, e } = await seedTwoTeams(t);
     const expected: Record<TeamExportTable, number> = {
-      teamSettings: 1, projects: 1, todos: 3, recurrences: 1, comments: 2, activity: 7,
-      memberships: 2, projectMemberships: 1, projectInvitations: 1,
+      teamSettings: 1,
+      projects: 1,
+      todos: 3,
+      recurrences: 1,
+      comments: 2,
+      activity: 7,
+      memberships: 2,
+      projectMemberships: 1,
+      projectInvitations: 1,
     };
     for (const table of TEAM_EXPORT_TABLES) {
       const rows = await exportAll(a, table);
       expect(rows, table).toHaveLength(expected[table]);
-      expect(rows.every((r) => r.orgId === "org_a"), table).toBe(true);
+      expect(
+        rows.every((r) => r.orgId === "org_a"),
+        table,
+      ).toBe(true);
       const other = await exportAll(e, table);
-      expect(other.every((r) => r.orgId === "org_b"), table).toBe(true);
+      expect(
+        other.every((r) => r.orgId === "org_b"),
+        table,
+      ).toBe(true);
     }
   });
 
@@ -97,8 +146,13 @@ describe("backup.teamExportPage", () => {
     const t = convexTest(schema, modules);
     const { a } = await seedTwoTeams(t);
     await t.mutation(internal.memberships.applyWebhook, {
-      orgId: "org_a", userId: "user_alice", membershipId: "mem_user_alice", role: "org:member",
-      active: true, createdAt: 1, updatedAt: 200,
+      orgId: "org_a",
+      userId: "user_alice",
+      membershipId: "mem_user_alice",
+      role: "org:member",
+      active: true,
+      createdAt: 1,
+      updatedAt: 200,
     });
     await t.mutation(internal.memberships.completeBackfill, { orgId: "org_a", startedAt: 100 });
     await expect(
@@ -110,7 +164,8 @@ describe("backup.teamExportPage", () => {
     const t = convexTest(schema, modules);
     const { a } = await seedTwoTeams(t);
     const page = await a.query(api.backup.teamExportPage, {
-      table: "todos", paginationOpts: { numItems: 1_000_000, cursor: null },
+      table: "todos",
+      paginationOpts: { numItems: 1_000_000, cursor: null },
     });
     expect(page.page).toHaveLength(3);
     expect(page.isDone).toBe(true);

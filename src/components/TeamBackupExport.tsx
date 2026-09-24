@@ -41,7 +41,17 @@ export function TeamBackupExport() {
       const ids = new Set<string>();
       for (const rows of Object.values(tables)) {
         for (const row of rows) {
-          for (const key of ["userId", "actorId", "assigneeId", "createdBy", "authorId", "updatedBy", "grantedBy", "invitedBy", "acceptedUserId"]) {
+          for (const key of [
+            "userId",
+            "actorId",
+            "assigneeId",
+            "createdBy",
+            "authorId",
+            "updatedBy",
+            "grantedBy",
+            "invitedBy",
+            "acceptedUserId",
+          ]) {
             if (typeof row[key] === "string") ids.add(row[key]);
           }
         }
@@ -53,7 +63,11 @@ export function TeamBackupExport() {
       }
       const exportedAt = new Date().toISOString();
       const data = { format: "lcftodo-team-export", version: 1, exportedAt, team: orgSlug ?? null, users, ...tables };
-      download(`lcftodo_team_${orgSlug ?? "export"}_${exportedAt.slice(0, 10)}.json`, JSON.stringify(data, null, 2), "application/json");
+      download(
+        `lcftodo_team_${orgSlug ?? "export"}_${exportedAt.slice(0, 10)}.json`,
+        JSON.stringify(data, null, 2),
+        "application/json",
+      );
     } catch (caught) {
       setError(errorMessage(caught, "Couldn’t export the team. Please try again."));
     } finally {
@@ -65,8 +79,15 @@ export function TeamBackupExport() {
     <section className="mb-5 flex flex-wrap items-center justify-between gap-3 rounded-xl border border-[var(--line)] bg-surface px-4 py-3">
       <div>
         <h2 className="text-sm font-semibold">Full team export</h2>
-        <p className="text-sm text-muted">Admins only. Team settings, projects, todos, recurring series, comments, activity, memberships and project access, all time, as JSON.</p>
-        {error && <p className="mt-1 text-sm text-danger" role="alert">{error}</p>}
+        <p className="text-sm text-muted">
+          Admins only. Team settings, projects, todos, recurring series, comments, activity, memberships and project
+          access, all time, as JSON.
+        </p>
+        {error && (
+          <p className="mt-1 text-sm text-danger" role="alert">
+            {error}
+          </p>
+        )}
       </div>
       <button className="btn-outline" disabled={busy} aria-busy={busy} onClick={() => void run()}>
         <Download className="size-4" /> {busy ? "Exporting…" : "Download JSON"}

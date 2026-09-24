@@ -83,7 +83,12 @@ describe("activity.list actor filter (by_org_actor)", () => {
       actorId: "user_bob",
       paginationOpts: { numItems: 4, cursor: null, maximumRowsRead: SCAN_BUDGET },
     });
-    expect(res.page.map((r) => r.todoTitle)).toEqual(["user_bob-p1-3", "user_bob-p1-2", "user_bob-p1-1", "user_bob-p1-0"]);
+    expect(res.page.map((r) => r.todoTitle)).toEqual([
+      "user_bob-p1-3",
+      "user_bob-p1-2",
+      "user_bob-p1-1",
+      "user_bob-p1-0",
+    ]);
   });
 
   test("unfiltered and project-only listing still work (list)", async () => {
@@ -207,8 +212,9 @@ describe("activity export", () => {
     const e = t.withIdentity({ subject: "user_eve", org_id: "org_b", org_role: "org:admin" });
     const paginationOpts = { numItems: 100, cursor: null };
     expect((await e.query(api.activity.exportPage, { ...around(), paginationOpts })).page).toEqual([]);
-    expect(
-      await e.query(api.activity.exportPage, { ...around(), projectId: p1, paginationOpts }),
-    ).toMatchObject({ page: [], isDone: true });
+    expect(await e.query(api.activity.exportPage, { ...around(), projectId: p1, paginationOpts })).toMatchObject({
+      page: [],
+      isDone: true,
+    });
   });
 });

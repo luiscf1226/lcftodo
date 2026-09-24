@@ -25,11 +25,15 @@ export async function getMember(ctx: QueryCtx): Promise<Member | null> {
   if (!identity) return null;
   const { orgId, role } = readOrg(identity);
   if (!orgId) return null;
-  const sync = await ctx.db.query("membershipSync")
-    .withIndex("by_org", (q) => q.eq("orgId", orgId)).unique();
+  const sync = await ctx.db
+    .query("membershipSync")
+    .withIndex("by_org", (q) => q.eq("orgId", orgId))
+    .unique();
   if (sync?.ready) {
-    const membership = await ctx.db.query("memberships")
-      .withIndex("by_org_user", (q) => q.eq("orgId", orgId).eq("userId", identity.subject)).unique();
+    const membership = await ctx.db
+      .query("memberships")
+      .withIndex("by_org_user", (q) => q.eq("orgId", orgId).eq("userId", identity.subject))
+      .unique();
     if (!membership?.active) return null;
     return { userId: identity.subject, orgId, isAdmin: membership.role === "org:admin" };
   }
@@ -55,14 +59,18 @@ export async function requireMember(ctx: QueryCtx): Promise<Member> {
 // ---------------------------------------------------------------------------
 
 export async function isRestricted(ctx: QueryCtx, orgId: string): Promise<boolean> {
-  const settings = await ctx.db.query("teamSettings")
-    .withIndex("by_org", (q) => q.eq("orgId", orgId)).unique();
+  const settings = await ctx.db
+    .query("teamSettings")
+    .withIndex("by_org", (q) => q.eq("orgId", orgId))
+    .unique();
   return settings?.restrictedProjectAccess ?? false;
 }
 
 export async function hasProjectGrant(ctx: QueryCtx, projectId: Id<"projects">, userId: string): Promise<boolean> {
-  const grant = await ctx.db.query("projectMemberships")
-    .withIndex("by_project_user", (q) => q.eq("projectId", projectId).eq("userId", userId)).first();
+  const grant = await ctx.db
+    .query("projectMemberships")
+    .withIndex("by_project_user", (q) => q.eq("projectId", projectId).eq("userId", userId))
+    .first();
   return grant !== null;
 }
 
@@ -73,8 +81,10 @@ export async function hasProjectGrant(ctx: QueryCtx, projectId: Id<"projects">, 
  */
 export async function accessibleProjectIds(ctx: QueryCtx, member: Member): Promise<"all" | Set<Id<"projects">>> {
   if (member.isAdmin || !(await isRestricted(ctx, member.orgId))) return "all";
-  const grants = await ctx.db.query("projectMemberships")
-    .withIndex("by_org_user", (q) => q.eq("orgId", member.orgId).eq("userId", member.userId)).collect();
+  const grants = await ctx.db
+    .query("projectMemberships")
+    .withIndex("by_org_user", (q) => q.eq("orgId", member.orgId).eq("userId", member.userId))
+    .collect();
   return new Set(grants.map((g) => g.projectId));
 }
 
@@ -93,8 +103,10 @@ export async function canReadProject(ctx: QueryCtx, member: Member, project: Doc
  * eligibility. Requires an active synced membership in the project's team.
  */
 export async function userCanAccessProject(ctx: QueryCtx, project: Doc<"projects">, userId: string): Promise<boolean> {
-  const membership = await ctx.db.query("memberships")
-    .withIndex("by_org_user", (q) => q.eq("orgId", project.orgId).eq("userId", userId)).unique();
+  const membership = await ctx.db
+    .query("memberships")
+    .withIndex("by_org_user", (q) => q.eq("orgId", project.orgId).eq("userId", userId))
+    .unique();
   if (!membership?.active) return false;
   if (membership.role === "org:admin" || !(await isRestricted(ctx, project.orgId))) return true;
   return await hasProjectGrant(ctx, project._id, userId);
@@ -111,7 +123,11 @@ export async function requireProject(
 ): Promise<Doc<"projects">> {
   const project = await ctx.db.get(projectId);
   if (!project || project.orgId !== member.orgId) throw new Error("Project not found.");
-  if (!member.isAdmin && (await isRestricted(ctx, member.orgId)) && !(await hasProjectGrant(ctx, projectId, member.userId))) {
+  if (
+    !member.isAdmin &&
+    (await isRestricted(ctx, member.orgId)) &&
+    !(await hasProjectGrant(ctx, projectId, member.userId))
+  ) {
     throw new Error("Project not found.");
   }
   return project;
@@ -139,15 +155,15 @@ export async function requireWritableProject(
   return project;
 }
 
-export async function requireTodo(
-  ctx: QueryCtx,
-  member: Member,
-  todoId: Id<"todos">,
-): Promise<Doc<"todos">> {
+export async function requireTodo(ctx: QueryCtx, member: Member, todoId: Id<"todos">): Promise<Doc<"todos">> {
   const todo = await ctx.db.get(todoId);
   if (!todo || todo.orgId !== member.orgId) throw new Error("Todo not found.");
   // A todo in a project the member can't access is reported the same way (#46).
-  if (!member.isAdmin && (await isRestricted(ctx, member.orgId)) && !(await hasProjectGrant(ctx, todo.projectId, member.userId))) {
+  if (
+    !member.isAdmin &&
+    (await isRestricted(ctx, member.orgId)) &&
+    !(await hasProjectGrant(ctx, todo.projectId, member.userId))
+  ) {
     throw new Error("Todo not found.");
   }
   return todo;

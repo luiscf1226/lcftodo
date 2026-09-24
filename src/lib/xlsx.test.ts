@@ -6,7 +6,10 @@ describe("toSheetData", () => {
   test("writes a bold header row and cells in header order", () => {
     const data = toSheetData({ name: "People", rows: [{ done: 2, person: "Ana" }], headers: ["person", "done"] });
     expect(data).toEqual([
-      [{ value: "person", fontWeight: "bold" }, { value: "done", fontWeight: "bold" }],
+      [
+        { value: "person", fontWeight: "bold" },
+        { value: "done", fontWeight: "bold" },
+      ],
       ["Ana", 2],
     ]);
   });
@@ -17,7 +20,9 @@ describe("toSheetData", () => {
   });
 
   test("falls back to the first row's keys", () => {
-    expect(toSheetData({ name: "S", rows: [{ a: 1, b: "two" }] })[0].map((c) => (c as { value: string }).value)).toEqual(["a", "b"]);
+    expect(
+      toSheetData({ name: "S", rows: [{ a: 1, b: "two" }] })[0].map((c) => (c as { value: string }).value),
+    ).toEqual(["a", "b"]);
   });
 });
 
@@ -38,10 +43,16 @@ describe("workbook", () => {
       { name: "Activity", rows: [], headers: ["time"] },
       { name: "People", rows: [{ person: "Ana", done: 1 }] },
     ];
-    const blob = await writeXlsxFile(sheets.map((s) => ({ sheet: s.name, data: toSheetData(s), columns: columnWidths(s) }))).toBlob();
+    const blob = await writeXlsxFile(
+      sheets.map((s) => ({ sheet: s.name, data: toSheetData(s), columns: columnWidths(s) })),
+    ).toBlob();
     const files = unzipSync(new Uint8Array(await blob.arrayBuffer()));
     const workbook = strFromU8(files["xl/workbook.xml"]);
-    expect([...workbook.matchAll(/<sheet [^>]*name="([^"]+)"/g)].map((m) => m[1])).toEqual(["Todos", "Activity", "People"]);
+    expect([...workbook.matchAll(/<sheet [^>]*name="([^"]+)"/g)].map((m) => m[1])).toEqual([
+      "Todos",
+      "Activity",
+      "People",
+    ]);
     // Text that looks like a formula is stored as text, never as a formula.
     expect(strFromU8(files["xl/worksheets/sheet1.xml"])).not.toContain("<f>");
   });

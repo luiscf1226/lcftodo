@@ -32,7 +32,9 @@ function Inbox() {
   return (
     <section aria-labelledby="inbox-heading">
       <div className="mb-2 flex items-center justify-between gap-2">
-        <h2 id="inbox-heading" className="font-medium">Inbox</h2>
+        <h2 id="inbox-heading" className="font-medium">
+          Inbox
+        </h2>
         {unread > 0 && (
           <button className="btn-ghost text-sm" onClick={() => markAllRead().catch((e) => showToast(errorMessage(e)))}>
             <CheckCheck className="size-4" /> Mark all read
@@ -44,7 +46,7 @@ function Inbox() {
       ) : items.length === 0 ? (
         <Empty title="Nothing yet" body="You'll see a notification here when a teammate assigns you a todo." />
       ) : (
-        <ul className="card divide-y divide-line">
+        <ul className="divide-y divide-line card">
           {items.map((n) => (
             <li key={n._id} className={clsx("flex items-start gap-3 px-4 py-3 text-sm", n.read && "text-muted")}>
               <span
@@ -76,7 +78,13 @@ function Inbox() {
   );
 }
 
-function Toggle({ label, hint, checked, disabled, onChange }: {
+function Toggle({
+  label,
+  hint,
+  checked,
+  disabled,
+  onChange,
+}: {
   label: string;
   hint: string;
   checked: boolean;
@@ -108,13 +116,17 @@ function EmailSettings() {
 
   return (
     <section aria-labelledby="email-heading">
-      <h2 id="email-heading" className="mb-2 font-medium">Email</h2>
+      <h2 id="email-heading" className="mb-2 font-medium">
+        Email
+      </h2>
       {prefs === undefined ? (
         <Skeleton className="h-24" />
       ) : prefs === null ? null : (
         <div className="card px-4 py-2">
           {!prefs.hasEmail && (
-            <p className="py-2 text-xs text-muted">We don&apos;t have an email address for you yet, so no emails will be sent.</p>
+            <p className="py-2 text-xs text-muted">
+              We don&apos;t have an email address for you yet, so no emails will be sent.
+            </p>
           )}
           <Toggle
             label="Daily digest"
@@ -168,8 +180,10 @@ function SlackSettings() {
 
   return (
     <section aria-labelledby="slack-heading">
-      <h2 id="slack-heading" className="mb-2 font-medium">Slack</h2>
-      <div className="card space-y-3 px-4 py-3">
+      <h2 id="slack-heading" className="mb-2 font-medium">
+        Slack
+      </h2>
+      <div className="space-y-3 card px-4 py-3">
         <p className="text-sm text-muted">
           {settings.configured
             ? "This team posts to a Slack channel through an incoming webhook."
@@ -179,7 +193,9 @@ function SlackSettings() {
         {settings.canEdit && (
           <>
             <form onSubmit={onSubmit} className="flex flex-wrap gap-2">
-              <label htmlFor="slack-url" className="sr-only">Slack incoming webhook URL</label>
+              <label htmlFor="slack-url" className="sr-only">
+                Slack incoming webhook URL
+              </label>
               <input
                 id="slack-url"
                 className="input min-w-0 flex-1"
@@ -187,7 +203,11 @@ function SlackSettings() {
                 inputMode="url"
                 autoComplete="off"
                 spellCheck={false}
-                placeholder={settings.configured ? "Webhook saved — paste a new URL to replace it" : "https://hooks.slack.com/services/..."}
+                placeholder={
+                  settings.configured
+                    ? "Webhook saved — paste a new URL to replace it"
+                    : "https://hooks.slack.com/services/..."
+                }
                 value={url}
                 onChange={(e) => setUrl(e.target.value)}
               />
@@ -195,7 +215,12 @@ function SlackSettings() {
                 Save
               </button>
               {settings.configured && (
-                <button type="button" className="btn-outline" disabled={saving} onClick={() => void save({ webhookUrl: "" })}>
+                <button
+                  type="button"
+                  className="btn-outline"
+                  disabled={saving}
+                  onClick={() => void save({ webhookUrl: "" })}
+                >
                   Remove
                 </button>
               )}

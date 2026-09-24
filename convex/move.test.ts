@@ -146,7 +146,12 @@ describe("todos.move", () => {
 
   test("moving a recurring occurrence to another day detaches it and it is not regenerated", async () => {
     const { a, projectId, day } = await setup();
-    await a.mutation(api.recurrences.create, { projectId, title: "Report", startDate: MON, rule: { kind: "weekly", weekdays: [1] } });
+    await a.mutation(api.recurrences.create, {
+      projectId,
+      title: "Report",
+      startDate: MON,
+      rule: { kind: "weekly", weekdays: [1] },
+    });
     const [occurrence] = await a.query(api.todos.listForProject, { projectId, from: MON, to: MON });
     await a.mutation(api.todos.move, { todoId: occurrence._id, date: TUE, order: 1 });
     expect(await a.mutation(api.recurrences.ensureOccurrences, { from: MON, to: TUE, projectId })).toBe(0);
@@ -157,7 +162,12 @@ describe("todos.move", () => {
 
   test("reordering a recurring occurrence within its day keeps it attached", async () => {
     const { a, projectId } = await setup();
-    await a.mutation(api.recurrences.create, { projectId, title: "Report", startDate: MON, rule: { kind: "weekly", weekdays: [1] } });
+    await a.mutation(api.recurrences.create, {
+      projectId,
+      title: "Report",
+      startDate: MON,
+      rule: { kind: "weekly", weekdays: [1] },
+    });
     const [occurrence] = await a.query(api.todos.listForProject, { projectId, from: MON, to: MON });
     await a.mutation(api.todos.move, { todoId: occurrence._id, date: MON, order: 1 });
     const [after] = await a.query(api.todos.listForProject, { projectId, from: MON, to: MON });

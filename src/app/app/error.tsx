@@ -18,7 +18,7 @@ export default function AppError({ error, retry }: { error: Error & { digest?: s
   return (
     <div className="mx-auto mt-16 max-w-md card p-6 text-center" role="alert">
       <h1 className="text-lg font-semibold">{lostTeam ? "You're not on this team anymore" : "Something went wrong"}</h1>
-      <p className="mt-1 text-sm text-muted text-pretty">
+      <p className="mt-1 text-sm text-pretty text-muted">
         {lostTeam
           ? "You may have been removed from this team. Pick another team, or create a new one."
           : errorMessage(error)}
@@ -26,9 +26,13 @@ export default function AppError({ error, retry }: { error: Error & { digest?: s
       <div className="mt-5 flex justify-center gap-2">
         {lostTeam ? (
           // Full navigation so the server and Clerk re-read the session (now without this team).
-          <a href={ONBOARDING_PATH} className="btn-primary">Choose a team</a>
+          <a href={ONBOARDING_PATH} className="btn-primary">
+            Choose a team
+          </a>
         ) : (
-          <button type="button" onClick={retry} className="btn-primary">Try again</button>
+          <button type="button" onClick={retry} className="btn-primary">
+            Try again
+          </button>
         )}
       </div>
     </div>

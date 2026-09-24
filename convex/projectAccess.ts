@@ -1,9 +1,7 @@
 import { v } from "convex/values";
 import type { Doc, Id } from "./_generated/dataModel";
 import { mutation, query, type MutationCtx, type QueryCtx } from "./_generated/server";
-import {
-  accessibleProjectIds, getMember, hasProjectGrant, isRestricted, requireMember, type Member,
-} from "./lib/auth";
+import { accessibleProjectIds, getMember, hasProjectGrant, isRestricted, requireMember, type Member } from "./lib/auth";
 import { MAX_RANGE_DAYS } from "./lib/constants";
 
 // Project access management (#46). See the policy in lib/auth.ts.
@@ -22,8 +20,10 @@ async function teamProject(ctx: QueryCtx, member: Member, projectId: Id<"project
 }
 
 async function membershipOf(ctx: QueryCtx, orgId: string, userId: string) {
-  return await ctx.db.query("memberships")
-    .withIndex("by_org_user", (q) => q.eq("orgId", orgId).eq("userId", userId)).unique();
+  return await ctx.db
+    .query("memberships")
+    .withIndex("by_org_user", (q) => q.eq("orgId", orgId).eq("userId", userId))
+    .unique();
 }
 
 /** Idempotently grants a user access to a project. Returns true if a grant was created. */
@@ -35,15 +35,21 @@ export async function grantProject(
 ): Promise<boolean> {
   if (await hasProjectGrant(ctx, project._id, userId)) return false;
   await ctx.db.insert("projectMemberships", {
-    orgId: project.orgId, projectId: project._id, userId, grantedBy, grantedAt: Date.now(),
+    orgId: project.orgId,
+    projectId: project._id,
+    userId,
+    grantedBy,
+    grantedAt: Date.now(),
   });
   return true;
 }
 
 /** Removes every project grant a user holds in a team (team removal, #46). */
 export async function revokeAllGrants(ctx: MutationCtx, orgId: string, userId: string) {
-  const grants = await ctx.db.query("projectMemberships")
-    .withIndex("by_org_user", (q) => q.eq("orgId", orgId).eq("userId", userId)).collect();
+  const grants = await ctx.db
+    .query("projectMemberships")
+    .withIndex("by_org_user", (q) => q.eq("orgId", orgId).eq("userId", userId))
+    .collect();
   for (const g of grants) await ctx.db.delete(g._id);
 }
 
@@ -53,10 +59,7 @@ export const me = query({
   handler: async (ctx) => {
     const member = await getMember(ctx);
     if (!member) return null;
-    const [restricted, scope] = await Promise.all([
-      isRestricted(ctx, member.orgId),
-      accessibleProjectIds(ctx, member),
-    ]);
+    const [restricted, scope] = await Promise.all([isRestricted(ctx, member.orgId), accessibleProjectIds(ctx, member)]);
     return {
       userId: member.userId,
       isAdmin: member.isAdmin,
@@ -74,12 +77,27 @@ export const overview = query({
     const member = await getMember(ctx);
     if (!member?.isAdmin) return null;
     const [settings, sync, grants, invitations, projects] = await Promise.all([
-      ctx.db.query("teamSettings").withIndex("by_org", (q) => q.eq("orgId", member.orgId)).unique(),
-      ctx.db.query("membershipSync").withIndex("by_org", (q) => q.eq("orgId", member.orgId)).unique(),
-      ctx.db.query("projectMemberships").withIndex("by_org", (q) => q.eq("orgId", member.orgId)).collect(),
-      ctx.db.query("projectInvitations").withIndex("by_org", (q) => q.eq("orgId", member.orgId))
-        .order("desc").take(200),
-      ctx.db.query("projects").withIndex("by_org", (q) => q.eq("orgId", member.orgId)).collect(),
+      ctx.db
+        .query("teamSettings")
+        .withIndex("by_org", (q) => q.eq("orgId", member.orgId))
+        .unique(),
+      ctx.db
+        .query("membershipSync")
+        .withIndex("by_org", (q) => q.eq("orgId", member.orgId))
+        .unique(),
+      ctx.db
+        .query("projectMemberships")
+        .withIndex("by_org", (q) => q.eq("orgId", member.orgId))
+        .collect(),
+      ctx.db
+        .query("projectInvitations")
+        .withIndex("by_org", (q) => q.eq("orgId", member.orgId))
+        .order("desc")
+        .take(200),
+      ctx.db
+        .query("projects")
+        .withIndex("by_org", (q) => q.eq("orgId", member.orgId))
+        .collect(),
     ]);
     const live = new Set(projects.filter((p) => !p.deleting).map((p) => p._id));
     const grantsByUser: Record<string, Id<"projects">[]> = {};
@@ -121,8 +139,14 @@ export const assignable = query({
     if (!restricted) return { restricted: false as const, userIds: [] as string[] };
     if (!member.isAdmin && !(await hasProjectGrant(ctx, projectId, member.userId))) return null;
     const [memberships, grants] = await Promise.all([
-      ctx.db.query("memberships").withIndex("by_org", (q) => q.eq("orgId", member.orgId)).collect(),
-      ctx.db.query("projectMemberships").withIndex("by_project_user", (q) => q.eq("projectId", projectId)).collect(),
+      ctx.db
+        .query("memberships")
+        .withIndex("by_org", (q) => q.eq("orgId", member.orgId))
+        .collect(),
+      ctx.db
+        .query("projectMemberships")
+        .withIndex("by_project_user", (q) => q.eq("projectId", projectId))
+        .collect(),
     ]);
     const granted = new Set(grants.map((g) => g.userId));
     const userIds = memberships
@@ -143,8 +167,10 @@ export const setRestricted = mutation({
     const member = await requireAdmin(ctx);
     let seeded = 0;
     if (enabled && seedFromWork) seeded = await seedGrantsFromWork(ctx, member);
-    const existing = await ctx.db.query("teamSettings")
-      .withIndex("by_org", (q) => q.eq("orgId", member.orgId)).unique();
+    const existing = await ctx.db
+      .query("teamSettings")
+      .withIndex("by_org", (q) => q.eq("orgId", member.orgId))
+      .unique();
     const fields = { restrictedProjectAccess: enabled, updatedBy: member.userId, updatedAt: Date.now() };
     if (existing) await ctx.db.patch(existing._id, fields);
     // The row is shared with the time zone / carry-over settings (#21, #22); keep their defaults.
@@ -158,10 +184,18 @@ const SEED_TODO_CAP = 8000;
 async function seedGrantsFromWork(ctx: MutationCtx, member: Member): Promise<number> {
   const since = new Date(Date.now() - MAX_RANGE_DAYS * 86_400_000).toISOString().slice(0, 10);
   const [projects, todos, memberships] = await Promise.all([
-    ctx.db.query("projects").withIndex("by_org", (q) => q.eq("orgId", member.orgId)).collect(),
-    ctx.db.query("todos").withIndex("by_org_date", (q) => q.eq("orgId", member.orgId).gte("date", since))
+    ctx.db
+      .query("projects")
+      .withIndex("by_org", (q) => q.eq("orgId", member.orgId))
+      .collect(),
+    ctx.db
+      .query("todos")
+      .withIndex("by_org_date", (q) => q.eq("orgId", member.orgId).gte("date", since))
       .take(SEED_TODO_CAP),
-    ctx.db.query("memberships").withIndex("by_org", (q) => q.eq("orgId", member.orgId)).collect(),
+    ctx.db
+      .query("memberships")
+      .withIndex("by_org", (q) => q.eq("orgId", member.orgId))
+      .collect(),
   ]);
   // Removed members get nothing; people without a synced row yet (pre-backfill) are included.
   const inactive = new Set(memberships.filter((m) => !m.active).map((m) => m.userId));
@@ -208,8 +242,10 @@ export const revoke = mutation({
     const member = await requireAdmin(ctx);
     const project = await ctx.db.get(projectId);
     if (!project || project.orgId !== member.orgId) throw new Error("Project not found.");
-    const grants = await ctx.db.query("projectMemberships")
-      .withIndex("by_project_user", (q) => q.eq("projectId", projectId).eq("userId", userId)).collect();
+    const grants = await ctx.db
+      .query("projectMemberships")
+      .withIndex("by_project_user", (q) => q.eq("projectId", projectId).eq("userId", userId))
+      .collect();
     for (const g of grants) await ctx.db.delete(g._id);
     return { openAssigned: await openAssignedCount(ctx, projectId, userId) };
   },
@@ -219,7 +255,8 @@ const OPEN_SCAN_CAP = 2000;
 
 async function openAssignedCount(ctx: QueryCtx, projectId: Id<"projects">, userId: string) {
   const since = new Date(Date.now() - MAX_RANGE_DAYS * 86_400_000).toISOString().slice(0, 10);
-  const todos = await ctx.db.query("todos")
+  const todos = await ctx.db
+    .query("todos")
     .withIndex("by_project_date", (q) => q.eq("projectId", projectId).gte("date", since))
     .take(OPEN_SCAN_CAP);
   return todos.filter((t) => t.assigneeId === userId && (t.status === "todo" || t.status === "doing")).length;
@@ -232,10 +269,23 @@ export const setupStatus = query({
     const member = await getMember(ctx);
     if (!member?.isAdmin) return null;
     const [project, invitation, memberships, todos] = await Promise.all([
-      ctx.db.query("projects").withIndex("by_org", (q) => q.eq("orgId", member.orgId)).first(),
-      ctx.db.query("projectInvitations").withIndex("by_org", (q) => q.eq("orgId", member.orgId)).first(),
-      ctx.db.query("memberships").withIndex("by_org", (q) => q.eq("orgId", member.orgId)).take(2),
-      ctx.db.query("todos").withIndex("by_org_date", (q) => q.eq("orgId", member.orgId)).order("desc").take(200),
+      ctx.db
+        .query("projects")
+        .withIndex("by_org", (q) => q.eq("orgId", member.orgId))
+        .first(),
+      ctx.db
+        .query("projectInvitations")
+        .withIndex("by_org", (q) => q.eq("orgId", member.orgId))
+        .first(),
+      ctx.db
+        .query("memberships")
+        .withIndex("by_org", (q) => q.eq("orgId", member.orgId))
+        .take(2),
+      ctx.db
+        .query("todos")
+        .withIndex("by_org_date", (q) => q.eq("orgId", member.orgId))
+        .order("desc")
+        .take(200),
     ]);
     return {
       hasProject: project !== null,

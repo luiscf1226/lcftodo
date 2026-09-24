@@ -46,15 +46,15 @@ export const byClerkIds = query({
     const member = await requireMember(ctx);
     const users = await Promise.all(
       [...new Set(clerkIds)].slice(0, 200).map(async (clerkId) => {
-        const membership = await ctx.db.query("memberships")
-          .withIndex("by_org_user", (q) => q.eq("orgId", member.orgId).eq("userId", clerkId)).unique();
+        const membership = await ctx.db
+          .query("memberships")
+          .withIndex("by_org_user", (q) => q.eq("orgId", member.orgId).eq("userId", clerkId))
+          .unique();
         if (!membership && clerkId !== member.userId) return null;
         return await findUser(ctx, clerkId);
       }),
     );
-    return users
-      .filter((u) => u !== null)
-      .map((u) => ({ clerkId: u.clerkId, name: u.name, imageUrl: u.imageUrl }));
+    return users.filter((u) => u !== null).map((u) => ({ clerkId: u.clerkId, name: u.name, imageUrl: u.imageUrl }));
   },
 });
 
@@ -92,7 +92,10 @@ export const completeOnboarding = mutation({
 
 export const upsertFromWebhook = internalMutation({
   args: {
-    clerkId: v.string(), name: v.string(), email: v.optional(v.string()), imageUrl: v.optional(v.string()),
+    clerkId: v.string(),
+    name: v.string(),
+    email: v.optional(v.string()),
+    imageUrl: v.optional(v.string()),
     updatedAt: v.number(),
   },
   handler: async (ctx, { updatedAt, ...fields }) => {
@@ -111,8 +114,10 @@ export const deleteFromWebhook = internalMutation({
     await tombstone(ctx, "user", clerkId);
     const user = await findUser(ctx, clerkId);
     if (user) await ctx.db.delete(user._id);
-    const memberships = await ctx.db.query("memberships")
-      .withIndex("by_user", (q) => q.eq("userId", clerkId)).collect();
+    const memberships = await ctx.db
+      .query("memberships")
+      .withIndex("by_user", (q) => q.eq("userId", clerkId))
+      .collect();
     for (const membership of memberships) {
       if (membership.membershipId) await tombstone(ctx, "membership", membership.membershipId);
       if (membership.active) await ctx.db.patch(membership._id, { active: false, updatedAt: Date.now() });

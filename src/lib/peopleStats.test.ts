@@ -22,8 +22,22 @@ describe("peopleStats", () => {
       members,
       nameOf,
     );
-    expect(stats.find((p) => p.id === "u_ana")).toEqual({ id: "u_ana", name: "Ana", assigned: 4, done: 2, notDone: 1, open: 1 });
-    expect(stats.find((p) => p.id === "u_ben")).toEqual({ id: "u_ben", name: "Ben", assigned: 2, done: 1, notDone: 0, open: 1 });
+    expect(stats.find((p) => p.id === "u_ana")).toEqual({
+      id: "u_ana",
+      name: "Ana",
+      assigned: 4,
+      done: 2,
+      notDone: 1,
+      open: 1,
+    });
+    expect(stats.find((p) => p.id === "u_ben")).toEqual({
+      id: "u_ben",
+      name: "Ben",
+      assigned: 2,
+      done: 1,
+      notDone: 0,
+      open: 1,
+    });
   });
 
   test("always shows every member and an Unassigned bucket", () => {
@@ -41,7 +55,11 @@ describe("peopleStats", () => {
 
   test("sorts busiest first, then by name", () => {
     const stats = peopleStats(
-      [{ assigneeId: "u_cy", status: "todo" }, { assigneeId: "u_cy", status: "todo" }, { assigneeId: "u_ben", status: "todo" }],
+      [
+        { assigneeId: "u_cy", status: "todo" },
+        { assigneeId: "u_cy", status: "todo" },
+        { assigneeId: "u_ben", status: "todo" },
+      ],
       members,
       nameOf,
     );

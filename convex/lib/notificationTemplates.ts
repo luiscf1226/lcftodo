@@ -6,7 +6,10 @@ import { slackEscape } from "./slack";
 type Rendered = { subject: string; html: string; text: string };
 
 const STATUS_LABEL: Record<DigestItem["status"], string> = {
-  todo: "To do", doing: "In progress", done: "Done", not_done: "Didn't finish",
+  todo: "To do",
+  doing: "In progress",
+  done: "Done",
+  not_done: "Didn't finish",
 };
 
 function footer(links: { app: string | null; unsubscribe: string | null }, what: string) {
@@ -40,7 +43,11 @@ function section(title: string, items: DigestItem[], showDate: boolean) {
     shown.map((i) => `<li>${escapeHtml(line(i))}</li>`).join("") +
     (more > 0 ? `<li>+${more} more</li>` : "") +
     `</ul>`;
-  const text = `\n${title} (${items.length})\n` + shown.map((i) => `- ${line(i)}`).join("\n") + (more > 0 ? `\n- +${more} more` : "") + "\n";
+  const text =
+    `\n${title} (${items.length})\n` +
+    shown.map((i) => `- ${line(i)}`).join("\n") +
+    (more > 0 ? `\n- +${more} more` : "") +
+    "\n";
   return { html, text };
 }
 
@@ -82,11 +89,18 @@ export function renderAssignmentEmail(
   };
 }
 
-export function slackAssignmentText(actor: string, assignee: string, todo: { title: string; project: string; date: string }) {
+export function slackAssignmentText(
+  actor: string,
+  assignee: string,
+  todo: { title: string; project: string; date: string },
+) {
   return `${slackEscape(actor)} assigned *${slackEscape(todo.title)}* to ${slackEscape(assignee)} in ${slackEscape(todo.project)} (due ${todo.date}).`;
 }
 
-export function slackSummaryText(date: string, counts: { today: number; open: number; done: number; overdue: number; didntFinish: number }) {
+export function slackSummaryText(
+  date: string,
+  counts: { today: number; open: number; done: number; overdue: number; didntFinish: number },
+) {
   return (
     `*Daily summary for ${date}*\n` +
     `• Today: ${counts.today} todos (${counts.open} open, ${counts.done} done)\n` +

@@ -29,8 +29,7 @@ export function optionalText(value: string | undefined, max: number, label: stri
 export const todoTitle = (s: string) => requiredText(s, LIMITS.todoTitle, "Title");
 export const todoNotes = (s: string | undefined) => optionalText(s, LIMITS.todoNotes, "Notes");
 export const projectName = (s: string) => requiredText(s, LIMITS.projectName, "Project name");
-export const projectDescription = (s: string | undefined) =>
-  optionalText(s, LIMITS.projectDescription, "Description");
+export const projectDescription = (s: string | undefined) => optionalText(s, LIMITS.projectDescription, "Description");
 
 export const commentBody = (s: string) => requiredText(s, LIMITS.comment, "Comment");
 

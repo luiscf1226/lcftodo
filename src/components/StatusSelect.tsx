@@ -6,20 +6,20 @@ import { STATUS_META, STATUSES, type Status } from "@/lib/status";
 export function StatusPill({ status, className }: { status: Status; className?: string }) {
   const meta = STATUS_META[status];
   return (
-    <span className={clsx("inline-flex items-center gap-1.5 rounded-full px-2 py-0.5 text-xs font-medium ring-1 ring-inset", meta.pill, className)}>
+    <span
+      className={clsx(
+        "inline-flex items-center gap-1.5 rounded-full px-2 py-0.5 text-xs font-medium ring-1 ring-inset",
+        meta.pill,
+        className,
+      )}
+    >
       <span className={clsx("size-1.5 rounded-full", meta.dot)} />
       {meta.label}
     </span>
   );
 }
 
-export function StatusSelect({
-  value,
-  onChange,
-}: {
-  value: Status;
-  onChange: (s: Status) => void;
-}) {
+export function StatusSelect({ value, onChange }: { value: Status; onChange: (s: Status) => void }) {
   const meta = STATUS_META[value];
   return (
     <label className="relative inline-flex">
@@ -39,7 +39,9 @@ export function StatusSelect({
           </option>
         ))}
       </select>
-      <span className={clsx("pointer-events-none absolute top-1/2 left-2 size-1.5 -translate-y-1/2 rounded-full", meta.dot)} />
+      <span
+        className={clsx("pointer-events-none absolute top-1/2 left-2 size-1.5 -translate-y-1/2 rounded-full", meta.dot)}
+      />
     </label>
   );
 }

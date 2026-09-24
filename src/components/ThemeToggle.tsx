@@ -41,7 +41,11 @@ export function ThemeToggle({ className, compact = false }: { className?: string
   }
 
   return (
-    <div role="group" aria-label="Theme" className={clsx("inline-flex rounded-lg border border-line bg-surface-2 p-0.5", className)}>
+    <div
+      role="group"
+      aria-label="Theme"
+      className={clsx("inline-flex rounded-lg border border-line bg-surface-2 p-0.5", className)}
+    >
       {OPTIONS.map(({ value, label, icon: Icon }) => {
         const checked = theme === value;
         return (

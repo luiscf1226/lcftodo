@@ -49,7 +49,9 @@ export function RepeatPicker({
               onClick={() => toggle(d)}
               className={clsx(
                 "rounded-md border px-2 py-1 text-xs font-medium",
-                weekdays.includes(d) ? "border-accent bg-accent text-accent-fg" : "border-line text-muted hover:text-fg",
+                weekdays.includes(d)
+                  ? "border-accent bg-accent text-accent-fg"
+                  : "border-line text-muted hover:text-fg",
               )}
             >
               {weekdayName(d)}

@@ -24,13 +24,19 @@ export function TeamChooser({ pending }: { pending: boolean }) {
     <>
       <div className="text-center">
         <h1 className="text-2xl font-semibold tracking-tight">Choose a team</h1>
-        <p className="mt-1 text-sm text-muted text-pretty">
+        <p className="mt-1 text-sm text-pretty text-muted">
           Pick one of your teams, or create a new one. You can switch teams any time.
         </p>
       </div>
-      <OrganizationList hidePersonal afterCreateOrganizationUrl={APP_HOME_PATH} afterSelectOrganizationUrl={APP_HOME_PATH} />
+      <OrganizationList
+        hidePersonal
+        afterCreateOrganizationUrl={APP_HOME_PATH}
+        afterSelectOrganizationUrl={APP_HOME_PATH}
+      />
       <SignOutButton>
-        <button type="button" className="btn-ghost text-muted">Sign out</button>
+        <button type="button" className="btn-ghost text-muted">
+          Sign out
+        </button>
       </SignOutButton>
     </>
   );

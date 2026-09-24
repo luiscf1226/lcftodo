@@ -98,7 +98,10 @@ export async function buildDigest(ctx: QueryCtx, orgId: string, userId: string, 
     (t) => projectName.has(t.projectId) && (t.assigneeId === userId || (!t.assigneeId && t.createdBy === userId)),
   );
   const item = (t: Doc<"todos">): DigestItem => ({
-    title: t.title, project: projectName.get(t.projectId) ?? "", date: t.date, status: t.status,
+    title: t.title,
+    project: projectName.get(t.projectId) ?? "",
+    date: t.date,
+    status: t.status,
   });
   const byDateThenOrder = (a: Doc<"todos">, b: Doc<"todos">) => a.date.localeCompare(b.date) || a.order - b.order;
   mine.sort(byDateThenOrder);

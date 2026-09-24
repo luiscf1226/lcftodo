@@ -3,7 +3,17 @@
 import clsx from "clsx";
 import { useMutation, useQuery } from "convex/react";
 import { isValid } from "date-fns";
-import { ArchiveRestore, Archive, ChevronLeft, ChevronRight, CornerDownRight, MoreHorizontal, Pencil, Plus, Trash2 } from "lucide-react";
+import {
+  ArchiveRestore,
+  Archive,
+  ChevronLeft,
+  ChevronRight,
+  CornerDownRight,
+  MoreHorizontal,
+  Pencil,
+  Plus,
+  Trash2,
+} from "lucide-react";
 import Link from "next/link";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useEffect, useMemo, useRef, useState } from "react";
@@ -89,7 +99,15 @@ export function WeekBoard({ projectId }: { projectId: Id<"projects"> }) {
     // We deleted it ourselves and are on our way back to the project list.
     if (deleting) return <Skeleton className="h-40" />;
     return (
-      <Empty title="Project not found" body="It may have been deleted, belong to another team, or you may no longer have access to it." action={<Link href="/app/projects" className="btn-outline">Back to projects</Link>} />
+      <Empty
+        title="Project not found"
+        body="It may have been deleted, belong to another team, or you may no longer have access to it."
+        action={
+          <Link href="/app/projects" className="btn-outline">
+            Back to projects
+          </Link>
+        }
+      />
     );
   }
 
@@ -101,14 +119,18 @@ export function WeekBoard({ projectId }: { projectId: Id<"projects"> }) {
     <div className="mx-auto max-w-[110rem]">
       <div className="mb-4 flex flex-wrap items-start justify-between gap-3">
         <div className="min-w-0">
-          <Link href="/app/projects" className="text-xs text-muted hover:text-fg">← Projects</Link>
+          <Link href="/app/projects" className="text-xs text-muted hover:text-fg">
+            ← Projects
+          </Link>
           {project === undefined ? (
             <Skeleton className="mt-1 h-8 w-48" />
           ) : (
             <h1 className="mt-0.5 flex items-center gap-2 text-2xl font-semibold tracking-tight">
               <span className="size-3 shrink-0 rounded-full" style={{ background: project.color }} />
               <span className="truncate">{project.name}</span>
-              {project.archived && <span className="rounded-full bg-surface-2 px-2 py-0.5 text-xs font-medium text-muted">Archived</span>}
+              {project.archived && (
+                <span className="rounded-full bg-surface-2 px-2 py-0.5 text-xs font-medium text-muted">Archived</span>
+              )}
             </h1>
           )}
           {project?.description && <p className="mt-1 max-w-2xl text-sm text-muted">{project.description}</p>}
@@ -123,23 +145,37 @@ export function WeekBoard({ projectId }: { projectId: Id<"projects"> }) {
       </div>
 
       {project?.archived && (
-        <p className="mb-4 flex items-center gap-2 rounded-lg border border-line bg-surface-2 px-3 py-2 text-sm text-muted" role="status">
-          <Archive className="size-4 shrink-0" /> This project is archived. Its todos are read-only; restore the project to make changes.
+        <p
+          className="mb-4 flex items-center gap-2 rounded-lg border border-line bg-surface-2 px-3 py-2 text-sm text-muted"
+          role="status"
+        >
+          <Archive className="size-4 shrink-0" /> This project is archived. Its todos are read-only; restore the project
+          to make changes.
         </p>
       )}
 
       <div className="mb-4 flex flex-wrap items-center gap-2">
         <div className="flex items-center rounded-lg border border-line bg-surface">
-          <button className="btn-ghost rounded-r-none px-2" aria-label="Previous week" onClick={() => setWeek(shiftDays(start, -7))}>
+          <button
+            className="btn-ghost rounded-r-none px-2"
+            aria-label="Previous week"
+            onClick={() => setWeek(shiftDays(start, -7))}
+          >
             <ChevronLeft className="size-4" />
           </button>
           <span className="min-w-40 px-1 text-center text-sm font-medium tabular-nums">{weekLabel(start)}</span>
-          <button className="btn-ghost rounded-l-none px-2" aria-label="Next week" onClick={() => setWeek(shiftDays(start, 7))}>
+          <button
+            className="btn-ghost rounded-l-none px-2"
+            aria-label="Next week"
+            onClick={() => setWeek(shiftDays(start, 7))}
+          >
             <ChevronRight className="size-4" />
           </button>
         </div>
         {start !== weekStart(today) && (
-          <button className="btn-outline" onClick={() => setWeek(today)}>This week</button>
+          <button className="btn-outline" onClick={() => setWeek(today)}>
+            This week
+          </button>
         )}
         <input
           type="date"
@@ -148,13 +184,22 @@ export function WeekBoard({ projectId }: { projectId: Id<"projects"> }) {
           value={start}
           onChange={(e) => e.target.value && setWeek(e.target.value)}
         />
-        <select aria-label="Filter by assignee" className="input w-auto py-1.5" value={filter} onChange={(e) => setFilter(e.target.value)}>
+        <select
+          aria-label="Filter by assignee"
+          className="input w-auto py-1.5"
+          value={filter}
+          onChange={(e) => setFilter(e.target.value)}
+        >
           <option value="all">Everyone</option>
           {userId && <option value={userId}>Only me</option>}
           <option value="unassigned">Unassigned</option>
-          {members.filter((m) => m.id !== userId).map((m) => (
-            <option key={m.id} value={m.id}>{m.name}</option>
-          ))}
+          {members
+            .filter((m) => m.id !== userId)
+            .map((m) => (
+              <option key={m.id} value={m.id}>
+                {m.name}
+              </option>
+            ))}
         </select>
         <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-muted sm:ml-auto">
           {STATUSES.map((s) => (
@@ -189,24 +234,33 @@ export function WeekBoard({ projectId }: { projectId: Id<"projects"> }) {
                       <span className={clsx("text-sm font-semibold", isToday && "text-accent")}>{fmt(day, "EEE")}</span>
                       <span className="text-xs text-muted">{fmt(day, "MMM d")}</span>
                     </div>
-                    {isToday && <span className="rounded-full bg-accent px-1.5 py-px text-[10px] font-semibold text-accent-fg">TODAY</span>}
+                    {isToday && (
+                      <span className="rounded-full bg-accent px-1.5 py-px text-[10px] font-semibold text-accent-fg">
+                        TODAY
+                      </span>
+                    )}
                     <span className="ml-auto text-xs text-muted tabular-nums">
                       {items.filter((t) => t.status === "done").length}/{items.length}
                     </span>
                   </header>
-    
+
                   {todos === undefined ? (
                     <Skeleton className="h-14" />
                   ) : (
                     <DayList day={day} items={items}>
                       {items.map((t) => (
                         <SortableTodo key={t._id} todo={t} day={day} columns={columns} readOnly={readOnly}>
-                          <TodoItem todo={t} assignee={t.assigneeId ? byId.get(t.assigneeId) : undefined} readOnly={project?.archived} onOpen={() => setEditing({ date: day, todo: t })} />
+                          <TodoItem
+                            todo={t}
+                            assignee={t.assigneeId ? byId.get(t.assigneeId) : undefined}
+                            readOnly={project?.archived}
+                            onOpen={() => setEditing({ date: day, todo: t })}
+                          />
                         </SortableTodo>
                       ))}
                     </DayList>
                   )}
-    
+
                   <div className="mt-1.5 flex items-center gap-1 lg:mt-auto lg:pt-1.5">
                     {!project?.archived && (
                       <QuickAdd projectId={projectId} date={day} onMore={() => setEditing({ date: day })} />
@@ -231,7 +285,14 @@ export function WeekBoard({ projectId }: { projectId: Id<"projects"> }) {
         readOnly={project?.archived}
       />
       {project && <ProjectDialog open={editingProject} onClose={() => setEditingProject(false)} project={project} />}
-      {project && <DeleteProject open={confirmDelete} onClose={() => setConfirmDelete(false)} onDeleting={setDeleting} project={project} />}
+      {project && (
+        <DeleteProject
+          open={confirmDelete}
+          onClose={() => setConfirmDelete(false)}
+          onDeleting={setDeleting}
+          project={project}
+        />
+      )}
     </div>
   );
 }
@@ -248,7 +309,17 @@ function QuickAdd({ projectId, date, onMore }: { projectId: Id<"projects">; date
   return <QuickAddForm projectId={projectId} date={date} onClose={() => setAdding(false)} onMore={onMore} />;
 }
 
-function QuickAddForm({ projectId, date, onClose, onMore }: { projectId: Id<"projects">; date: string; onClose: () => void; onMore: () => void }) {
+function QuickAddForm({
+  projectId,
+  date,
+  onClose,
+  onMore,
+}: {
+  projectId: Id<"projects">;
+  date: string;
+  onClose: () => void;
+  onMore: () => void;
+}) {
   const create = useMutation(api.todos.create);
   const inputRef = useRef<HTMLInputElement>(null);
   const [title, setTitle] = useState("");
@@ -297,8 +368,18 @@ function QuickAddForm({ projectId, date, onClose, onMore }: { projectId: Id<"pro
       </div>
       <AssigneeChip mention={mention} className="self-start" />
       <div className="flex gap-1">
-        <button type="submit" className="btn-primary flex-1 py-1 text-xs" disabled={busy || !title.trim()}>Add</button>
-        <button type="button" className="btn-ghost py-1 text-xs" disabled={busy} onClick={() => { onClose(); onMore(); }}>
+        <button type="submit" className="btn-primary flex-1 py-1 text-xs" disabled={busy || !title.trim()}>
+          Add
+        </button>
+        <button
+          type="button"
+          className="btn-ghost py-1 text-xs"
+          disabled={busy}
+          onClick={() => {
+            onClose();
+            onMore();
+          }}
+        >
           More…
         </button>
       </div>
@@ -330,7 +411,15 @@ function CarryOver({ projectId, date, count }: { projectId: Id<"projects">; date
   );
 }
 
-function ProjectMenu({ project, onEdit, onDelete }: { project: Doc<"projects">; onEdit: () => void; onDelete: () => void }) {
+function ProjectMenu({
+  project,
+  onEdit,
+  onDelete,
+}: {
+  project: Doc<"projects">;
+  onEdit: () => void;
+  onDelete: () => void;
+}) {
   const { has } = useAuth();
   const setArchived = useMutation(api.projects.setArchived);
   const isAdmin = has?.({ role: "org:admin" }) ?? false;
@@ -344,14 +433,27 @@ function ProjectMenu({ project, onEdit, onDelete }: { project: Doc<"projects">; 
   };
 
   return (
-    <Menu label={<MoreHorizontal className="size-4" />} aria-label="Project options" triggerClassName="btn-outline px-2" menuClassName="w-44">
+    <Menu
+      label={<MoreHorizontal className="size-4" />}
+      aria-label="Project options"
+      triggerClassName="btn-outline px-2"
+      menuClassName="w-44"
+    >
       <MenuItem onSelect={onEdit}>
         <Pencil className="size-4" /> Edit
       </MenuItem>
       {isAdmin && (
         <>
           <MenuItem onSelect={() => void archive()}>
-            {project.archived ? <><ArchiveRestore className="size-4" /> Restore</> : <><Archive className="size-4" /> Archive</>}
+            {project.archived ? (
+              <>
+                <ArchiveRestore className="size-4" /> Restore
+              </>
+            ) : (
+              <>
+                <Archive className="size-4" /> Archive
+              </>
+            )}
           </MenuItem>
           <MenuItem className="text-danger" onSelect={onDelete}>
             <Trash2 className="size-4" /> Delete
@@ -384,12 +486,19 @@ function DeleteProject({
   return (
     <Modal open={open} onClose={close} title="Delete project?">
       <p className="text-sm text-muted">
-        This permanently deletes <span className="font-medium text-fg">{project.name}</span> and all its todos. The activity history is kept. Consider archiving instead.
+        This permanently deletes <span className="font-medium text-fg">{project.name}</span> and all its todos. The
+        activity history is kept. Consider archiving instead.
       </p>
       {/* Shown inside the dialog: a toast would sit behind the modal backdrop. */}
-      {error && <p className="mt-3 text-sm text-danger" role="alert">{error}</p>}
+      {error && (
+        <p className="mt-3 text-sm text-danger" role="alert">
+          {error}
+        </p>
+      )}
       <div className="mt-5 flex justify-end gap-2">
-        <button className="btn-outline" onClick={close}>Cancel</button>
+        <button className="btn-outline" onClick={close}>
+          Cancel
+        </button>
         <button
           className="btn-danger"
           disabled={busy}

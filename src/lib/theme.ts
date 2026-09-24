@@ -38,7 +38,8 @@ export function applyThemePreference(preference: ThemePreference) {
   root.classList.toggle("dark", resolved === "dark");
   // An explicit choice must win over the OS-driven `media` theme-color tags from the viewport export.
   document.querySelectorAll<HTMLMetaElement>('meta[name="theme-color"]').forEach((meta) => {
-    meta.content = preference === "system" ? THEME_COLORS[(meta.media.includes("dark") ? "dark" : "light")] : THEME_COLORS[resolved];
+    meta.content =
+      preference === "system" ? THEME_COLORS[meta.media.includes("dark") ? "dark" : "light"] : THEME_COLORS[resolved];
   });
 }
 

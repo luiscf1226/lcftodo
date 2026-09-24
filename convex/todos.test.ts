@@ -31,7 +31,9 @@ describe("team scoping", () => {
     expect(await e.query(api.projects.get, { projectId })).toBeNull();
     expect(await e.query(api.todos.listForProject, { projectId, from: "2026-01-01", to: "2026-12-31" })).toEqual([]);
     await expect(e.mutation(api.todos.setStatus, { todoId, status: "done" })).rejects.toThrow(/not found/);
-    await expect(e.mutation(api.todos.create, { projectId, title: "x", date: "2026-09-21" })).rejects.toThrow(/not found/);
+    await expect(e.mutation(api.todos.create, { projectId, title: "x", date: "2026-09-21" })).rejects.toThrow(
+      /not found/,
+    );
   });
 
   test("signed-in users without an active team are rejected", async () => {
@@ -185,16 +187,19 @@ describe("server-side input validation (#29)", () => {
     await expect(
       a.mutation(api.todos.create, { projectId, title: "x".repeat(301), date: "2026-09-21" }),
     ).rejects.toThrow(/Title.*300/);
-    await expect(
-      a.mutation(api.todos.update, { todoId, title: "x".repeat(301), date: "2026-09-21" }),
-    ).rejects.toThrow(/Title.*300/);
+    await expect(a.mutation(api.todos.update, { todoId, title: "x".repeat(301), date: "2026-09-21" })).rejects.toThrow(
+      /Title.*300/,
+    );
     await expect(a.mutation(api.todos.update, { todoId, title: "   ", date: "2026-09-21" })).rejects.toThrow(/Title/);
   });
 
   test("todo notes are capped at 5000 chars", async () => {
     const { a, projectId } = await setup();
     const todoId = await a.mutation(api.todos.create, {
-      projectId, title: "ok", notes: "n".repeat(5000), date: "2026-09-21",
+      projectId,
+      title: "ok",
+      notes: "n".repeat(5000),
+      date: "2026-09-21",
     });
     await expect(
       a.mutation(api.todos.create, { projectId, title: "x", notes: "n".repeat(5001), date: "2026-09-21" }),
@@ -218,11 +223,20 @@ describe("server-side input validation (#29)", () => {
   test("assigneeId must be a known user", async () => {
     const { t, a, b, projectId } = await setup();
     await b.mutation(api.users.store, {});
-    await t.run((ctx) => ctx.db.insert("memberships", {
-      orgId: "org_a", userId: bob.subject, role: "org:member", active: true, updatedAt: Date.now(),
-    }));
+    await t.run((ctx) =>
+      ctx.db.insert("memberships", {
+        orgId: "org_a",
+        userId: bob.subject,
+        role: "org:member",
+        active: true,
+        updatedAt: Date.now(),
+      }),
+    );
     const todoId = await a.mutation(api.todos.create, {
-      projectId, title: "assigned", date: "2026-09-21", assigneeId: bob.subject,
+      projectId,
+      title: "assigned",
+      date: "2026-09-21",
+      assigneeId: bob.subject,
     });
     await expect(
       a.mutation(api.todos.create, { projectId, title: "x", date: "2026-09-21", assigneeId: "user_ghost" }),
@@ -233,11 +247,22 @@ describe("server-side input validation (#29)", () => {
     // An unchanged former assignee does not block edits to other fields.
     const orphan = await t.run((ctx) =>
       ctx.db.insert("todos", {
-        orgId: "org_a", projectId, title: "orphan", date: "2026-09-21", status: "todo",
-        assigneeId: "user_left", createdBy: "u", order: 0,
+        orgId: "org_a",
+        projectId,
+        title: "orphan",
+        date: "2026-09-21",
+        status: "todo",
+        assigneeId: "user_left",
+        createdBy: "u",
+        order: 0,
       }),
     );
-    await a.mutation(api.todos.update, { todoId: orphan, title: "renamed", date: "2026-09-21", assigneeId: "user_left" });
+    await a.mutation(api.todos.update, {
+      todoId: orphan,
+      title: "renamed",
+      date: "2026-09-21",
+      assigneeId: "user_left",
+    });
     // Clearing the assignee is still allowed.
     await a.mutation(api.todos.update, { todoId, title: "x", date: "2026-09-21", assigneeId: "" });
   });
@@ -245,14 +270,16 @@ describe("server-side input validation (#29)", () => {
   test("project name ≤ 80, description ≤ 500, color from the palette", async () => {
     const { a, projectId } = await setup();
     await a.mutation(api.projects.create, { name: "n".repeat(80), description: "d".repeat(500), color: "#0ea5e9" });
-    await expect(a.mutation(api.projects.create, { name: "n".repeat(81), color: "#0ea5e9" })).rejects.toThrow(/name.*80/);
+    await expect(a.mutation(api.projects.create, { name: "n".repeat(81), color: "#0ea5e9" })).rejects.toThrow(
+      /name.*80/,
+    );
     await expect(
       a.mutation(api.projects.create, { name: "ok", description: "d".repeat(501), color: "#0ea5e9" }),
     ).rejects.toThrow(/Description.*500/);
     await expect(a.mutation(api.projects.create, { name: "ok", color: "red" })).rejects.toThrow(/color/);
-    await expect(
-      a.mutation(api.projects.create, { name: "ok", color: "#000;background:url(x)" }),
-    ).rejects.toThrow(/color/);
+    await expect(a.mutation(api.projects.create, { name: "ok", color: "#000;background:url(x)" })).rejects.toThrow(
+      /color/,
+    );
     await expect(
       a.mutation(api.projects.update, { projectId, name: "n".repeat(81), color: "#6366f1" }),
     ).rejects.toThrow(/name.*80/);
@@ -272,7 +299,9 @@ describe("server-side input validation (#29)", () => {
     await a.mutation(api.projects.update, { projectId, name: "Renamed", color: "#123456" });
     expect(await a.query(api.projects.get, { projectId })).toMatchObject({ name: "Renamed", color: "#123456" });
     // Changing it still requires a palette color.
-    await expect(a.mutation(api.projects.update, { projectId, name: "Renamed", color: "#654321" })).rejects.toThrow(/color/);
+    await expect(a.mutation(api.projects.update, { projectId, name: "Renamed", color: "#654321" })).rejects.toThrow(
+      /color/,
+    );
     await a.mutation(api.projects.update, { projectId, name: "Renamed", color: "#0ea5e9" });
     expect(await a.query(api.projects.get, { projectId })).toMatchObject({ color: "#0ea5e9" });
   });
@@ -285,12 +314,24 @@ describe("server-side input validation (#29)", () => {
       a.mutation(api.todos.create, { projectId, title: "x", date: "2026-09-21", assigneeId: bob.subject }),
     ).rejects.toThrow(/active member/);
     // An inactive membership, or one in another team, is rejected too.
-    await t.run((ctx) => ctx.db.insert("memberships", {
-      orgId: "org_a", userId: bob.subject, role: "org:member", active: false, updatedAt: Date.now(),
-    }));
-    await t.run((ctx) => ctx.db.insert("memberships", {
-      orgId: "org_b", userId: "user_eve", role: "org:admin", active: true, updatedAt: Date.now(),
-    }));
+    await t.run((ctx) =>
+      ctx.db.insert("memberships", {
+        orgId: "org_a",
+        userId: bob.subject,
+        role: "org:member",
+        active: false,
+        updatedAt: Date.now(),
+      }),
+    );
+    await t.run((ctx) =>
+      ctx.db.insert("memberships", {
+        orgId: "org_b",
+        userId: "user_eve",
+        role: "org:admin",
+        active: true,
+        updatedAt: Date.now(),
+      }),
+    );
     for (const assigneeId of [bob.subject, "user_eve"]) {
       await expect(
         a.mutation(api.todos.create, { projectId, title: "x", date: "2026-09-21", assigneeId }),
@@ -320,7 +361,10 @@ describe("carry-over links (#33)", () => {
     expect(copy.carriedFrom).toBe(original);
 
     expect(await a.query(api.todos.get, { todoId: copy.carriedFrom! })).toMatchObject({
-      _id: original, date: "2026-09-21", status: "not_done", projectId,
+      _id: original,
+      date: "2026-09-21",
+      status: "not_done",
+      projectId,
     });
     expect(await e.query(api.todos.get, { todoId: original })).toBeNull();
 
@@ -335,7 +379,9 @@ describe("bounded project queries (#15)", () => {
     const { a, projectId } = await setup();
     await a.mutation(api.todos.create, { projectId, title: "Week", date: "2026-09-21" });
     expect(
-      (await a.query(api.todos.listForProject, { projectId, from: "2026-09-21", to: "2026-09-27" })).map((t) => t.title),
+      (await a.query(api.todos.listForProject, { projectId, from: "2026-09-21", to: "2026-09-27" })).map(
+        (t) => t.title,
+      ),
     ).toEqual(["Week"]);
     await expect(
       a.query(api.todos.listForProject, { projectId, from: "2026-01-01", to: "2027-01-02" }),

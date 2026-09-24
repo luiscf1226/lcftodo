@@ -253,7 +253,14 @@ export const dispatchDaily = internalMutation({
         sendId = existing._id;
         await ctx.db.patch(sendId, { status: "pending", attempts: existing.attempts + 1, updatedAt: now });
       } else {
-        sendId = await ctx.db.insert("digestSends", { orgId, userId, date, status: "pending", attempts: 1, updatedAt: now });
+        sendId = await ctx.db.insert("digestSends", {
+          orgId,
+          userId,
+          date,
+          status: "pending",
+          attempts: 1,
+          updatedAt: now,
+        });
       }
       await ctx.scheduler.runAfter(0, internal.notifications.sendDigest, { sendId });
       scheduled++;
@@ -324,10 +331,15 @@ export const teamSummaryData = internalQuery({
     if (!slack?.webhookUrl || !slack.postDigest) return null;
     const yesterday = addDays(date, -1);
     const [projects, todos] = await Promise.all([
-      ctx.db.query("projects").withIndex("by_org", (q) => q.eq("orgId", orgId)).collect(),
+      ctx.db
+        .query("projects")
+        .withIndex("by_org", (q) => q.eq("orgId", orgId))
+        .collect(),
       ctx.db
         .query("todos")
-        .withIndex("by_org_date", (q) => q.eq("orgId", orgId).gte("date", addDays(date, -OVERDUE_LOOKBACK_DAYS)).lte("date", date))
+        .withIndex("by_org_date", (q) =>
+          q.eq("orgId", orgId).gte("date", addDays(date, -OVERDUE_LOOKBACK_DAYS)).lte("date", date),
+        )
         .collect(),
     ]);
     const live = new Set(projects.filter((p) => !p.archived && !p.deleting).map((p) => p._id));
@@ -342,7 +354,8 @@ export const teamSummaryData = internalQuery({
         open: today.filter((t) => open(t.status)).length,
         done: today.filter((t) => t.status === "done").length,
         overdue: visible.filter((t) => t.date < date && open(t.status)).length,
-        didntFinish: visible.filter((t) => t.date === yesterday && t.status === "not_done" && !carried.has(t._id)).length,
+        didntFinish: visible.filter((t) => t.date === yesterday && t.status === "not_done" && !carried.has(t._id))
+          .length,
       }),
     };
   },
@@ -381,7 +394,11 @@ export const assignmentData = internalQuery({
     const details: TodoDetails = { title: todo.title, project: n.projectName, date: todo.date };
 
     let email: AssignmentData["email"] = null;
-    if ((await activeMembership(ctx, n.orgId, n.userId)) && (await emailPrefs(ctx, n.userId)).emailAssigned && assignee?.email) {
+    if (
+      (await activeMembership(ctx, n.orgId, n.userId)) &&
+      (await emailPrefs(ctx, n.userId)).emailAssigned &&
+      assignee?.email
+    ) {
       email = { to: assignee.email, actor: actorName, todo: details };
     }
     const slack = await slackSettingsFor(ctx, n.orgId);
@@ -390,7 +407,10 @@ export const assignmentData = internalQuery({
       email,
       slack:
         slack?.webhookUrl && slack.postAssignments
-          ? { webhookUrl: slack.webhookUrl, text: slackAssignmentText(actorName, assignee?.name ?? "a teammate", details) }
+          ? {
+              webhookUrl: slack.webhookUrl,
+              text: slackAssignmentText(actorName, assignee?.name ?? "a teammate", details),
+            }
           : null,
     };
   },

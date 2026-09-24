@@ -24,9 +24,7 @@ describe("projects.listWithStats", () => {
     const other = await e.mutation(api.projects.create, { name: "Other team", color: "#ef4444" });
 
     const seed = async (orgId: string, projectId: Id<"projects">, date: string, status: Status) =>
-      t.run((ctx) =>
-        ctx.db.insert("todos", { orgId, projectId, title: "x", date, status, createdBy: "u", order: 0 }),
-      );
+      t.run((ctx) => ctx.db.insert("todos", { orgId, projectId, title: "x", date, status, createdBy: "u", order: 0 }));
     // In range (2026-09-21 .. 2026-09-27)
     await seed("org_a", zeta, "2026-09-21", "todo");
     await seed("org_a", zeta, "2026-09-21", "done");
@@ -52,7 +50,14 @@ describe("projects.listWithStats", () => {
     });
     // Response carries the full project document alongside the stats.
     const zetaRow = rows.find((r) => r._id === zeta)!;
-    expect(zetaRow).toMatchObject({ _id: zeta, orgId: "org_a", name: "Zeta", color: "#6366f1", archived: false, createdBy: "user_alice" });
+    expect(zetaRow).toMatchObject({
+      _id: zeta,
+      orgId: "org_a",
+      name: "Zeta",
+      color: "#6366f1",
+      archived: false,
+      createdBy: "user_alice",
+    });
     expect(Object.keys(zetaRow).sort()).toEqual(
       ["_creationTime", "_id", "archived", "color", "counts", "createdBy", "name", "orgId", "total"].sort(),
     );
@@ -64,9 +69,13 @@ describe("projects.listWithStats", () => {
 
   test("rejects invalid and oversized ranges", async () => {
     const a = convexTest(schema, modules).withIdentity(alice);
-    await expect(a.query(api.projects.listWithStats, { from: "2026-09-27", to: "2026-09-21" })).rejects.toThrow(/start date/);
+    await expect(a.query(api.projects.listWithStats, { from: "2026-09-27", to: "2026-09-21" })).rejects.toThrow(
+      /start date/,
+    );
     await expect(a.query(api.projects.listWithStats, { from: "2026-02-31", to: "2026-03-01" })).rejects.toThrow(/date/);
-    await expect(a.query(api.projects.listWithStats, { from: "2025-01-01", to: "2026-12-31" })).rejects.toThrow(/too large/);
+    await expect(a.query(api.projects.listWithStats, { from: "2025-01-01", to: "2026-12-31" })).rejects.toThrow(
+      /too large/,
+    );
   });
 });
 
@@ -102,8 +111,14 @@ describe("projects.remove (batched)", () => {
   }
 
   const countTodos = (t: Awaited<ReturnType<typeof seedBigProject>>["t"], projectId: Id<"projects">) =>
-    t.run(async (ctx) =>
-      (await ctx.db.query("todos").withIndex("by_project_date", (q) => q.eq("projectId", projectId)).collect()).length,
+    t.run(
+      async (ctx) =>
+        (
+          await ctx.db
+            .query("todos")
+            .withIndex("by_project_date", (q) => q.eq("projectId", projectId))
+            .collect()
+        ).length,
     );
 
   test(`deletes a project with > ${TODOS} todos in batches, hiding it immediately`, async () => {
@@ -116,7 +131,9 @@ describe("projects.remove (batched)", () => {
 
       // Hidden immediately, before any batch has run.
       expect((await a.query(api.projects.list, { includeArchived: true })).map((p) => p.name)).toEqual(["Keep"]);
-      expect((await a.query(api.projects.listWithStats, { from: "2026-09-21", to: "2026-09-21" })).map((p) => p.name)).toEqual(["Keep"]);
+      expect(
+        (await a.query(api.projects.listWithStats, { from: "2026-09-21", to: "2026-09-21" })).map((p) => p.name),
+      ).toEqual(["Keep"]);
       expect(await a.query(api.projects.get, { projectId: big })).toBeNull();
 
       await t.finishAllScheduledFunctions(vi.runAllTimers);
@@ -187,10 +204,12 @@ describe("projects being deleted", () => {
   test("can't be renamed or archived", async () => {
     try {
       const { a, projectId } = await markDeleting();
-      await expect(
-        a.mutation(api.projects.update, { projectId, name: "New", color: "#6366f1" }),
-      ).rejects.toThrow(/being deleted/);
-      await expect(a.mutation(api.projects.setArchived, { projectId, archived: true })).rejects.toThrow(/being deleted/);
+      await expect(a.mutation(api.projects.update, { projectId, name: "New", color: "#6366f1" })).rejects.toThrow(
+        /being deleted/,
+      );
+      await expect(a.mutation(api.projects.setArchived, { projectId, archived: true })).rejects.toThrow(
+        /being deleted/,
+      );
     } finally {
       vi.useRealTimers();
     }

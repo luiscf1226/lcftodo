@@ -12,7 +12,10 @@ import { readRunState } from "./support/clerk";
 
 // The innermost element that holds a todo's title button also holds its status select.
 function todoCard(scope: Locator, title: string) {
-  return scope.locator("div").filter({ has: scope.page().getByRole("button", { name: title, exact: true }) }).last();
+  return scope
+    .locator("div")
+    .filter({ has: scope.page().getByRole("button", { name: title, exact: true }) })
+    .last();
 }
 
 // The first-run tutorial is a modal that can open on any /app page until it is completed.

@@ -7,7 +7,8 @@ import { clerkBackend, E2E_EMAIL_PREFIX, sweepStaleUsers, writeRunState } from "
  * (CLERK_FAPI, CLERK_TESTING_TOKEN) are inherited by the test workers.
  */
 export default async function globalSetup() {
-  if (!process.env.NEXT_PUBLIC_CONVEX_URL) throw new Error("NEXT_PUBLIC_CONVEX_URL (the Convex DEV deployment) is required.");
+  if (!process.env.NEXT_PUBLIC_CONVEX_URL)
+    throw new Error("NEXT_PUBLIC_CONVEX_URL (the Convex DEV deployment) is required.");
   await clerkSetup({ dotenv: false }); // playwright.config.ts already loaded .env.local
 
   const clerk = clerkBackend();

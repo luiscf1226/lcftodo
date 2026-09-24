@@ -27,7 +27,9 @@ function fromBase64Url(text: string): Uint8Array<ArrayBuffer> | null {
 }
 
 async function key(secret: string, usage: "sign" | "verify") {
-  return await crypto.subtle.importKey("raw", encoder.encode(secret), { name: "HMAC", hash: "SHA-256" }, false, [usage]);
+  return await crypto.subtle.importKey("raw", encoder.encode(secret), { name: "HMAC", hash: "SHA-256" }, false, [
+    usage,
+  ]);
 }
 
 function signingSecret(): string | null {
@@ -35,7 +37,11 @@ function signingSecret(): string | null {
   return secret && secret.length >= 16 ? secret : null;
 }
 
-export async function signUnsubscribeToken(userId: string, kind: EmailKind, secret = signingSecret()): Promise<string | null> {
+export async function signUnsubscribeToken(
+  userId: string,
+  kind: EmailKind,
+  secret = signingSecret(),
+): Promise<string | null> {
   if (!secret) return null;
   const payload = encoder.encode(JSON.stringify({ u: userId, k: kind }));
   const signature = new Uint8Array(await crypto.subtle.sign("HMAC", await key(secret, "sign"), payload));

@@ -7,12 +7,21 @@ import { revokeAllGrants } from "./projectAccess";
 import { isTombstoned, tombstone } from "./lib/tombstones";
 
 const membership = v.object({
-  membershipId: v.string(), userId: v.string(), role: v.string(), createdAt: v.number(), updatedAt: v.number(),
+  membershipId: v.string(),
+  userId: v.string(),
+  role: v.string(),
+  createdAt: v.number(),
+  updatedAt: v.number(),
 });
 
 type MembershipEvent = {
-  orgId: string; userId: string; membershipId: string; role: string; active: boolean;
-  createdAt: number; updatedAt: number;
+  orgId: string;
+  userId: string;
+  membershipId: string;
+  role: string;
+  active: boolean;
+  createdAt: number;
+  updatedAt: number;
 };
 
 /** Applies a membership event; returns false when it was stale or already terminal. */
@@ -25,14 +34,23 @@ async function applyMembershipEvent(
   }
   // Clerk retries webhooks, and delivery may arrive out of order. A deleted
   // membership id never comes back; re-inviting creates a new id.
-  if (await isTombstoned(ctx, "membership", membershipId) || await isTombstoned(ctx, "user", userId)) return false;
+  if ((await isTombstoned(ctx, "membership", membershipId)) || (await isTombstoned(ctx, "user", userId))) return false;
   if (!active) await tombstone(ctx, "membership", membershipId);
-  const existing = await ctx.db.query("memberships")
-    .withIndex("by_org_user", (q) => q.eq("orgId", orgId).eq("userId", userId)).unique();
+  const existing = await ctx.db
+    .query("memberships")
+    .withIndex("by_org_user", (q) => q.eq("orgId", orgId).eq("userId", userId))
+    .unique();
   const now = Date.now();
   if (!existing) {
     await ctx.db.insert("memberships", {
-      orgId, userId, role, active, membershipId, membershipCreatedAt: createdAt, lastEventAt: updatedAt, updatedAt: now,
+      orgId,
+      userId,
+      role,
+      active,
+      membershipId,
+      membershipCreatedAt: createdAt,
+      lastEventAt: updatedAt,
+      updatedAt: now,
     });
     return true;
   }
@@ -42,15 +60,25 @@ async function applyMembershipEvent(
     return false;
   }
   await ctx.db.patch(existing._id, {
-    role, active, membershipId, membershipCreatedAt: createdAt, lastEventAt: updatedAt, updatedAt: now,
+    role,
+    active,
+    membershipId,
+    membershipCreatedAt: createdAt,
+    lastEventAt: updatedAt,
+    updatedAt: now,
   });
   return true;
 }
 
 export const applyWebhook = internalMutation({
   args: {
-    orgId: v.string(), userId: v.string(), membershipId: v.string(), role: v.string(), active: v.boolean(),
-    createdAt: v.number(), updatedAt: v.number(),
+    orgId: v.string(),
+    userId: v.string(),
+    membershipId: v.string(),
+    role: v.string(),
+    active: v.boolean(),
+    createdAt: v.number(),
+    updatedAt: v.number(),
     // Clerk's `public_user_data.identifier` (usually the email), used to match invitation grants.
     identifier: v.optional(v.string()),
   },
@@ -64,7 +92,10 @@ export const applyWebhook = internalMutation({
     }
     // Fallback for `organizationInvitation.accepted` arriving late or not being subscribed:
     // apply project grants of an invitation sent to this person's email, exactly once (#46).
-    const user = await ctx.db.query("users").withIndex("by_clerkId", (q) => q.eq("clerkId", userId)).unique();
+    const user = await ctx.db
+      .query("users")
+      .withIndex("by_clerkId", (q) => q.eq("clerkId", userId))
+      .unique();
     await applyPendingForEmails(ctx, orgId, userId, [identifier ?? "", user?.email ?? ""]);
   },
 });
@@ -83,14 +114,21 @@ export const applyBackfillPage = internalMutation({
   handler: async (ctx, { orgId, runId, startedAt, members }) => {
     for (const { membershipId, userId, role, createdAt, updatedAt } of members) {
       if (!userId || !membershipId) throw new Error("Invalid membership from Clerk.");
-      const existing = await ctx.db.query("memberships")
-        .withIndex("by_org_user", (q) => q.eq("orgId", orgId).eq("userId", userId)).unique();
+      const existing = await ctx.db
+        .query("memberships")
+        .withIndex("by_org_user", (q) => q.eq("orgId", orgId).eq("userId", userId))
+        .unique();
       if (existing && existing.updatedAt >= startedAt) continue;
       const fields = {
-        role, active: true, membershipId, membershipCreatedAt: createdAt, lastEventAt: updatedAt,
-        updatedAt: startedAt, backfillRunId: runId,
+        role,
+        active: true,
+        membershipId,
+        membershipCreatedAt: createdAt,
+        lastEventAt: updatedAt,
+        updatedAt: startedAt,
+        backfillRunId: runId,
       };
-      if (await isTombstoned(ctx, "membership", membershipId) || await isTombstoned(ctx, "user", userId)) {
+      if ((await isTombstoned(ctx, "membership", membershipId)) || (await isTombstoned(ctx, "user", userId))) {
         if (existing) await ctx.db.patch(existing._id, { ...fields, active: false });
         continue;
       }
@@ -103,7 +141,8 @@ export const applyBackfillPage = internalMutation({
 export const finishBackfillPage = internalMutation({
   args: { orgId: v.string(), runId: v.string(), startedAt: v.number(), cursor: v.union(v.string(), v.null()) },
   handler: async (ctx, { orgId, runId, startedAt, cursor }) => {
-    const page = await ctx.db.query("memberships")
+    const page = await ctx.db
+      .query("memberships")
       .withIndex("by_org", (q) => q.eq("orgId", orgId))
       .paginate({ numItems: 100, cursor });
     for (const row of page.page) {
@@ -121,8 +160,10 @@ export const finishBackfillPage = internalMutation({
 export const completeBackfill = internalMutation({
   args: { orgId: v.string(), startedAt: v.number() },
   handler: async (ctx, { orgId, startedAt }) => {
-    const existing = await ctx.db.query("membershipSync")
-      .withIndex("by_org", (q) => q.eq("orgId", orgId)).unique();
+    const existing = await ctx.db
+      .query("membershipSync")
+      .withIndex("by_org", (q) => q.eq("orgId", orgId))
+      .unique();
     if (existing) await ctx.db.patch(existing._id, { ready: true, backfilledAt: startedAt });
     else await ctx.db.insert("membershipSync", { orgId, ready: true, backfilledAt: startedAt });
   },
@@ -141,21 +182,29 @@ export const backfill = action({
     // only reconcile when two consecutive full reads return the same unique set.
     const first = await fetchAllMemberships(orgId, secret);
     const second = await fetchAllMemberships(orgId, secret);
-    if (first.length !== second.length ||
-        first.some((m, i) => m.membershipId !== second[i].membershipId || m.role !== second[i].role)) {
+    if (
+      first.length !== second.length ||
+      first.some((m, i) => m.membershipId !== second[i].membershipId || m.role !== second[i].role)
+    ) {
       throw new Error("Clerk memberships changed during backfill; retry.");
     }
     for (let i = 0; i < first.length; i += 100) {
       await ctx.runMutation(internal.memberships.applyBackfillPage, {
-        orgId, runId, startedAt, members: first.slice(i, i + 100),
+        orgId,
+        runId,
+        startedAt,
+        members: first.slice(i, i + 100),
       });
     }
 
     let cursor: string | null = null;
     for (;;) {
-      const page: { cursor: string; isDone: boolean } = await ctx.runMutation(
-        internal.memberships.finishBackfillPage, { orgId, runId, startedAt, cursor },
-      );
+      const page: { cursor: string; isDone: boolean } = await ctx.runMutation(internal.memberships.finishBackfillPage, {
+        orgId,
+        runId,
+        startedAt,
+        cursor,
+      });
       if (page.isDone) break;
       cursor = page.cursor;
     }
@@ -165,7 +214,11 @@ export const backfill = action({
 });
 
 type ClerkMembership = {
-  membershipId: string; userId: string; role: string; createdAt: number; updatedAt: number;
+  membershipId: string;
+  userId: string;
+  role: string;
+  createdAt: number;
+  updatedAt: number;
 };
 
 async function fetchAllMemberships(orgId: string, secret: string): Promise<ClerkMembership[]> {
@@ -180,9 +233,12 @@ async function fetchAllMemberships(orgId: string, secret: string): Promise<Clerk
     url.searchParams.set("offset", String(offset));
     const response = await fetch(url, { headers: { Authorization: `Bearer ${secret}` } });
     if (!response.ok) throw new Error(`Clerk membership backfill failed (${response.status}).`);
-    const body = await response.json() as {
+    const body = (await response.json()) as {
       data?: Array<{
-        id?: unknown; role?: unknown; created_at?: unknown; updated_at?: unknown;
+        id?: unknown;
+        role?: unknown;
+        created_at?: unknown;
+        updated_at?: unknown;
         public_user_data?: { user_id?: unknown };
       }>;
       total_count?: unknown;
@@ -196,13 +252,22 @@ async function fetchAllMemberships(orgId: string, secret: string): Promise<Clerk
     totalCount = body.total_count;
     for (const m of body.data) {
       const member = {
-        membershipId: m.id, userId: m.public_user_data?.user_id, role: m.role,
-        createdAt: m.created_at, updatedAt: m.updated_at,
+        membershipId: m.id,
+        userId: m.public_user_data?.user_id,
+        role: m.role,
+        createdAt: m.created_at,
+        updatedAt: m.updated_at,
       };
-      if (typeof member.membershipId !== "string" || !member.membershipId ||
-          typeof member.userId !== "string" || !member.userId ||
-          typeof member.role !== "string" || !member.role ||
-          typeof member.createdAt !== "number" || typeof member.updatedAt !== "number") {
+      if (
+        typeof member.membershipId !== "string" ||
+        !member.membershipId ||
+        typeof member.userId !== "string" ||
+        !member.userId ||
+        typeof member.role !== "string" ||
+        !member.role ||
+        typeof member.createdAt !== "number" ||
+        typeof member.updatedAt !== "number"
+      ) {
         throw new Error("Invalid Clerk membership response.");
       }
       if (byId.has(member.membershipId) || userIds.has(member.userId)) {

@@ -31,7 +31,10 @@ async function runCronAt(t: T, iso: string) {
 
 const todosOn = (t: T, projectId: Id<"projects">, date: string) =>
   t.run((ctx) =>
-    ctx.db.query("todos").withIndex("by_project_date", (q) => q.eq("projectId", projectId).eq("date", date)).collect(),
+    ctx.db
+      .query("todos")
+      .withIndex("by_project_date", (q) => q.eq("projectId", projectId).eq("date", date))
+      .collect(),
   );
 
 describe("timezone helpers", () => {
@@ -92,7 +95,10 @@ describe("team settings", () => {
       autoCarryOver: true,
     });
     // Other teams are unaffected.
-    expect(await t.withIdentity(eve).query(api.teams.settings, {})).toMatchObject({ timeZone: null, autoCarryOver: false });
+    expect(await t.withIdentity(eve).query(api.teams.settings, {})).toMatchObject({
+      timeZone: null,
+      autoCarryOver: false,
+    });
   });
 
   test("rejects unknown time zones", async () => {

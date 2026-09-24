@@ -37,12 +37,12 @@ export default function TodayPage() {
   const [creating, setCreating] = useState(false);
   const [lastProjectId, setLastProjectId] = useState<Id<"projects"> | "">(() => {
     if (typeof window === "undefined") return "";
-    return window.localStorage.getItem("lcftodos:last-project") as Id<"projects"> | null ?? "";
+    return (window.localStorage.getItem("lcftodos:last-project") as Id<"projects"> | null) ?? "";
   });
   const activeProjects = useMemo(() => (projects ?? []).filter((project) => !project.archived), [projects]);
   const newProjectId = activeProjects.some((project) => project._id === lastProjectId)
     ? lastProjectId
-    : activeProjects[0]?._id ?? "";
+    : (activeProjects[0]?._id ?? "");
 
   const selectProject = (projectId: Id<"projects">) => {
     setLastProjectId(projectId);
@@ -50,7 +50,10 @@ export default function TodayPage() {
   };
 
   const inScope = useMemo(
-    () => (todos ?? []).filter((t) => scope === "team" || t.assigneeId === userId || (!t.assigneeId && t.createdBy === userId)),
+    () =>
+      (todos ?? []).filter(
+        (t) => scope === "team" || t.assigneeId === userId || (!t.assigneeId && t.createdBy === userId),
+      ),
     [todos, scope, userId],
   );
   const todayItems = inScope.filter((t) => t.date === today);
@@ -119,9 +122,11 @@ export default function TodayPage() {
         />
       )}
       {projects && projects.length > 0 && activeProjects.length === 0 && (
-        <p className="card mb-6 flex flex-wrap items-center justify-between gap-2 p-3 text-sm text-muted">
+        <p className="mb-6 flex flex-wrap items-center justify-between gap-2 card p-3 text-sm text-muted">
           All your projects are archived. Create or restore one to add todos.
-          <Link href="/app/projects" className="btn-outline">Go to projects <ArrowRight className="size-4" /></Link>
+          <Link href="/app/projects" className="btn-outline">
+            Go to projects <ArrowRight className="size-4" />
+          </Link>
         </p>
       )}
 
@@ -142,10 +147,17 @@ export default function TodayPage() {
           {perDay.map(({ day, total, done }) => (
             <div key={day} className="flex flex-col items-center gap-1.5">
               <div className="relative h-16 w-full max-w-10 overflow-hidden rounded-md bg-surface-2">
-                <div className="absolute inset-x-0 bottom-0 bg-emerald-500/80" style={{ height: total ? `${(done / total) * 100}%` : 0 }} />
+                <div
+                  className="absolute inset-x-0 bottom-0 bg-emerald-500/80"
+                  style={{ height: total ? `${(done / total) * 100}%` : 0 }}
+                />
               </div>
-              <span className={clsx("text-xs", day === today ? "font-semibold text-accent" : "text-muted")}>{fmt(day, "EEEEE")}</span>
-              <span className="text-[11px] text-muted tabular-nums">{done}/{total}</span>
+              <span className={clsx("text-xs", day === today ? "font-semibold text-accent" : "text-muted")}>
+                {fmt(day, "EEEEE")}
+              </span>
+              <span className="text-[11px] text-muted tabular-nums">
+                {done}/{total}
+              </span>
             </div>
           ))}
         </div>
@@ -157,33 +169,54 @@ export default function TodayPage() {
         <Empty
           title="No projects yet"
           body="You haven't been added to any projects on this team. Ask a team admin to give you access, or create your own project."
-          action={<Link href="/app/projects" className="btn-outline">Go to projects <ArrowRight className="size-4" /></Link>}
+          action={
+            <Link href="/app/projects" className="btn-outline">
+              Go to projects <ArrowRight className="size-4" />
+            </Link>
+          }
         />
       ) : projects && projects.length === 0 ? (
         <Empty
           title="Welcome! Start with a project"
           body="Create a project, then add todos to each day of the week. Invite teammates from the Team page."
-          action={<Link href="/app/projects" className="btn-primary">Go to projects <ArrowRight className="size-4" /></Link>}
+          action={
+            <Link href="/app/projects" className="btn-primary">
+              Go to projects <ArrowRight className="size-4" />
+            </Link>
+          }
         />
       ) : (
         <div className="grid gap-6 md:grid-cols-2">
           <section>
-            <h2 className="mb-2 text-sm font-semibold">Today <span className="font-normal text-muted">({todayItems.length})</span></h2>
+            <h2 className="mb-2 text-sm font-semibold">
+              Today <span className="font-normal text-muted">({todayItems.length})</span>
+            </h2>
             {todayItems.length === 0 ? (
-              <p className="card p-4 text-sm text-muted">Nothing planned for today. Type above and press Enter to add one.</p>
-            ) : list(todayItems)}
+              <p className="card p-4 text-sm text-muted">
+                Nothing planned for today. Type above and press Enter to add one.
+              </p>
+            ) : (
+              list(todayItems)
+            )}
           </section>
           <section>
-            <h2 className="mb-2 text-sm font-semibold">Still open from earlier this week <span className="font-normal text-muted">({overdue.length})</span></h2>
-            {overdue.length === 0 ? (
-              <p className="card p-4 text-sm text-muted">All caught up.</p>
-            ) : list(overdue)}
+            <h2 className="mb-2 text-sm font-semibold">
+              Still open from earlier this week <span className="font-normal text-muted">({overdue.length})</span>
+            </h2>
+            {overdue.length === 0 ? <p className="card p-4 text-sm text-muted">All caught up.</p> : list(overdue)}
           </section>
         </div>
       )}
 
       {editing && (
-        <TodoDialog open onClose={() => setEditing(null)} projectId={editing.projectId} date={editing.date} todo={editing} readOnly={editing.projectArchived} />
+        <TodoDialog
+          open
+          onClose={() => setEditing(null)}
+          projectId={editing.projectId}
+          date={editing.date}
+          todo={editing}
+          readOnly={editing.projectArchived}
+        />
       )}
       {creating && newProjectId && (
         <TodoDialog
