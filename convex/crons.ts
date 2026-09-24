@@ -7,4 +7,8 @@ const crons = cronJobs();
 // offsets), so an hourly run picks each team up shortly after its day rolls over (#22).
 crons.hourly("nightly carry-over", { minuteUTC: 1 }, internal.teams.dispatchNightlyCarryOver);
 
+// Daily digest emails and Slack summaries (#25). Hourly so every team gets its
+// digest in its own local morning; `digestSends` keeps it once per member per day.
+crons.hourly("daily digest", { minuteUTC: 7 }, internal.notifications.dispatchDaily, {});
+
 export default crons;
