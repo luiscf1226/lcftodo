@@ -89,7 +89,7 @@ Admins manage access from **Team**:
 - **Assignees** must be active members with access to the todo's project. When access is
   removed, existing todos keep the historical assignee (history stays accurate) but leave
   that person's lists, since they can no longer read the project; carry-over leaves the new
-  copy unassigned, and an admin reassigns from the board.
+  copy (and new recurring occurrences) unassigned, and an admin reassigns from the board.
 
 Optional Convex env var: `APP_URL` (e.g. `https://todos.example.com`). When set,
 invitation emails link to `${APP_URL}/sign-up`; otherwise Clerk's hosted pages are used.
