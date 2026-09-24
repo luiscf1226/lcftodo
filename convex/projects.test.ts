@@ -7,6 +7,7 @@ import schema from "./schema";
 const modules = import.meta.glob("./**/*.ts");
 
 const alice = { subject: "user_alice", name: "Alice", org_id: "org_a", org_role: "org:admin" };
+const bob = { subject: "user_bob", name: "Bob", org_id: "org_a", org_role: "org:member" };
 const eve = { subject: "user_eve", name: "Eve", org_id: "org_b", org_role: "org:admin" };
 
 type Status = "todo" | "doing" | "done" | "not_done";
@@ -140,5 +141,28 @@ describe("projects.remove (batched)", () => {
     } finally {
       vi.useRealTimers();
     }
+  });
+});
+
+describe("projects.setArchived", () => {
+  test("only admins can archive or restore", async () => {
+    const t = convexTest(schema, modules);
+    const a = t.withIdentity(alice);
+    const b = t.withIdentity(bob);
+    const projectId = await a.mutation(api.projects.create, { name: "Board", color: "#6366f1" });
+
+    await expect(b.mutation(api.projects.setArchived, { projectId, archived: true })).rejects.toThrow(
+      /Only team admins/,
+    );
+    expect((await t.run((ctx) => ctx.db.get(projectId)))?.archived).toBeFalsy();
+
+    await a.mutation(api.projects.setArchived, { projectId, archived: true });
+    await expect(b.mutation(api.projects.setArchived, { projectId, archived: false })).rejects.toThrow(
+      /Only team admins/,
+    );
+    expect((await t.run((ctx) => ctx.db.get(projectId)))?.archived).toBe(true);
+
+    await a.mutation(api.projects.setArchived, { projectId, archived: false });
+    expect((await t.run((ctx) => ctx.db.get(projectId)))?.archived).toBe(false);
   });
 });

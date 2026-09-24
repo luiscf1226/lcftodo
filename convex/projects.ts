@@ -109,10 +109,12 @@ export const update = mutation({
   },
 });
 
+// Admin only, like delete.
 export const setArchived = mutation({
   args: { projectId: v.id("projects"), archived: v.boolean() },
   handler: async (ctx, { projectId, archived }) => {
     const member = await requireMember(ctx);
+    if (!member.isAdmin) throw new Error("Only team admins can archive or restore projects.");
     const project = await requireProject(ctx, member, projectId);
     await ctx.db.patch(projectId, { archived });
     await log(ctx, member, project, { action: archived ? "project_archived" : "project_restored" });
