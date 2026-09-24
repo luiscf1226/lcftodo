@@ -20,6 +20,7 @@ export const listForProject = query({
     if (!member) return [];
     const project = await ctx.db.get(projectId);
     if (!project || project.orgId !== member.orgId) return [];
+    checkRange(from, to);
     const todos = await ctx.db
       .query("todos")
       .withIndex("by_project_date", (q) =>
@@ -56,8 +57,28 @@ export const listForTeam = query({
       .sort((a, b) => a.date.localeCompare(b.date) || byOrder(a, b))
       .map((t) => {
         const p = byId.get(t.projectId);
-        return { ...t, projectName: p?.name ?? "—", projectColor: p?.color ?? "#94a3b8" };
+        return {
+          ...t,
+          projectName: p?.name ?? "—",
+          projectColor: p?.color ?? "#94a3b8",
+          // Archived projects are read-only (#18); the UI disables editing for these.
+          projectArchived: p?.archived ?? false,
+        };
       });
+  },
+});
+
+// A single todo of the caller's team, or null. Used to resolve `carriedFrom` links (#33).
+export const get = query({
+  args: { todoId: v.id("todos") },
+  handler: async (ctx, { todoId }) => {
+    const member = await getMember(ctx);
+    if (!member) return null;
+    const todo = await ctx.db.get(todoId);
+    if (!todo || todo.orgId !== member.orgId) return null;
+    const project = await ctx.db.get(todo.projectId);
+    if (!project || project.deleting) return null;
+    return todo;
   },
 });
 

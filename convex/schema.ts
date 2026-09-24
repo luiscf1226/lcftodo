@@ -1,26 +1,13 @@
 import { defineSchema, defineTable } from "convex/server";
 import { v } from "convex/values";
+import { ACTIONS, STATUSES } from "./lib/constants";
 
-export const status = v.union(
-  v.literal("todo"),
-  v.literal("doing"),
-  v.literal("done"),
-  v.literal("not_done"),
-);
+// Validators are derived from the shared constants so a new status or action
+// is added in one place (#37).
+const literals = <T extends string>(values: readonly T[]) => v.union(...values.map((value) => v.literal(value)));
 
-export const action = v.union(
-  v.literal("created"),
-  v.literal("updated"),
-  v.literal("status"),
-  v.literal("moved"),
-  v.literal("carried_over"),
-  v.literal("deleted"),
-  v.literal("project_created"),
-  v.literal("project_updated"),
-  v.literal("project_archived"),
-  v.literal("project_restored"),
-  v.literal("project_deleted"),
-);
+export const status = literals(STATUSES);
+export const action = literals(ACTIONS);
 
 export default defineSchema({
   memberships: defineTable({
