@@ -14,8 +14,8 @@ type Actor = "user_alice" | "user_bob";
 async function setup() {
   const t = convexTest(schema, modules);
   const a = t.withIdentity(alice);
-  const p1 = await a.mutation(api.projects.create, { name: "One", color: "#111" });
-  const p2 = await a.mutation(api.projects.create, { name: "Two", color: "#222" });
+  const p1 = await a.mutation(api.projects.create, { name: "One", color: "#6366f1" });
+  const p2 = await a.mutation(api.projects.create, { name: "Two", color: "#0ea5e9" });
   // Insert activity rows directly, oldest first.
   const seed = (rows: { actorId: Actor; projectId: Id<"projects">; n: number }[]) =>
     t.run(async (ctx) => {

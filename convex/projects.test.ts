@@ -16,12 +16,12 @@ describe("projects.listWithStats", () => {
     const t = convexTest(schema, modules);
     const a = t.withIdentity(alice);
     const e = t.withIdentity(eve);
-    const zeta = await a.mutation(api.projects.create, { name: "Zeta", color: "#111" });
-    const alpha = await a.mutation(api.projects.create, { name: "Alpha", color: "#222" });
-    const old = await a.mutation(api.projects.create, { name: "Old", color: "#333" });
-    const empty = await a.mutation(api.projects.create, { name: "Empty", color: "#444" });
+    const zeta = await a.mutation(api.projects.create, { name: "Zeta", color: "#6366f1" });
+    const alpha = await a.mutation(api.projects.create, { name: "Alpha", color: "#0ea5e9" });
+    const old = await a.mutation(api.projects.create, { name: "Old", color: "#10b981" });
+    const empty = await a.mutation(api.projects.create, { name: "Empty", color: "#f59e0b" });
     await a.mutation(api.projects.setArchived, { projectId: old, archived: true });
-    const other = await e.mutation(api.projects.create, { name: "Other team", color: "#555" });
+    const other = await e.mutation(api.projects.create, { name: "Other team", color: "#ef4444" });
 
     const seed = async (orgId: string, projectId: Id<"projects">, date: string, status: Status) =>
       t.run((ctx) =>
@@ -52,7 +52,7 @@ describe("projects.listWithStats", () => {
     });
     // Response carries the full project document alongside the stats.
     const zetaRow = rows.find((r) => r._id === zeta)!;
-    expect(zetaRow).toMatchObject({ _id: zeta, orgId: "org_a", name: "Zeta", color: "#111", archived: false, createdBy: "user_alice" });
+    expect(zetaRow).toMatchObject({ _id: zeta, orgId: "org_a", name: "Zeta", color: "#6366f1", archived: false, createdBy: "user_alice" });
     expect(Object.keys(zetaRow).sort()).toEqual(
       ["_creationTime", "_id", "archived", "color", "counts", "createdBy", "name", "orgId", "total"].sort(),
     );
@@ -72,8 +72,8 @@ describe("projects.remove (batched)", () => {
   async function seedBigProject() {
     const t = convexTest({ schema, modules, transactionLimits: { documentsWritten: WRITE_LIMIT } });
     const a = t.withIdentity(alice);
-    const big = await a.mutation(api.projects.create, { name: "Big", color: "#111" });
-    const keep = await a.mutation(api.projects.create, { name: "Keep", color: "#222" });
+    const big = await a.mutation(api.projects.create, { name: "Big", color: "#6366f1" });
+    const keep = await a.mutation(api.projects.create, { name: "Keep", color: "#0ea5e9" });
     for (let start = 0; start < TODOS; start += 500) {
       await t.run(async (ctx) => {
         for (let i = start; i < Math.min(start + 500, TODOS); i++) {

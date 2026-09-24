@@ -52,6 +52,7 @@ export const listForTeam = query({
     ]);
     const byId = new Map(projects.map((p) => [p._id, p]));
     return todos
+      .filter((t) => !byId.get(t.projectId)?.deleting)
       .sort((a, b) => a.date.localeCompare(b.date) || byOrder(a, b))
       .map((t) => {
         const p = byId.get(t.projectId);

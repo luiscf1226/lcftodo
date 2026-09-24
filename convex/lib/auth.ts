@@ -57,9 +57,7 @@ export async function requireWritableProject(
   if (project.archived) {
     throw new Error("This project is archived. Restore it to make changes.");
   }
-  // `deleting` is added to the projects schema in #16; read it defensively so
-  // this works before and after that lands.
-  if ((project as { deleting?: boolean }).deleting) {
+  if (project.deleting) {
     throw new Error("This project is being deleted.");
   }
   return project;

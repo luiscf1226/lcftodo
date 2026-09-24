@@ -142,6 +142,17 @@ describe("archived projects are read-only (#18)", () => {
     await b.mutation(api.todos.setStatus, { todoId, status: "done" });
     await b.mutation(api.todos.create, { projectId, title: "Back", date: "2026-09-21" });
   });
+
+  test("todos of a project being deleted are frozen and hidden", async () => {
+    const { a, b, projectId } = await setup();
+    const todoId = await a.mutation(api.todos.create, { projectId, title: "Doomed", date: "2026-09-21" });
+    // The batch delete is scheduled but has not run yet.
+    await a.mutation(api.projects.remove, { projectId });
+
+    await expect(b.mutation(api.todos.create, { projectId, title: "x", date: "2026-09-21" })).rejects.toThrow();
+    await expect(b.mutation(api.todos.setStatus, { todoId, status: "done" })).rejects.toThrow();
+    expect(await b.query(api.todos.listForTeam, { from: "2026-09-21", to: "2026-09-21" })).toEqual([]);
+  });
 });
 
 describe("bounded team queries (#15)", () => {
