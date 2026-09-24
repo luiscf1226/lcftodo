@@ -90,7 +90,7 @@ deployment. If DEV is behind `main`, tests fail with Convex `Server Error`s (for
 `users:onboardingStatus`). You have two options:
 
 - Push manually from an up-to-date checkout: `npx convex dev --once`.
-- Set `CONVEX_DEV_DEPLOY_KEY`. The job then runs `npx convex dev --once` with that key before the
+- Set `CONVEX_DEV_DEPLOY_KEY`. The job then runs `npx convex deploy` with that dev key before the
   build, which pushes the branch's functions to DEV. The job rejects any key that does not start
   with `dev:`. Keep in mind that DEV is shared, so a PR run overwrites whatever functions are
   there. To mint a key: `npx convex deployment token create e2e-ci --deployment <dev-deployment-name> | gh secret set CONVEX_DEV_DEPLOY_KEY`.
