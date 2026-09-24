@@ -87,6 +87,20 @@ describe("todos and history", () => {
     expect(day1).toEqual({ Open: "not_done", Doing: "not_done", Done: "done" });
     expect(day2).toEqual({ Open: "todo", Doing: "doing" });
     expect(week.find((t) => t.date === "2026-09-22" && t.title === "Open")?.carriedFrom).toBe(open);
+    expect(week.find((t) => t.date === "2026-09-22" && t.title === "Doing")?.carriedFrom).toBe(doing);
+
+    // #33: each original records its own "didn't finish" status change.
+    const openHistory = await a.query(api.activity.forTodo, { todoId: open });
+    expect(openHistory[0]).toMatchObject({ action: "status", from: "todo", to: "not_done", date: "2026-09-21" });
+    const doingHistory = await a.query(api.activity.forTodo, { todoId: doing });
+    expect(doingHistory[0]).toMatchObject({ action: "status", from: "doing", to: "not_done", date: "2026-09-21" });
+    // The finished todo is untouched.
+    const doneHistory = await a.query(api.activity.forTodo, { todoId: done });
+    expect(doneHistory.filter((h) => h.to === "not_done")).toEqual([]);
+    // The copy still gets its carried_over entry.
+    const copy = week.find((t) => t.date === "2026-09-22" && t.title === "Open")!;
+    const copyHistory = await a.query(api.activity.forTodo, { todoId: copy._id });
+    expect(copyHistory.map((h) => h.action)).toEqual(["carried_over"]);
   });
 
   test("history survives project deletion", async () => {

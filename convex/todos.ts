@@ -173,6 +173,10 @@ export const carryOver = mutation({
 
     for (const t of open) {
       await ctx.db.patch(t._id, { status: "not_done", completedAt: undefined });
+      // Record the "didn't finish" on the original's own history (#33).
+      await log(ctx, member, project, {
+        action: "status", todoId: t._id, todoTitle: t.title, from: t.status, to: "not_done", date,
+      });
       const newId = await ctx.db.insert("todos", {
         orgId: t.orgId,
         projectId: t.projectId,
