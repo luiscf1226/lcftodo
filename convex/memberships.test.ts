@@ -368,4 +368,57 @@ describe("team membership boundaries", () => {
       .withIndex("by_org_user", (q) => q.eq("orgId", "org_a").eq("userId", "user_bob")).unique());
     expect(row?.active).toBe(false);
   });
+
+  test("a member removed by backfill stays removed when an old signed event is retried", async () => {
+    const previousSecret = process.env.CLERK_SECRET_KEY;
+    const previousWebhook = process.env.CLERK_WEBHOOK_SECRET;
+    const webhookSecret = `whsec_${Buffer.from("backfill-retry-signing-secret-32b!!").toString("base64")}`;
+    process.env.CLERK_SECRET_KEY = "sk_test_example";
+    process.env.CLERK_WEBHOOK_SECRET = webhookSecret;
+    const fetchMock = vi.spyOn(globalThis, "fetch").mockImplementation(async () => clerkPage([
+      clerkMember("user_alice", "org:admin"),
+    ], 1));
+    try {
+      const t = convexTest(schema, modules);
+      const send = async (type: string, data: object) => {
+        const payload = JSON.stringify({ type, data });
+        const id = `msg_${type}_${JSON.stringify(data).length}`;
+        const timestamp = new Date();
+        return t.fetch("/clerk-webhook", {
+          method: "POST",
+          headers: {
+            "svix-id": id,
+            "svix-timestamp": String(Math.floor(timestamp.getTime() / 1000)),
+            "svix-signature": new Webhook(webhookSecret).sign(id, timestamp, payload),
+          },
+          body: payload,
+        });
+      };
+      const bob = (id: string, createdAt: number, updatedAt: number) => ({
+        id, organization: { id: "org_a" }, public_user_data: { user_id: "user_bob" },
+        role: "org:member", created_at: createdAt, updated_at: updatedAt,
+      });
+      const row = () => t.run((ctx) => ctx.db.query("memberships")
+        .withIndex("by_org_user", (q) => q.eq("orgId", "org_a").eq("userId", "user_bob")).unique());
+
+      expect((await send("organizationMembership.created", bob("mem_1", 100, 100))).status).toBe(200);
+      await t.run((ctx) => ctx.db.query("memberships").withIndex("by_org_user", (q) =>
+        q.eq("orgId", "org_a").eq("userId", "user_bob")).unique().then((r) => ctx.db.patch(r!._id, { updatedAt: 0 })));
+      expect(await t.withIdentity(alice).action(api.memberships.backfill, {})).toBe(1);
+      expect(await row()).toMatchObject({ active: false });
+
+      expect((await send("organizationMembership.created", bob("mem_1", 100, 100))).status).toBe(200);
+      expect((await send("organizationMembership.updated", bob("mem_1", 100, 100))).status).toBe(200);
+      expect(await row()).toMatchObject({ active: false });
+
+      expect((await send("organizationMembership.created", bob("mem_2", 500, 500))).status).toBe(200);
+      expect(await row()).toMatchObject({ active: true, membershipId: "mem_2" });
+    } finally {
+      fetchMock.mockRestore();
+      if (previousSecret === undefined) delete process.env.CLERK_SECRET_KEY;
+      else process.env.CLERK_SECRET_KEY = previousSecret;
+      if (previousWebhook === undefined) delete process.env.CLERK_WEBHOOK_SECRET;
+      else process.env.CLERK_WEBHOOK_SECRET = previousWebhook;
+    }
+  });
 });

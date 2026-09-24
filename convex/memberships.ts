@@ -79,9 +79,9 @@ export const finishBackfillPage = internalMutation({
       .withIndex("by_org", (q) => q.eq("orgId", orgId))
       .paginate({ numItems: 100, cursor });
     for (const row of page.page) {
-      if (row.backfillRunId !== runId && row.updatedAt < startedAt && row.active) {
-        await ctx.db.patch(row._id, { active: false, updatedAt: startedAt });
-      }
+      if (row.backfillRunId === runId || row.updatedAt >= startedAt) continue;
+      if (row.membershipId) await tombstone(ctx, "membership", row.membershipId);
+      if (row.active) await ctx.db.patch(row._id, { active: false, updatedAt: startedAt });
     }
     return { cursor: page.continueCursor, isDone: page.isDone };
   },
