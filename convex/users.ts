@@ -3,6 +3,7 @@ import type { UserIdentity } from "convex/server";
 import { internalMutation, mutation, query, type QueryCtx } from "./_generated/server";
 import { requireMember } from "./lib/auth";
 import { isTombstoned, tombstone } from "./lib/tombstones";
+import { revokeAllGrants } from "./projectAccess";
 
 function profileFields(identity: UserIdentity) {
   return {
@@ -115,6 +116,7 @@ export const deleteFromWebhook = internalMutation({
     for (const membership of memberships) {
       if (membership.membershipId) await tombstone(ctx, "membership", membership.membershipId);
       if (membership.active) await ctx.db.patch(membership._id, { active: false, updatedAt: Date.now() });
+      await revokeAllGrants(ctx, membership.orgId, clerkId);
     }
   },
 });

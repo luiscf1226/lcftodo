@@ -23,6 +23,7 @@ import { useToday } from "@/components/useToday";
 import { useRecurringTodos } from "@/components/useRecurringTodos";
 import { fmt, fromKey, shiftDays, weekDays, weekLabel, weekStart } from "@/lib/dates";
 import { errorMessage } from "@/lib/errors";
+import { BoardDnd, DayList, SortableTodo } from "./BoardDnd";
 import { emptyStatusCounts, LIMITS, STATUS_META, STATUSES } from "@/lib/status";
 
 type Editing = { date: string; todo?: Doc<"todos"> } | null;
@@ -88,11 +89,13 @@ export function WeekBoard({ projectId }: { projectId: Id<"projects"> }) {
     // We deleted it ourselves and are on our way back to the project list.
     if (deleting) return <Skeleton className="h-40" />;
     return (
-      <Empty title="Project not found" body="It may have been deleted, or it belongs to another team." action={<Link href="/app/projects" className="btn-outline">Back to projects</Link>} />
+      <Empty title="Project not found" body="It may have been deleted, belong to another team, or you may no longer have access to it." action={<Link href="/app/projects" className="btn-outline">Back to projects</Link>} />
     );
   }
 
   const total = visible.length;
+  // Archived projects are read-only (#18); wait for the project before enabling drag & drop.
+  const readOnly = project === undefined || project.archived;
 
   return (
     <div className="mx-auto max-w-[110rem]">
@@ -164,54 +167,60 @@ export function WeekBoard({ projectId }: { projectId: Id<"projects"> }) {
         </div>
       </div>
 
-      <div className="grid gap-3 lg:grid-cols-7">
-        {days.map((day) => {
-          const items = byDay.get(day) ?? [];
-          const isToday = day === today;
-          const open = items.filter((t) => t.status === "todo" || t.status === "doing").length;
-          return (
-            <section
-              key={day}
-              ref={isToday ? todayRef : undefined}
-              aria-label={fmt(day, "EEEE, MMMM d")}
-              className={clsx(
-                "flex scroll-mt-20 flex-col rounded-xl border bg-surface-2/60 p-2 lg:min-h-72",
-                isToday ? "border-accent/60" : "border-line",
-              )}
-            >
-              <header className="mb-2 flex items-center gap-2 px-1">
-                <div className="flex items-baseline gap-1.5">
-                  <span className={clsx("text-sm font-semibold", isToday && "text-accent")}>{fmt(day, "EEE")}</span>
-                  <span className="text-xs text-muted">{fmt(day, "MMM d")}</span>
-                </div>
-                {isToday && <span className="rounded-full bg-accent px-1.5 py-px text-[10px] font-semibold text-accent-fg">TODAY</span>}
-                <span className="ml-auto text-xs text-muted tabular-nums">
-                  {items.filter((t) => t.status === "done").length}/{items.length}
-                </span>
-              </header>
-
-              {todos === undefined ? (
-                <Skeleton className="h-14" />
-              ) : (
-                <div className="flex flex-col gap-1.5">
-                  {items.map((t) => (
-                    <TodoItem key={t._id} todo={t} assignee={t.assigneeId ? byId.get(t.assigneeId) : undefined} readOnly={project?.archived} onOpen={() => setEditing({ date: day, todo: t })} />
-                  ))}
-                </div>
-              )}
-
-              <div className="mt-1.5 flex items-center gap-1 lg:mt-auto lg:pt-1.5">
-                {!project?.archived && (
-                  <QuickAdd projectId={projectId} date={day} onMore={() => setEditing({ date: day })} />
-                )}
-                {open > 0 && day <= today && !project?.archived && (
-                  <CarryOver projectId={projectId} date={day} count={open} />
-                )}
-              </div>
-            </section>
-          );
-        })}
-      </div>
+      <BoardDnd byDay={byDay} disabled={readOnly}>
+        {(columns) => (
+          <div className="grid gap-3 lg:grid-cols-7">
+            {days.map((day) => {
+              const items = columns.get(day) ?? [];
+              const isToday = day === today;
+              const open = items.filter((t) => t.status === "todo" || t.status === "doing").length;
+              return (
+                <section
+                  key={day}
+                  ref={isToday ? todayRef : undefined}
+                  aria-label={fmt(day, "EEEE, MMMM d")}
+                  className={clsx(
+                    "flex scroll-mt-20 flex-col rounded-xl border bg-surface-2/60 p-2 lg:min-h-72",
+                    isToday ? "border-accent/60" : "border-line",
+                  )}
+                >
+                  <header className="mb-2 flex items-center gap-2 px-1">
+                    <div className="flex items-baseline gap-1.5">
+                      <span className={clsx("text-sm font-semibold", isToday && "text-accent")}>{fmt(day, "EEE")}</span>
+                      <span className="text-xs text-muted">{fmt(day, "MMM d")}</span>
+                    </div>
+                    {isToday && <span className="rounded-full bg-accent px-1.5 py-px text-[10px] font-semibold text-accent-fg">TODAY</span>}
+                    <span className="ml-auto text-xs text-muted tabular-nums">
+                      {items.filter((t) => t.status === "done").length}/{items.length}
+                    </span>
+                  </header>
+    
+                  {todos === undefined ? (
+                    <Skeleton className="h-14" />
+                  ) : (
+                    <DayList day={day} items={items}>
+                      {items.map((t) => (
+                        <SortableTodo key={t._id} todo={t} day={day} columns={columns} readOnly={readOnly}>
+                          <TodoItem todo={t} assignee={t.assigneeId ? byId.get(t.assigneeId) : undefined} readOnly={project?.archived} onOpen={() => setEditing({ date: day, todo: t })} />
+                        </SortableTodo>
+                      ))}
+                    </DayList>
+                  )}
+    
+                  <div className="mt-1.5 flex items-center gap-1 lg:mt-auto lg:pt-1.5">
+                    {!project?.archived && (
+                      <QuickAdd projectId={projectId} date={day} onMore={() => setEditing({ date: day })} />
+                    )}
+                    {open > 0 && day <= today && !project?.archived && (
+                      <CarryOver projectId={projectId} date={day} count={open} />
+                    )}
+                  </div>
+                </section>
+              );
+            })}
+          </div>
+        )}
+      </BoardDnd>
 
       <TodoDialog
         open={editing !== null}
@@ -244,7 +253,7 @@ function QuickAddForm({ projectId, date, onClose, onMore }: { projectId: Id<"pro
   const inputRef = useRef<HTMLInputElement>(null);
   const [title, setTitle] = useState("");
   const [busy, setBusy] = useState(false);
-  const mention = useAssigneeMention(title, setTitle, inputRef);
+  const mention = useAssigneeMention(title, setTitle, inputRef, projectId);
 
   return (
     <form

@@ -35,8 +35,9 @@ npx convex env set CLERK_JWT_ISSUER_DOMAIN https://your-app.clerk.accounts.dev
 ### Membership sync (required before assigning teammates)
 
 In Clerk, add a webhook endpoint at `https://<deployment>.convex.site/clerk-webhook`.
-Subscribe to `organizationMembership.created`, `.updated`, `.deleted` and
-`user.created`, `.updated`, `.deleted`. In the **Convex deployment environment**
+Subscribe to `organizationMembership.created`, `.updated`, `.deleted`,
+`user.created`, `.updated`, `.deleted`, and `organizationInvitation.accepted`,
+`organizationInvitation.revoked` (project invitations, see below). In the **Convex deployment environment**
 (dev and prod separately), set `CLERK_WEBHOOK_SECRET` to that endpoint's signing
 secret and `CLERK_SECRET_KEY` to the matching Clerk instance's secret key. Keep
 both values out of the repository. The `.site` webhook URL differs from the
@@ -62,6 +63,40 @@ stops granting access. Webhook delivery is asynchronous, so revocation takes
 effect when Clerk delivers the signed membership event. Monitor failed webhook
 attempts in Clerk and retry them after resolving configuration issues.
 
+### Project access and invitations
+
+Admins manage access from **Team**:
+
+- **Open vs. restricted access.** Every team starts (and every team that existed before
+  this feature stays) on *open* access: every member sees every project, exactly as before.
+  An admin turns on *Restrict access*; from then on non-admin members only see projects
+  they're granted — in Projects, Today, boards, History, exports, and every Convex call
+  (direct ids behave as "not found"). Admins always see everything. When restricting, the
+  admin can seed grants from existing work (projects each member created or has todos in
+  during the last year) so nobody silently loses their current work. Turning restriction off
+  restores open access; grants are kept for next time.
+- **Invite to selected projects.** The admin enters an email, a role and projects. Convex
+  re-checks the admin role and every project id, then creates a Clerk organization
+  invitation with `CLERK_SECRET_KEY` (the invitee creates and owns their credentials).
+  The project grants are stored with Clerk's invitation id and applied exactly once when
+  Clerk sends `organizationInvitation.accepted` (fallback: `organizationMembership.created`
+  for the same email). Inviting someone already on the team grants the projects directly;
+  inviting a pending email again adds projects to that invitation. Admins can resend
+  (revokes the old Clerk invitation and sends a new one), revoke, and refresh statuses
+  (Clerk does not send a webhook for expiry).
+- **Grant/revoke and removal.** Admins toggle each member's projects and can remove people
+  from the team (Clerk membership + every grant, effective immediately).
+- **Assignees** must be active members with access to the todo's project. When access is
+  removed, existing todos keep the historical assignee (history stays accurate) but leave
+  that person's lists, since they can no longer read the project; carry-over leaves the new
+  copy (and new recurring occurrences) unassigned, and an admin reassigns from the board.
+
+Optional Convex env var: `APP_URL` (e.g. `https://todos.example.com`). When set,
+invitation emails link to `${APP_URL}/sign-up`; otherwise Clerk's hosted pages are used.
+
+New admins see a setup checklist on **Today** (team → first project → invite → assign);
+the general product tour (**Tutorial**) is unchanged.
+
 ### 3. Run
 
 ```bash
@@ -79,8 +114,10 @@ npm test                  # backend tests (convex-test)
   the caller's team, and links each result to its project week.
 - *Carry* on a day moves unfinished todos to the next day and marks the originals
   *Didn't finish*, so slippage stays visible in History.
-- Invite teammates from **Team** (Clerk's organization profile: members, invitations, roles).
-  Only admins can delete projects.
+- Project reads and writes go through `canReadProject` / `requireProjectAccess`
+  (`convex/lib/auth.ts`), which apply the open/restricted policy above.
+- Invite teammates to selected projects from **Team**; Clerk's organization profile below
+  it still handles roles and team settings. Only admins can delete projects.
 
 ## Deploy
 

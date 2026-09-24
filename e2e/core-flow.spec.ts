@@ -45,17 +45,12 @@ test("sign in, plan a week, carry over, review history and export CSV", async ({
   });
 
   await test.step("create a team", async () => {
-    // The Clerk instance requires an organization, so a new user lands on Clerk's
-    // "choose organization" session task. The in-app "Set up your team" screen
-    // (<OrganizationList>) is the fallback if that task is ever turned off.
-    const clerkTask = page.getByRole("heading", { name: /set ?up your organization/i });
-    const appSetup = page.getByRole("heading", { name: "Set up your team" });
-    await expect(clerkTask.or(appSetup)).toBeVisible();
-    if (await appSetup.isVisible()) {
-      await page.getByRole("button", { name: /create organization/i }).click();
-    }
-    await page.getByRole("textbox", { name: "Name", exact: true }).fill(teamName);
-    await page.getByRole("button", { name: /^(continue|create organization)$/i }).click();
+    // The Clerk instance requires an organization, so a new user's session is pending and
+    // the proxy sends them to /onboarding, which hosts Clerk's choose-organization task (#31).
+    await expect(page).toHaveURL(/\/onboarding/);
+    await expect(page.getByRole("heading", { name: "Create your team" })).toBeVisible();
+    await page.getByRole("textbox", { name: "Team name" }).fill(teamName);
+    await page.getByRole("button", { name: "Create team" }).click();
     await expect(page).toHaveURL(/\/app$/);
     await expect(page.getByText(`${teamName} · this week at a glance`)).toBeVisible();
   });
@@ -105,7 +100,7 @@ test("sign in, plan a week, carry over, review history and export CSV", async ({
   await test.step("review History", async () => {
     await page.getByRole("link", { name: "History" }).first().click();
     await expect(page.getByRole("heading", { name: "History" })).toBeVisible();
-    await page.getByLabel("Project").selectOption({ label: projectName });
+    await page.getByLabel("Project", { exact: true }).selectOption({ label: projectName });
     const mondayRow = page.getByRole("button", { name: new RegExp(fmt(monday, "EEE, MMM d")) });
     await expect(mondayRow).toContainText("1/2");
     await mondayRow.click();

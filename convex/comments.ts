@@ -1,7 +1,9 @@
 import { v } from "convex/values";
 import type { Id } from "./_generated/dataModel";
 import { mutation, query, type MutationCtx } from "./_generated/server";
-import { getMember, log, requireMember, requireTodo, requireWritableProject, type Member } from "./lib/auth";
+import {
+  canReadProject, getMember, log, requireMember, requireTodo, requireWritableProject, type Member,
+} from "./lib/auth";
 import { commentBody } from "./lib/validate";
 
 // Upper bound on a single thread read; threads are short in practice.
@@ -17,7 +19,8 @@ export const list = query({
     const todo = await ctx.db.get(todoId);
     if (!todo || todo.orgId !== member.orgId) return [];
     const project = await ctx.db.get(todo.projectId);
-    if (!project || project.deleting) return [];
+    // Includes the project access check (#46).
+    if (!project || !(await canReadProject(ctx, member, project))) return [];
     const writable = !project.archived;
     const comments = await ctx.db
       .query("comments")
@@ -55,6 +58,8 @@ export const add = mutation({
 async function requireComment(ctx: MutationCtx, member: Member, commentId: Id<"comments">) {
   const comment = await ctx.db.get(commentId);
   if (!comment || comment.orgId !== member.orgId) throw new Error("Comment not found.");
+  // A comment in a project the caller can't access reads as missing (#46).
+  if (!(await canReadProject(ctx, member, await ctx.db.get(comment.projectId)))) throw new Error("Comment not found.");
   await requireWritableProject(ctx, member, comment.projectId);
   return comment;
 }

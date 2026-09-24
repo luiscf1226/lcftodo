@@ -1,9 +1,13 @@
 import { v } from "convex/values";
 import type { Doc } from "./_generated/dataModel";
 import { mutation, query } from "./_generated/server";
-import { getMember, log, requireMember, requireTodo, requireWritableProject } from "./lib/auth";
+import {
+  accessibleProjectIds, canReadProject, getMember, inScope, log, requireMember, requireTodo, requireWritableProject,
+} from "./lib/auth";
 import { carryOverDay } from "./lib/carryOver";
 import { deleteTodo } from "./lib/cascade";
+import { needsRebalance, ORDER_STEP } from "./lib/ordering";
+import { notifyAssigned } from "./lib/notify";
 import { assignee, checkDate, checkRange, todoNotes, todoTitle } from "./lib/validate";
 import { status } from "./schema";
 
@@ -15,7 +19,7 @@ export const listForProject = query({
     const member = await getMember(ctx);
     if (!member) return [];
     const project = await ctx.db.get(projectId);
-    if (!project || project.orgId !== member.orgId) return [];
+    if (!(await canReadProject(ctx, member, project))) return [];
     checkRange(from, to);
     const todos = await ctx.db
       .query("todos")
@@ -35,7 +39,7 @@ export const listForTeam = query({
     const member = await getMember(ctx);
     if (!member) return [];
     checkRange(from, to);
-    const [todos, projects] = await Promise.all([
+    const [todos, projects, scope] = await Promise.all([
       ctx.db
         .query("todos")
         .withIndex("by_org_date", (q) =>
@@ -46,10 +50,12 @@ export const listForTeam = query({
         .query("projects")
         .withIndex("by_org", (q) => q.eq("orgId", member.orgId))
         .collect(),
+      accessibleProjectIds(ctx, member),
     ]);
-    const byId = new Map(projects.map((p) => [p._id, p]));
+    // Only projects the caller may read (#46); a restricted member never sees other projects' rows.
+    const byId = new Map(projects.filter((p) => !p.deleting && inScope(scope, p._id)).map((p) => [p._id, p]));
     return todos
-      .filter((t) => !byId.get(t.projectId)?.deleting)
+      .filter((t) => byId.has(t.projectId))
       .sort((a, b) => a.date.localeCompare(b.date) || byOrder(a, b))
       .map((t) => {
         const p = byId.get(t.projectId);
@@ -73,8 +79,7 @@ export const get = query({
     const todo = await ctx.db.get(todoId);
     if (!todo || todo.orgId !== member.orgId) return null;
     const project = await ctx.db.get(todo.projectId);
-    if (!project || project.deleting) return null;
-    return todo;
+    return (await canReadProject(ctx, member, project)) ? todo : null;
   },
 });
 
@@ -92,7 +97,7 @@ export const create = mutation({
     checkDate(args.date);
     const title = todoTitle(args.title);
     const notes = todoNotes(args.notes);
-    const assigneeId = await assignee(ctx, member.orgId, args.assigneeId);
+    const assigneeId = await assignee(ctx, project, args.assigneeId);
     const todoId = await ctx.db.insert("todos", {
       orgId: member.orgId,
       projectId: project._id,
@@ -105,6 +110,7 @@ export const create = mutation({
       order: Date.now(),
     });
     await log(ctx, member, project, { action: "created", todoId, todoTitle: title, date: args.date });
+    if (assigneeId) await notifyAssigned(ctx, member, project, { todoId, title, date: args.date }, assigneeId);
     return todoId;
   },
 });
@@ -124,16 +130,19 @@ export const update = mutation({
     checkDate(args.date);
     const title = todoTitle(args.title);
     const notes = todoNotes(args.notes);
-    // Preserve a historical assignee when editing other fields, even if their
-    // membership has since been removed.
+    // Preserve a historical assignee when editing other fields, even if their team membership
+    // or project access has since been removed (#46); only a new assignee is validated.
     const assigneeId =
-      args.assigneeId && args.assigneeId === todo.assigneeId ? todo.assigneeId : await assignee(ctx, member.orgId, args.assigneeId);
+      args.assigneeId && args.assigneeId === todo.assigneeId ? todo.assigneeId : await assignee(ctx, project, args.assigneeId);
     const changed = todo.date !== args.date || todo.title !== title || todo.notes !== notes || todo.assigneeId !== assigneeId;
     await ctx.db.patch(todo._id, {
       title, notes, date: args.date, assigneeId,
       // Editing one occurrence of a series detaches it: later series edits leave it alone (#23).
       ...(todo.recurrenceId && changed ? { recurrenceDetached: true } : {}),
     });
+    if (assigneeId && assigneeId !== todo.assigneeId) {
+      await notifyAssigned(ctx, member, project, { todoId: todo._id, title, date: args.date }, assigneeId);
+    }
 
     if (todo.date !== args.date) {
       await log(ctx, member, project, {
@@ -148,6 +157,49 @@ export const update = mutation({
         from: todo.title !== title ? todo.title : undefined,
         to: todo.title !== title ? title : undefined,
         date: args.date,
+      });
+    }
+  },
+});
+
+// Drag & drop (#13): moves a todo to `date` at fractional position `order`
+// (computed by the client between its new neighbours, see lib/ordering).
+// Logs `moved` when the day changes; a reorder within a day is not logged.
+export const move = mutation({
+  args: { todoId: v.id("todos"), date: v.string(), order: v.number() },
+  handler: async (ctx, args) => {
+    const member = await requireMember(ctx);
+    const todo = await requireTodo(ctx, member, args.todoId);
+    const project = await requireWritableProject(ctx, member, todo.projectId);
+    checkDate(args.date);
+    if (!Number.isFinite(args.order)) throw new Error("Invalid position.");
+    if (todo.date === args.date && todo.order === args.order) return;
+
+    await ctx.db.patch(todo._id, {
+      date: args.date,
+      order: args.order,
+      // Moving one occurrence of a series to another day detaches it, like an edit does (#23).
+      ...(todo.recurrenceId && todo.date !== args.date ? { recurrenceDetached: true } : {}),
+    });
+
+    // When neighbours get too close to tell apart, renumber the whole day
+    // (a single project's day, so the read stays small) keeping its sequence.
+    const day = (
+      await ctx.db
+        .query("todos")
+        .withIndex("by_project_date", (q) => q.eq("projectId", todo.projectId).eq("date", args.date))
+        .collect()
+    ).sort((a, b) => a.order - b.order || a._creationTime - b._creationTime);
+    if (needsRebalance(day)) {
+      for (const [i, t] of day.entries()) {
+        const order = (i + 1) * ORDER_STEP;
+        if (t.order !== order) await ctx.db.patch(t._id, { order });
+      }
+    }
+
+    if (todo.date !== args.date) {
+      await log(ctx, member, project, {
+        action: "moved", todoId: todo._id, todoTitle: todo.title, from: todo.date, to: args.date, date: args.date,
       });
     }
   },

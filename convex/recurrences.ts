@@ -1,7 +1,10 @@
 import { v } from "convex/values";
 import type { Doc, Id } from "./_generated/dataModel";
 import { mutation, query, type MutationCtx } from "./_generated/server";
-import { getMember, requireMember, requireWritableProject, type Member } from "./lib/auth";
+import {
+  accessibleProjectIds, getMember, inScope, isRestricted, requireMember, requireWritableProject, userCanAccessProject,
+  type Member,
+} from "./lib/auth";
 import { deleteTodo } from "./lib/cascade";
 import { MAX_GENERATE_DAYS } from "./lib/constants";
 import { addDays, daysBetween, matchesRule } from "./lib/recurrence";
@@ -22,6 +25,8 @@ const isUnstarted = (t: Doc<"todos">) => t.status === "todo" && !t.recurrenceDet
 async function requireRecurrence(ctx: MutationCtx, member: Member, recurrenceId: Id<"recurrences">) {
   const rec = await ctx.db.get(recurrenceId);
   if (!rec || rec.orgId !== member.orgId) throw new Error("Recurring todo not found.");
+  // A series in a project the caller can't access reads as missing (#46).
+  if (!inScope(await accessibleProjectIds(ctx, member), rec.projectId)) throw new Error("Recurring todo not found.");
   const project = await requireWritableProject(ctx, member, rec.projectId);
   return { rec, project };
 }
@@ -35,7 +40,7 @@ function occurrencesFrom(ctx: MutationCtx, recurrenceId: Id<"recurrences">, from
 }
 
 /** Inserts the missing occurrences of `rec` for `days`. Returns how many were created. */
-async function generate(ctx: MutationCtx, rec: Doc<"recurrences">, days: string[]) {
+async function generate(ctx: MutationCtx, rec: Doc<"recurrences">, project: Doc<"projects">, days: string[]) {
   const skip = new Set(rec.skipDates ?? []);
   let assigneeId = rec.assigneeId;
   if (assigneeId) {
@@ -45,6 +50,10 @@ async function generate(ctx: MutationCtx, rec: Doc<"recurrences">, days: string[
       .withIndex("by_org_user", (q) => q.eq("orgId", rec.orgId).eq("userId", assigneeId!))
       .unique();
     if (membership && !membership.active) assigneeId = undefined;
+    // Nor does someone who lost access to the project (#46); an admin can reassign the series.
+    else if (assigneeId && (await isRestricted(ctx, rec.orgId)) && !(await userCanAccessProject(ctx, project, assigneeId))) {
+      assigneeId = undefined;
+    }
   }
   let created = 0;
   for (const day of days) {
@@ -92,15 +101,17 @@ export const ensureOccurrences = mutation({
       ? await ctx.db.query("recurrences").withIndex("by_project", (q) => q.eq("projectId", projectId)).collect()
       : await ctx.db.query("recurrences").withIndex("by_org", (q) => q.eq("orgId", member.orgId)).collect();
     const days = daysBetween(from, to);
+    // Only generate for projects the caller can access (#46).
+    const scope = await accessibleProjectIds(ctx, member);
     const projects = new Map<Id<"projects">, Doc<"projects"> | null>();
     let created = 0;
     for (const rec of series) {
-      if (rec.orgId !== member.orgId || (rec.stoppedFrom && rec.stoppedFrom <= from)) continue;
+      if (rec.orgId !== member.orgId || (rec.stoppedFrom && rec.stoppedFrom <= from) || !inScope(scope, rec.projectId)) continue;
       if (!projects.has(rec.projectId)) projects.set(rec.projectId, await ctx.db.get(rec.projectId));
       const project = projects.get(rec.projectId);
       // Archived projects are read-only (#18); projects being deleted are frozen (#16).
       if (!project || project.archived || project.deleting) continue;
-      created += await generate(ctx, rec, days);
+      created += await generate(ctx, rec, project, days);
     }
     return created;
   },
@@ -116,7 +127,8 @@ export const list = query({
     const series = projectId
       ? await ctx.db.query("recurrences").withIndex("by_project", (q) => q.eq("projectId", projectId)).collect()
       : await ctx.db.query("recurrences").withIndex("by_org", (q) => q.eq("orgId", member.orgId)).collect();
-    return series.filter((r) => r.orgId === member.orgId && !r.stoppedFrom);
+    const scope = await accessibleProjectIds(ctx, member);
+    return series.filter((r) => r.orgId === member.orgId && !r.stoppedFrom && inScope(scope, r.projectId));
   },
 });
 
@@ -126,7 +138,8 @@ export const get = query({
     const member = await getMember(ctx);
     if (!member) return null;
     const rec = await ctx.db.get(recurrenceId);
-    return rec && rec.orgId === member.orgId ? rec : null;
+    if (!rec || rec.orgId !== member.orgId) return null;
+    return inScope(await accessibleProjectIds(ctx, member), rec.projectId) ? rec : null;
   },
 });
 
@@ -149,13 +162,13 @@ export const create = mutation({
       projectId: project._id,
       title: todoTitle(args.title),
       notes: todoNotes(args.notes),
-      assigneeId: await assignee(ctx, member.orgId, args.assigneeId),
+      assigneeId: await assignee(ctx, project, args.assigneeId),
       rule: recurrenceRule(args.rule),
       startDate: args.startDate,
       createdBy: member.userId,
     });
     const rec = (await ctx.db.get(recurrenceId))!;
-    await generate(ctx, rec, daysBetween(args.startDate, addDays(args.startDate, 6)));
+    await generate(ctx, rec, project, daysBetween(args.startDate, addDays(args.startDate, 6)));
     return recurrenceId;
   },
 });
@@ -168,13 +181,13 @@ export const update = mutation({
   args: { recurrenceId: v.id("recurrences"), from: v.string(), ...seriesFields },
   handler: async (ctx, args) => {
     const member = await requireMember(ctx);
-    const { rec } = await requireRecurrence(ctx, member, args.recurrenceId);
+    const { rec, project } = await requireRecurrence(ctx, member, args.recurrenceId);
     if (rec.stoppedFrom) throw new Error("This recurring todo has been stopped.");
     checkDate(args.from);
     const title = todoTitle(args.title);
     const notes = todoNotes(args.notes);
     const assigneeId =
-      args.assigneeId && args.assigneeId === rec.assigneeId ? rec.assigneeId : await assignee(ctx, member.orgId, args.assigneeId);
+      args.assigneeId && args.assigneeId === rec.assigneeId ? rec.assigneeId : await assignee(ctx, project, args.assigneeId);
     const rule = recurrenceRule(args.rule);
     const ruleChanged = JSON.stringify(rule) !== JSON.stringify(rec.rule);
     const startDate = ruleChanged && args.from > rec.startDate ? args.from : rec.startDate;
