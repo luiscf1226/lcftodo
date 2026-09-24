@@ -1,6 +1,7 @@
 import { v } from "convex/values";
 import { mutation, query } from "./_generated/server";
 import { getMember, log, requireMember, requireProject } from "./lib/auth";
+import { projectColor, projectDescription, projectName } from "./lib/validate";
 
 export const list = query({
   args: { includeArchived: v.optional(v.boolean()) },
@@ -56,19 +57,18 @@ export const get = query({
   },
 });
 
-const clean = (s: string | undefined) => s?.trim() || undefined;
-
 export const create = mutation({
   args: { name: v.string(), description: v.optional(v.string()), color: v.string() },
   handler: async (ctx, args) => {
     const member = await requireMember(ctx);
-    const name = args.name.trim();
-    if (!name) throw new Error("Project name is required.");
+    const name = projectName(args.name);
+    const description = projectDescription(args.description);
+    const color = projectColor(args.color);
     const projectId = await ctx.db.insert("projects", {
       orgId: member.orgId,
       name,
-      description: clean(args.description),
-      color: args.color,
+      description,
+      color,
       archived: false,
       createdBy: member.userId,
     });
@@ -88,9 +88,10 @@ export const update = mutation({
   handler: async (ctx, { projectId, ...args }) => {
     const member = await requireMember(ctx);
     const project = await requireProject(ctx, member, projectId);
-    const name = args.name.trim();
-    if (!name) throw new Error("Project name is required.");
-    await ctx.db.patch(projectId, { name, description: clean(args.description), color: args.color });
+    const name = projectName(args.name);
+    const description = projectDescription(args.description);
+    const color = projectColor(args.color);
+    await ctx.db.patch(projectId, { name, description, color });
     await log(ctx, member, { ...project, name }, {
       action: "project_updated",
       from: project.name !== name ? project.name : undefined,
