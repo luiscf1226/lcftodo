@@ -7,6 +7,7 @@ import { ChevronDown, Download } from "lucide-react";
 import { useMemo, useState } from "react";
 import type { Id } from "../../../../convex/_generated/dataModel";
 import { api } from "../../../../convex/_generated/api";
+import { MAX_EXPORT_PAGE_SIZE, MAX_RANGE_DAYS } from "../../../../convex/lib/constants";
 import { Avatar } from "@/components/Avatar";
 import { Empty, PageHeader, Skeleton } from "@/components/PageHeader";
 import { StatusPill } from "@/components/StatusSelect";
@@ -16,7 +17,8 @@ import { describe } from "@/lib/activity";
 import { download, toCsv } from "@/lib/csv";
 import { fmt, fromKey, shiftDays, todayKey } from "@/lib/dates";
 import { errorMessage } from "@/lib/errors";
-import { STATUS_META, STATUSES } from "@/lib/status";
+import { collectPages } from "@/lib/export";
+import { emptyStatusCounts, STATUS_META, STATUSES } from "@/lib/status";
 
 export default function HistoryPage() {
   const today = todayKey();
@@ -28,7 +30,7 @@ export default function HistoryPage() {
   const validDates = Boolean(from && to) && isValid(fromKey(from)) && isValid(fromKey(to));
   const validRange = validDates && from <= to;
   const rangeDays = validRange ? differenceInCalendarDays(fromKey(to), fromKey(from)) + 1 : 0;
-  const rangeTooLarge = rangeDays > 366;
+  const rangeTooLarge = rangeDays > MAX_RANGE_DAYS;
   const canViewRange = validRange && !rangeTooLarge;
   const memberFilterLabel = tab === "activity" ? "Changed by" : "Assigned to";
 
@@ -89,7 +91,7 @@ export default function HistoryPage() {
       )}
       {rangeTooLarge && (
         <p className="mb-4 rounded-lg border border-danger/30 bg-danger/10 px-3 py-2 text-sm text-danger" role="alert">
-          History supports ranges up to 366 days. Select a shorter range to view or export it.
+          History supports ranges up to {MAX_RANGE_DAYS} days (this one is {rangeDays}). Select a shorter range to view or export it.
         </p>
       )}
 
@@ -129,7 +131,7 @@ function DaySummary({ todos, byId }: { todos: TeamTodos; byId: Members["byId"] }
     return [...map.entries()].sort(([a], [b]) => b.localeCompare(a));
   }, [todos]);
 
-  const totals = { todo: 0, doing: 0, done: 0, not_done: 0 };
+  const totals = emptyStatusCounts();
   for (const t of todos) totals[t.status]++;
 
   if (days.length === 0) return <Empty title="No todos in this range" body="Try a wider date range or different filters." />;
@@ -145,7 +147,7 @@ function DaySummary({ todos, byId }: { todos: TeamTodos; byId: Members["byId"] }
       </div>
       <ul className="card divide-y divide-line">
         {days.map(([day, items]) => {
-          const c = { todo: 0, doing: 0, done: 0, not_done: 0 };
+          const c = emptyStatusCounts();
           for (const t of items) c[t.status]++;
           const expanded = open === day;
           return (
@@ -344,14 +346,17 @@ function ExportMenu({
     }));
 
   async function activityRows() {
-    const rows = await convex.query(api.activity.exportRange, {
-      fromMs: fromKey(from).getTime(),
-      toMs: fromKey(shiftDays(to, 1)).getTime() - 1,
-      projectId,
-    });
-    return rows
-      .filter((a) => !memberId || a.actorId === memberId)
-      .map((a) => ({
+    // Pages through every row on the server (filtered by index), so nothing is silently dropped (#15).
+    const rows = await collectPages((cursor) =>
+      convex.query(api.activity.exportPage, {
+        fromMs: fromKey(from).getTime(),
+        toMs: fromKey(shiftDays(to, 1)).getTime() - 1,
+        projectId,
+        actorId: memberId || undefined,
+        paginationOpts: { numItems: MAX_EXPORT_PAGE_SIZE, cursor },
+      }),
+    );
+    return rows.map((a) => ({
         time: new Date(a._creationTime).toISOString(),
         person: nameOf(a.actorId),
         project: a.projectName,
