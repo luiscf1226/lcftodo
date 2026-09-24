@@ -16,7 +16,7 @@ import { LIMITS } from "@/lib/status";
 import { CommentThread } from "./CommentThread";
 import { Modal } from "./Modal";
 import { RepeatPicker } from "./RepeatPicker";
-import { useMembers } from "./useMembers";
+import { useAssignableMembers } from "./useMembers";
 import { useToday } from "./useToday";
 
 type Props = {
@@ -40,7 +40,6 @@ export function TodoDialog(props: Props) {
 }
 
 function TodoForm({ onClose, projectId, date, todo, projects, onProjectIdChange, readOnly = false }: Props) {
-  const { members, nameOf } = useMembers();
   const create = useMutation(api.todos.create);
   const update = useMutation(api.todos.update);
   const remove = useMutation(api.todos.remove);
@@ -58,6 +57,10 @@ function TodoForm({ onClose, projectId, date, todo, projects, onProjectIdChange,
   const [day, setDay] = useState(todo?.date ?? date);
   const [assigneeId, setAssigneeId] = useState(todo?.assigneeId ?? "");
   const [selectedProjectId, setSelectedProjectId] = useState(projectId);
+  // Only people with access to the project can be picked (#46).
+  const { members, nameOf } = useAssignableMembers(todo?.projectId ?? selectedProjectId);
+  // A historical assignee who has since lost access stays visible, but can't be re-picked.
+  const formerAssignee = todo?.assigneeId && !members.some((m) => m.id === todo.assigneeId) ? todo.assigneeId : undefined;
   // New todos: an optional repeat rule. Occurrences: edit "this" todo or the whole series (#23).
   const [repeat, setRepeat] = useState<RecurrenceRule | null>(null);
   const [scope, setScope] = useState<"this" | "series">("this");
@@ -182,6 +185,9 @@ function TodoForm({ onClose, projectId, date, todo, projects, onProjectIdChange,
               <label className="label" htmlFor="todo-assignee">Assignee</label>
               <select id="todo-assignee" className="input" value={assigneeId} onChange={(e) => setAssigneeId(e.target.value)}>
                 <option value="">Unassigned</option>
+                {formerAssignee && (
+                  <option value={formerAssignee}>{nameOf(formerAssignee)} (no project access)</option>
+                )}
                 {members.map((m) => (
                   <option key={m.id} value={m.id}>{m.name}</option>
                 ))}

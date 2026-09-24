@@ -57,3 +57,14 @@ export const MAX_EXPORT_PAGE_SIZE = 1000;
 // The UI renders it as "System".
 export const SYSTEM_ACTOR_ID = "system";
 export const SYSTEM_ACTOR_NAME = "System";
+
+// Clerk organization invitation states mirrored in `projectInvitations` (#46).
+export const INVITATION_STATUSES = ["pending", "accepted", "revoked", "expired"] as const;
+export type InvitationStatus = (typeof INVITATION_STATUSES)[number];
+
+// Roles an admin may pick when inviting someone (#46). Anything else is rejected server-side.
+export const INVITE_ROLES = ["org:member", "org:admin"] as const;
+export type InviteRole = (typeof INVITE_ROLES)[number];
+
+// Most projects a single invitation may grant.
+export const MAX_INVITE_PROJECTS = 50;

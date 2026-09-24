@@ -3,7 +3,7 @@
 import { internal } from "../_generated/api";
 import type { Doc, Id } from "../_generated/dataModel";
 import type { MutationCtx, QueryCtx } from "../_generated/server";
-import type { Member } from "./auth";
+import { userCanAccessProject, type Member } from "./auth";
 import { addDaysToKey, dateKeyInZone, isValidTimeZone } from "./timezone";
 
 /** Team-local hour at which the daily digest goes out, and how long a late cron may still send it. */
@@ -60,18 +60,15 @@ export async function slackSettingsFor(ctx: QueryCtx, orgId: string) {
     .unique();
 }
 
-/**
- * Projects whose todos may appear in `userId`'s digest.
- * TODO(#46): when per-project access lands, add its check to this filter
- * (e.g. `&& canAccessProject(ctx, member, p)`) — it is the only place to change.
- */
-// eslint-disable-next-line @typescript-eslint/no-unused-vars -- userId is for the #46 access check
-async function digestProjects(ctx: QueryCtx, orgId: string, _userId: string): Promise<Doc<"projects">[]> {
+/** Projects whose todos may appear in `userId`'s digest: live projects they can access (#46). */
+async function digestProjects(ctx: QueryCtx, orgId: string, userId: string): Promise<Doc<"projects">[]> {
   const projects = await ctx.db
     .query("projects")
     .withIndex("by_org", (q) => q.eq("orgId", orgId))
     .collect();
-  return projects.filter((p) => !p.archived && !p.deleting);
+  const live = projects.filter((p) => !p.archived && !p.deleting);
+  const allowed = await Promise.all(live.map((p) => userCanAccessProject(ctx, p, userId)));
+  return live.filter((_, i) => allowed[i]);
 }
 
 export type DigestItem = { title: string; project: string; date: string; status: Doc<"todos">["status"] };

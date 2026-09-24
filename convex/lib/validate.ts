@@ -1,4 +1,6 @@
+import type { Doc } from "../_generated/dataModel";
 import type { QueryCtx } from "../_generated/server";
+import { userCanAccessProject } from "./auth";
 // Limits and the palette live in ./constants so the UI can share them (#29, #37).
 import { LIMITS, MAX_RANGE_DAYS, PROJECT_COLORS, type RecurrenceRule } from "./constants";
 
@@ -79,14 +81,30 @@ export function checkRange(from: string, to: string) {
 
 /**
  * Validates an optional assignee; empty becomes undefined.
- * Only active members of the current team may receive work.
+ * Only active members of the project's team who can access the project may receive work (#46).
  */
-export async function assignee(ctx: QueryCtx, orgId: string, assigneeId: string | undefined): Promise<string | undefined> {
+export async function assignee(
+  ctx: QueryCtx,
+  project: Doc<"projects">,
+  assigneeId: string | undefined,
+): Promise<string | undefined> {
   if (!assigneeId) return undefined;
   const membership = await ctx.db
     .query("memberships")
-    .withIndex("by_org_user", (q) => q.eq("orgId", orgId).eq("userId", assigneeId))
+    .withIndex("by_org_user", (q) => q.eq("orgId", project.orgId).eq("userId", assigneeId))
     .unique();
   if (!membership?.active) throw new Error("Assignee is not an active member of this team.");
+  if (!(await userCanAccessProject(ctx, project, assigneeId))) {
+    throw new Error("Assignee doesn't have access to this project.");
+  }
   return assigneeId;
+}
+
+const EMAIL = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
+/** Trimmed, lower-cased email; throws if it isn't plausibly an address (#46). */
+export function normalizeEmail(value: string): string {
+  const email = value.trim().toLowerCase();
+  if (!email || email.length > 254 || !EMAIL.test(email)) throw new Error("Enter a valid email address.");
+  return email;
 }

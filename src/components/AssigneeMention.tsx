@@ -5,7 +5,8 @@ import { X } from "lucide-react";
 import { useId, useState, type KeyboardEvent, type RefObject } from "react";
 import { matchMembers, mentionQuery, stripMention } from "@/lib/quickAdd";
 import { Avatar } from "./Avatar";
-import { useMembers, type Member } from "./useMembers";
+import type { Id } from "../../convex/_generated/dataModel";
+import { useAssignableMembers, type Member } from "./useMembers";
 
 /**
  * "@name" assigning for quick-add inputs: typing "@" suggests team members, and picking one sets
@@ -13,8 +14,14 @@ import { useMembers, type Member } from "./useMembers";
  * `onKeyDown` first from the input's key handler (it returns true when it handled the key), and
  * render <MentionSuggestions> in a relatively positioned wrapper around the input.
  */
-export function useAssigneeMention(title: string, setTitle: (title: string) => void, inputRef: RefObject<HTMLInputElement | null>) {
-  const { members } = useMembers();
+export function useAssigneeMention(
+  title: string,
+  setTitle: (title: string) => void,
+  inputRef: RefObject<HTMLInputElement | null>,
+  // Only suggest people who can access this project (#46).
+  projectId?: Id<"projects">,
+) {
+  const { members } = useAssignableMembers(projectId);
   const listId = useId();
   const [assigneeId, setAssigneeId] = useState<string>();
   // The highlighted suggestion, remembered per query so typing resets it to the top match.

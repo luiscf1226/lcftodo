@@ -1,6 +1,6 @@
 import { defineSchema, defineTable } from "convex/server";
 import { v } from "convex/values";
-import { ACTIONS, RECURRENCE_KINDS, STATUSES } from "./lib/constants";
+import { ACTIONS, INVITATION_STATUSES, RECURRENCE_KINDS, STATUSES } from "./lib/constants";
 
 // Validators are derived from the shared constants so a new status or action
 // is added in one place (#37).
@@ -8,6 +8,7 @@ const literals = <T extends string>(values: readonly T[]) => v.union(...values.m
 
 export const status = literals(STATUSES);
 export const action = literals(ACTIONS);
+export const invitationStatus = literals(INVITATION_STATUSES);
 export const recurrenceRule = v.object({
   kind: literals(RECURRENCE_KINDS),
   // Only for "weekly": the chosen days, 0 = Sunday … 6 = Saturday.
@@ -51,6 +52,10 @@ export default defineSchema({
     autoCarryOver: v.boolean(),
     // Team-local day ("YYYY-MM-DD") the nightly carry-over last ran for; keeps the cron idempotent.
     lastAutoCarryDate: v.optional(v.string()),
+    // Project access policy (#46). Missing/false = open: every member sees every project
+    // (the default, and the state of every team that existed before #46). Once an admin
+    // restricts it, non-admin members only see projects they have a `projectMemberships` row for.
+    restrictedProjectAccess: v.optional(v.boolean()),
     updatedBy: v.string(),
     updatedAt: v.number(),
   })
@@ -66,7 +71,44 @@ export default defineSchema({
     clerkUpdatedAt: v.optional(v.number()),
     // When the user checked off the first-run tutorial. Missing = not completed yet.
     onboardingCompletedAt: v.optional(v.number()),
-  }).index("by_clerkId", ["clerkId"]),
+  })
+    .index("by_clerkId", ["clerkId"])
+    .index("by_email", ["email"]),
+
+  // Explicit project access grants (#46). Only enforced while the team is restricted.
+  projectMemberships: defineTable({
+    orgId: v.string(),
+    projectId: v.id("projects"),
+    userId: v.string(),
+    grantedBy: v.string(),
+    grantedAt: v.number(),
+  })
+    .index("by_project_user", ["projectId", "userId"])
+    .index("by_org_user", ["orgId", "userId"])
+    .index("by_org", ["orgId"]),
+
+  // Project grants attached to a Clerk organization invitation (#46). Applied exactly once,
+  // when Clerk reports the invitation accepted (or the invitee's membership is created).
+  projectInvitations: defineTable({
+    orgId: v.string(),
+    // Clerk's organization invitation id; replaced when the invitation is resent.
+    invitationId: v.string(),
+    // Normalized (trimmed, lower-case) email.
+    email: v.string(),
+    role: v.string(),
+    projectIds: v.array(v.id("projects")),
+    status: invitationStatus,
+    invitedBy: v.string(),
+    createdAt: v.number(),
+    updatedAt: v.number(),
+    expiresAt: v.optional(v.number()),
+    // Set once the grants were applied; guarantees exactly-once application.
+    appliedAt: v.optional(v.number()),
+    acceptedUserId: v.optional(v.string()),
+  })
+    .index("by_org", ["orgId"])
+    .index("by_invitation", ["invitationId"])
+    .index("by_org_email", ["orgId", "email"]),
 
   projects: defineTable({
     orgId: v.string(),
