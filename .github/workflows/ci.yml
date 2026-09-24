@@ -1,0 +1,53 @@
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+# One run per PR/branch; a new push cancels the in-flight run.
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  ci:
+    # Stable job name: this is the required status check ("ci") on main.
+    name: ci
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    env:
+      NEXT_TELEMETRY_DISABLED: "1"
+      # Dummy public values so `next build` can run without real secrets.
+      # NEXT_PUBLIC_CONVEX_URL is required (ConvexClientProvider throws without it).
+      # The Clerk key is shaped like a real one (pk_test_ + base64("<host>$"))
+      # so Clerk's key parsing never rejects it; it points at no real instance.
+      NEXT_PUBLIC_CONVEX_URL: https://ci-placeholder-123.convex.cloud
+      NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY: pk_test_ZXhhbXBsZS5jbGVyay5hY2NvdW50cy5kZXYk
+      NEXT_PUBLIC_CLERK_SIGN_IN_URL: /sign-in
+      NEXT_PUBLIC_CLERK_SIGN_UP_URL: /sign-up
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install
+        run: npm ci
+
+      - name: Lint
+        run: npm run lint
+
+      - name: Typecheck
+        run: npm run typecheck
+
+      - name: Test
+        run: npm test
+
+      - name: Build
+        run: npm run build
