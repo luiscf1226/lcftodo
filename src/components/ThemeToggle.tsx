@@ -16,9 +16,29 @@ function subscribe(callback: () => void) {
   return () => window.removeEventListener(THEME_CHANGE_EVENT, callback);
 }
 
-/** Light / dark / system segmented control. The choice persists in localStorage (see lib/theme). */
-export function ThemeToggle({ className }: { className?: string }) {
+/**
+ * Light / dark / system switch; the choice persists in localStorage (see lib/theme).
+ * `compact` renders one icon button that cycles System → Light → Dark (for tight mobile headers).
+ */
+export function ThemeToggle({ className, compact = false }: { className?: string; compact?: boolean }) {
   const theme = useSyncExternalStore(subscribe, readThemePreference, () => "system" as const);
+
+  if (compact) {
+    const index = OPTIONS.findIndex((option) => option.value === theme);
+    const { label, icon: Icon } = OPTIONS[index];
+    const next = OPTIONS[(index + 1) % OPTIONS.length];
+    return (
+      <button
+        type="button"
+        onClick={() => saveThemePreference(next.value)}
+        className={clsx("btn-ghost p-1.5 text-muted", className)}
+        aria-label={`Theme: ${label}. Switch to ${next.label.toLowerCase()}`}
+        title={`Theme: ${label}`}
+      >
+        <Icon className="size-5" aria-hidden />
+      </button>
+    );
+  }
 
   return (
     <div role="group" aria-label="Theme" className={clsx("inline-flex rounded-lg border border-line bg-surface-2 p-0.5", className)}>

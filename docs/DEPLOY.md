@@ -20,7 +20,8 @@ to a production instance later (step 6).
 
 1. Create an application (email + Google is fine).
 2. **Configure → Organizations**: enable. Turn on **Membership required** so every user must
-   create or join a team (see #31).
+   create or join a team (see #31). Users without a team get a *pending* session; `src/proxy.ts`
+   sends them to `/onboarding`, which completes Clerk's `choose-organization` task.
 3. **Integrations → Convex**: activate. Copy the **Frontend API URL**
    (`https://<name>.clerk.accounts.dev`) — this is `CLERK_JWT_ISSUER_DOMAIN`.
 4. **Configure → Sessions → Customize session token**, add:

@@ -102,13 +102,20 @@ export function AppShell({ children }: { children: ReactNode }) {
       </aside>
 
       <header className="sticky top-0 z-20 flex items-center justify-between gap-2 border-b border-line bg-surface/90 px-4 py-2.5 backdrop-blur md:hidden">
-        <OrganizationSwitcher hidePersonal afterSelectOrganizationUrl="/app" afterCreateOrganizationUrl="/app" />
-        <div className="flex items-center gap-2">
+        <div className="min-w-0 flex-1 overflow-hidden">
+          <OrganizationSwitcher
+            hidePersonal
+            afterSelectOrganizationUrl="/app"
+            afterCreateOrganizationUrl="/app"
+            appearance={{ elements: { rootBox: "max-w-full", organizationSwitcherTrigger: "max-w-full" } }}
+          />
+        </div>
+        <div className="flex shrink-0 items-center gap-1">
           <SearchButton compact />
           <button type="button" onClick={openTutorial} className="btn-ghost p-1.5 text-muted" aria-label="Open tutorial" title="Tutorial">
             <CircleHelp className="size-5" />
           </button>
-          <ThemeToggle />
+          <ThemeToggle compact />
           <UserButton />
         </div>
       </header>

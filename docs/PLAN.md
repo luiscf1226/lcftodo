@@ -29,7 +29,7 @@ full, exportable history.
 | ------------------------- | -------------------------------------------------------------------------- |
 | `/`                       | Landing; sign in / sign up                                                 |
 | `/sign-in`, `/sign-up`    | Clerk pages                                                                |
-| `/app`                    | Onboarding if no team yet (create team / accept invite), else dashboard    |
+| `/onboarding`             | Create a team or accept an invite (Clerk `choose-organization` session task); users with no team are sent here |
 | `/app` (dashboard)        | Today: my todos + team todos across projects, week progress                |
 | `/app/projects`           | Project list with this-week progress; create project                      |
 | `/app/projects/[id]`      | **Week board** Mon–Sun (stacked day list on mobile), add/edit/assign todos, change status, carry unfinished to next day, week navigation |
