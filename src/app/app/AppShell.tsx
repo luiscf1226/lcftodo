@@ -2,12 +2,13 @@
 
 import { OrganizationList, OrganizationSwitcher, UserButton, useOrganization } from "@clerk/nextjs";
 import clsx from "clsx";
-import { useConvexAuth, useMutation } from "convex/react";
-import { FolderKanban, History, LayoutDashboard, Users } from "lucide-react";
+import { useConvexAuth, useMutation, useQuery } from "convex/react";
+import { CircleHelp, FolderKanban, History, LayoutDashboard, Users } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { useEffect, type ReactNode } from "react";
+import { useEffect, useState, type ReactNode } from "react";
 import { api } from "../../../convex/_generated/api";
+import { OnboardingTutorial } from "@/components/OnboardingTutorial";
 import { ToastViewport } from "@/components/ToastViewport";
 import { ThemeToggle } from "@/components/ThemeToggle";
 
@@ -27,6 +28,18 @@ export function AppShell({ children }: { children: ReactNode }) {
   useEffect(() => {
     if (isAuthenticated) void storeUser();
   }, [isAuthenticated, storeUser]);
+
+  // First-run tutorial: shown on every visit until the user checks it off (persisted in Convex).
+  // Closing without checking only hides it until the next visit. Nothing shows while loading.
+  const onboarding = useQuery(api.users.onboardingStatus, isAuthenticated ? {} : "skip");
+  const [tutorialDismissed, setTutorialDismissed] = useState(false);
+  const [tutorialRequested, setTutorialRequested] = useState(false);
+  const tutorialOpen = tutorialRequested || (onboarding?.completed === false && !tutorialDismissed);
+  const closeTutorial = () => {
+    setTutorialRequested(false);
+    setTutorialDismissed(true);
+  };
+  const openTutorial = () => setTutorialRequested(true);
 
   const isActive = (href: string) => (href === "/app" ? pathname === "/app" : pathname.startsWith(href));
 
@@ -66,6 +79,13 @@ export function AppShell({ children }: { children: ReactNode }) {
           ))}
         </nav>
         <div className="mt-auto space-y-3 px-1">
+          <button
+            type="button"
+            onClick={openTutorial}
+            className="-mx-1 flex w-[calc(100%+0.5rem)] items-center gap-2.5 rounded-lg px-2.5 py-2 text-sm text-muted hover:bg-surface-2 hover:text-fg focus-visible:outline-2 focus-visible:outline-accent"
+          >
+            <CircleHelp className="size-4" /> Tutorial
+          </button>
           <ThemeToggle />
           <UserButton showName />
         </div>
@@ -74,6 +94,9 @@ export function AppShell({ children }: { children: ReactNode }) {
       <header className="sticky top-0 z-20 flex items-center justify-between gap-2 border-b border-line bg-surface/90 px-4 py-2.5 backdrop-blur md:hidden">
         <OrganizationSwitcher hidePersonal afterSelectOrganizationUrl="/app" afterCreateOrganizationUrl="/app" />
         <div className="flex items-center gap-2">
+          <button type="button" onClick={openTutorial} className="btn-ghost p-1.5 text-muted" aria-label="Open tutorial" title="Tutorial">
+            <CircleHelp className="size-5" />
+          </button>
           <ThemeToggle />
           <UserButton />
         </div>
@@ -92,6 +115,7 @@ export function AppShell({ children }: { children: ReactNode }) {
           </Link>
         ))}
       </nav>
+      <OnboardingTutorial open={tutorialOpen} completed={onboarding?.completed ?? false} onClose={closeTutorial} />
       <ToastViewport />
     </div>
   );

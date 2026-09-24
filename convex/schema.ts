@@ -28,6 +28,8 @@ export default defineSchema({
     name: v.string(),
     email: v.optional(v.string()),
     imageUrl: v.optional(v.string()),
+    // When the user checked off the first-run tutorial. Missing = not completed yet.
+    onboardingCompletedAt: v.optional(v.number()),
   }).index("by_clerkId", ["clerkId"]),
 
   projects: defineTable({
