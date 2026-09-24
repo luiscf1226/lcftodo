@@ -1,4 +1,5 @@
 import { v } from "convex/values";
+import type { Id } from "./_generated/dataModel";
 import { mutation, query } from "./_generated/server";
 import { getMember, log, requireMember, requireProject } from "./lib/auth";
 
@@ -18,30 +19,36 @@ export const list = query({
 });
 
 // Projects with todo counts by status for a date range (inclusive).
+// One projects read + one `todos.by_org_date` range read, grouped in memory (no N+1).
 export const listWithStats = query({
   args: { from: v.string(), to: v.string() },
   handler: async (ctx, { from, to }) => {
     const member = await getMember(ctx);
     if (!member) return [];
-    const projects = await ctx.db
-      .query("projects")
-      .withIndex("by_org", (q) => q.eq("orgId", member.orgId))
-      .collect();
-    return await Promise.all(
-      projects
-        .sort((a, b) => Number(a.archived) - Number(b.archived) || a.name.localeCompare(b.name))
-        .map(async (project) => {
-          const todos = await ctx.db
-            .query("todos")
-            .withIndex("by_project_date", (q) =>
-              q.eq("projectId", project._id).gte("date", from).lte("date", to),
-            )
-            .collect();
-          const counts = { todo: 0, doing: 0, done: 0, not_done: 0 };
-          for (const t of todos) counts[t.status]++;
-          return { ...project, counts, total: todos.length };
-        }),
-    );
+    const [projects, todos] = await Promise.all([
+      ctx.db
+        .query("projects")
+        .withIndex("by_org", (q) => q.eq("orgId", member.orgId))
+        .collect(),
+      ctx.db
+        .query("todos")
+        .withIndex("by_org_date", (q) => q.eq("orgId", member.orgId).gte("date", from).lte("date", to))
+        .collect(),
+    ]);
+    type Counts = { todo: number; doing: number; done: number; not_done: number };
+    const countsByProject = new Map<Id<"projects">, Counts>();
+    for (const t of todos) {
+      let counts = countsByProject.get(t.projectId);
+      if (!counts) countsByProject.set(t.projectId, (counts = { todo: 0, doing: 0, done: 0, not_done: 0 }));
+      counts[t.status]++;
+    }
+    return projects
+      .sort((a, b) => Number(a.archived) - Number(b.archived) || a.name.localeCompare(b.name))
+      .map((project) => {
+        const counts = countsByProject.get(project._id) ?? { todo: 0, doing: 0, done: 0, not_done: 0 };
+        const total = counts.todo + counts.doing + counts.done + counts.not_done;
+        return { ...project, counts, total };
+      });
   },
 });
 
