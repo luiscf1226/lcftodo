@@ -1,0 +1,99 @@
+name: E2E
+
+# Playwright core-flow tests against the Clerk dev instance and the Convex DEV deployment.
+# Separate from ci.yml on purpose: `e2e` is NOT a required status check (only `ci` is).
+# See docs/CI.md for the repository secrets this needs.
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+concurrency:
+  group: e2e-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  e2e:
+    name: e2e
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    env:
+      NEXT_TELEMETRY_DISABLED: "1"
+      NEXT_PUBLIC_CLERK_SIGN_IN_URL: /sign-in
+      NEXT_PUBLIC_CLERK_SIGN_UP_URL: /sign-up
+      # Public values (both end up in the client bundle). CLERK_SECRET_KEY is scoped to the
+      # steps that need it.
+      NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY: ${{ secrets.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY }}
+      NEXT_PUBLIC_CONVEX_URL: ${{ secrets.NEXT_PUBLIC_CONVEX_URL }}
+    steps:
+      # Secrets are not passed to workflows triggered from forks (or may not be configured yet).
+      # In that case the job succeeds with a notice instead of failing.
+      - name: Check secrets
+        id: secrets
+        env:
+          CLERK_SECRET_KEY: ${{ secrets.CLERK_SECRET_KEY }}
+          HAS_CONVEX_KEY: ${{ secrets.CONVEX_DEV_DEPLOY_KEY != '' }}
+        run: |
+          echo "convex=$HAS_CONVEX_KEY" >> "$GITHUB_OUTPUT"
+          if [ -n "$CLERK_SECRET_KEY" ] && [ -n "$NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY" ] && [ -n "$NEXT_PUBLIC_CONVEX_URL" ]; then
+            echo "ready=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "::notice title=E2E skipped::CLERK_SECRET_KEY, NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY or NEXT_PUBLIC_CONVEX_URL is not available (fork PR or secrets not configured). Skipping E2E."
+            echo "ready=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - uses: actions/checkout@v4
+        if: steps.secrets.outputs.ready == 'true'
+
+      - uses: actions/setup-node@v4
+        if: steps.secrets.outputs.ready == 'true'
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install
+        if: steps.secrets.outputs.ready == 'true'
+        run: npm ci
+
+      - name: Install Playwright Chromium
+        if: steps.secrets.outputs.ready == 'true'
+        run: npx playwright install --with-deps chromium
+
+      # Optional: with a *development* deploy key, push this branch's Convex functions to the
+      # DEV deployment first. Anything that is not a dev key is rejected, so this job can never
+      # touch Convex prod.
+      - name: Push Convex functions to DEV
+        if: steps.secrets.outputs.ready == 'true' && steps.secrets.outputs.convex == 'true'
+        env:
+          CONVEX_DEPLOY_KEY: ${{ secrets.CONVEX_DEV_DEPLOY_KEY }}
+        run: |
+          case "$CONVEX_DEPLOY_KEY" in
+            dev:*) npx convex dev --once --typecheck disable ;;
+            *) echo "::error::CONVEX_DEV_DEPLOY_KEY must be a development deploy key (dev:...)."; exit 1 ;;
+          esac
+
+      - name: Build
+        if: steps.secrets.outputs.ready == 'true'
+        run: npm run build
+
+      # CI=true makes playwright.config.ts serve the build with `next start`.
+      - name: Run Playwright
+        if: steps.secrets.outputs.ready == 'true'
+        env:
+          CLERK_SECRET_KEY: ${{ secrets.CLERK_SECRET_KEY }}
+        run: npm run test:e2e
+
+      - name: Upload Playwright report
+        if: failure() && steps.secrets.outputs.ready == 'true'
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-report
+          path: |
+            playwright-report/
+            test-results/
+          retention-days: 7
