@@ -70,7 +70,12 @@ export function AppShell({ children }: { children: ReactNode }) {
           <span className="grid size-7 place-items-center rounded-lg bg-accent text-accent-fg">✓</span>
           LCF Todos
         </Link>
-        <OrganizationSwitcher hidePersonal afterSelectOrganizationUrl="/app" afterCreateOrganizationUrl="/app" appearance={{ elements: { rootBox: "w-full", organizationSwitcherTrigger: "w-full justify-between" } }} />
+        <OrganizationSwitcher
+          hidePersonal
+          afterSelectOrganizationUrl="/app"
+          afterCreateOrganizationUrl="/app"
+          appearance={{ elements: { rootBox: "w-full", organizationSwitcherTrigger: "w-full justify-between" } }}
+        />
         <div className="mt-4">
           <SearchButton />
         </div>
@@ -91,7 +96,9 @@ export function AppShell({ children }: { children: ReactNode }) {
             href="/app/notifications"
             className={clsx(
               "flex items-center gap-2.5 rounded-lg px-2.5 py-2 text-sm",
-              isActive("/app/notifications") ? "bg-surface-2 font-medium text-fg" : "text-muted hover:bg-surface-2 hover:text-fg",
+              isActive("/app/notifications")
+                ? "bg-surface-2 font-medium text-fg"
+                : "text-muted hover:bg-surface-2 hover:text-fg",
             )}
           >
             <Bell className="size-4" /> Notifications
@@ -133,7 +140,13 @@ export function AppShell({ children }: { children: ReactNode }) {
             <Bell className="size-5" />
             <UnreadBadge count={unread} className="absolute -top-0.5 -right-0.5" />
           </Link>
-          <button type="button" onClick={openTutorial} className="btn-ghost p-1.5 text-muted" aria-label="Open tutorial" title="Tutorial">
+          <button
+            type="button"
+            onClick={openTutorial}
+            className="btn-ghost p-1.5 text-muted"
+            aria-label="Open tutorial"
+            title="Tutorial"
+          >
             <CircleHelp className="size-5" />
           </button>
           <ThemeToggle compact />
@@ -148,7 +161,10 @@ export function AppShell({ children }: { children: ReactNode }) {
           <Link
             key={href}
             href={href}
-            className={clsx("flex flex-col items-center gap-0.5 py-2 text-[11px]", isActive(href) ? "text-accent" : "text-muted")}
+            className={clsx(
+              "flex flex-col items-center gap-0.5 py-2 text-[11px]",
+              isActive(href) ? "text-accent" : "text-muted",
+            )}
           >
             <Icon className="size-5" /> {label}
           </Link>
@@ -166,7 +182,10 @@ function UnreadBadge({ count, className }: { count: number; className?: string }
   return (
     <span
       aria-label={`${count > 99 ? "99+" : count} unread`}
-      className={clsx("min-w-5 rounded-full bg-accent px-1.5 text-center text-[11px] leading-5 font-medium text-accent-fg", className)}
+      className={clsx(
+        "min-w-5 rounded-full bg-accent px-1.5 text-center text-[11px] leading-5 font-medium text-accent-fg",
+        className,
+      )}
     >
       {count > 99 ? "99+" : count}
     </span>

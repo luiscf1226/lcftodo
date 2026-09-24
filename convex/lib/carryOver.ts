@@ -49,7 +49,12 @@ export async function carryOverDay(
     await ctx.db.patch(t._id, { status: "not_done", completedAt: undefined });
     // Record the "didn't finish" on the original's own history (#33).
     await log(ctx, actor, project, {
-      action: "status", todoId: t._id, todoTitle: t.title, from: t.status, to: "not_done", date,
+      action: "status",
+      todoId: t._id,
+      todoTitle: t.title,
+      from: t.status,
+      to: "not_done",
+      date,
     });
     // A recurring todo whose series already has an occurrence tomorrow isn't copied (#23):
     // tomorrow's occurrence takes its place, so a missed daily standup doesn't pile up.
@@ -67,7 +72,12 @@ export async function carryOverDay(
       carriedFrom: t._id,
     });
     await log(ctx, actor, project, {
-      action: "carried_over", todoId: newId, todoTitle: t.title, from: date, to, date: to,
+      action: "carried_over",
+      todoId: newId,
+      todoTitle: t.title,
+      from: date,
+      to,
+      date: to,
     });
   }
   return open.length;

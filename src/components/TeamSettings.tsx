@@ -48,7 +48,7 @@ function TeamSettingsForm({ settings }: { settings: Settings }) {
   }
 
   return (
-    <form onSubmit={submit} className="card mb-6 space-y-4 p-4">
+    <form onSubmit={submit} className="mb-6 space-y-4 card p-4">
       <div>
         <h2 className="text-sm font-semibold">Team settings</h2>
         <p className="text-xs text-muted">
@@ -56,9 +56,21 @@ function TeamSettingsForm({ settings }: { settings: Settings }) {
         </p>
       </div>
       <div className="max-w-sm">
-        <label className="label" htmlFor="team-tz">Time zone</label>
-        <select id="team-tz" className="input" value={timeZone} disabled={disabled} onChange={(e) => setTimeZone(e.target.value)}>
-          {zones.map((zone) => <option key={zone} value={zone}>{zone.replaceAll("_", " ")}</option>)}
+        <label className="label" htmlFor="team-tz">
+          Time zone
+        </label>
+        <select
+          id="team-tz"
+          className="input"
+          value={timeZone}
+          disabled={disabled}
+          onChange={(e) => setTimeZone(e.target.value)}
+        >
+          {zones.map((zone) => (
+            <option key={zone} value={zone}>
+              {zone.replaceAll("_", " ")}
+            </option>
+          ))}
         </select>
         <p className="mt-1 text-xs text-muted">
           {settings.timeZone
@@ -78,11 +90,16 @@ function TeamSettingsForm({ settings }: { settings: Settings }) {
           Carry over unfinished todos automatically every night
           <span className="block text-xs text-muted">
             Shortly after midnight in the team&apos;s time zone, open todos from the previous day move to the new day
-            and the originals are marked &ldquo;didn&apos;t finish&rdquo;. Archived projects are skipped. Shown as &ldquo;System&rdquo; in history.
+            and the originals are marked &ldquo;didn&apos;t finish&rdquo;. Archived projects are skipped. Shown as
+            &ldquo;System&rdquo; in history.
           </span>
         </span>
       </label>
-      {error && <p className="text-sm text-danger" role="alert">{error}</p>}
+      {error && (
+        <p className="text-sm text-danger" role="alert">
+          {error}
+        </p>
+      )}
       {settings.canEdit && (
         <div className="flex justify-end">
           <button type="submit" className="btn-primary" disabled={!dirty || busy}>

@@ -41,7 +41,9 @@ describe("comments (#24)", () => {
   test("validates length and emptiness", async () => {
     const { b, todoId } = await setup();
     await expect(b.mutation(api.comments.add, { todoId, body: "   " })).rejects.toThrow(/required/);
-    await expect(b.mutation(api.comments.add, { todoId, body: "x".repeat(LIMITS.comment + 1) })).rejects.toThrow(/at most/);
+    await expect(b.mutation(api.comments.add, { todoId, body: "x".repeat(LIMITS.comment + 1) })).rejects.toThrow(
+      /at most/,
+    );
     await b.mutation(api.comments.add, { todoId, body: "x".repeat(LIMITS.comment) });
   });
 
@@ -94,7 +96,9 @@ describe("comments (#24)", () => {
     await expect(b.mutation(api.comments.edit, { commentId, body: "x" })).rejects.toThrow(/archived/);
     await expect(a.mutation(api.comments.remove, { commentId })).rejects.toThrow(/archived/);
     // Still readable, but nobody may change it.
-    expect(await b.query(api.comments.list, { todoId })).toMatchObject([{ body: "Before", canEdit: false, canDelete: false }]);
+    expect(await b.query(api.comments.list, { todoId })).toMatchObject([
+      { body: "Before", canEdit: false, canDelete: false },
+    ]);
   });
 
   test("deleting a todo deletes its comments", async () => {

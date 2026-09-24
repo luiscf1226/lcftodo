@@ -27,11 +27,19 @@ export function TodoItem({
   const setStatus = useMutation(api.todos.setStatus).withOptimisticUpdate((store, { todoId, status }) => {
     for (const { args, value } of store.getAllQueries(api.todos.listForProject)) {
       if (!value) continue;
-      store.setQuery(api.todos.listForProject, args, value.map((t) => (t._id === todoId ? { ...t, status } : t)));
+      store.setQuery(
+        api.todos.listForProject,
+        args,
+        value.map((t) => (t._id === todoId ? { ...t, status } : t)),
+      );
     }
     for (const { args, value } of store.getAllQueries(api.todos.listForTeam)) {
       if (!value) continue;
-      store.setQuery(api.todos.listForTeam, args, value.map((t) => (t._id === todoId ? { ...t, status } : t)));
+      store.setQuery(
+        api.todos.listForTeam,
+        args,
+        value.map((t) => (t._id === todoId ? { ...t, status } : t)),
+      );
     }
   });
   const done = todo.status === "done";
@@ -68,7 +76,7 @@ export function TodoItem({
           type="button"
           onClick={onOpen}
           className={clsx(
-            "block w-full cursor-pointer break-words text-left focus-visible:outline-2 focus-visible:outline-accent",
+            "block w-full cursor-pointer text-left break-words focus-visible:outline-2 focus-visible:outline-accent",
             (done || notDone) && "text-muted",
             done && "line-through",
           )}
@@ -76,7 +84,11 @@ export function TodoItem({
           {todo.title}
         </button>
         <div className="mt-1.5 flex flex-wrap items-center gap-1.5">
-          {readOnly ? <StatusPill status={todo.status} /> : <StatusSelect value={todo.status} onChange={(status) => void updateStatus(status)} />}
+          {readOnly ? (
+            <StatusPill status={todo.status} />
+          ) : (
+            <StatusSelect value={todo.status} onChange={(status) => void updateStatus(status)} />
+          )}
           {project && (
             <span className="inline-flex items-center gap-1 text-xs text-muted">
               <span className="size-2 rounded-full" style={{ background: project.color }} />
@@ -84,7 +96,10 @@ export function TodoItem({
             </span>
           )}
           {todo.carriedFrom && (
-            <span className="inline-flex items-center gap-0.5 text-xs text-muted" title="Carried over from a previous day">
+            <span
+              className="inline-flex items-center gap-0.5 text-xs text-muted"
+              title="Carried over from a previous day"
+            >
               <CornerDownRight className="size-3" /> carried
             </span>
           )}
@@ -95,7 +110,10 @@ export function TodoItem({
             </span>
           )}
           {!!todo.commentCount && (
-            <span className="inline-flex items-center gap-0.5 text-xs text-muted" title={`${todo.commentCount} comment${todo.commentCount === 1 ? "" : "s"}`}>
+            <span
+              className="inline-flex items-center gap-0.5 text-xs text-muted"
+              title={`${todo.commentCount} comment${todo.commentCount === 1 ? "" : "s"}`}
+            >
               <MessageSquare className="size-3" aria-hidden /> {todo.commentCount}
               <span className="sr-only"> comment{todo.commentCount === 1 ? "" : "s"}</span>
             </span>

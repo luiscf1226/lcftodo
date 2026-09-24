@@ -53,7 +53,9 @@ describe("search.todos", () => {
     await a.mutation(api.todos.create, { projectId: launch, title: "Anything", date: "2026-09-21" });
     expect(await a.query(api.search.todos, { query: "   " })).toEqual([]);
     await expect(t.query(api.search.todos, { query: "anything" })).rejects.toThrow(/team/);
-    await expect(t.withIdentity({ subject: "user_x" }).query(api.search.todos, { query: "anything" })).rejects.toThrow(/team/);
+    await expect(t.withIdentity({ subject: "user_x" }).query(api.search.todos, { query: "anything" })).rejects.toThrow(
+      /team/,
+    );
   });
 
   test("hides todos of projects that are being deleted but keeps archived ones", async () => {
@@ -73,8 +75,13 @@ describe("search.todos", () => {
     await t.run(async (ctx) => {
       for (let i = 0; i < 40; i++) {
         await ctx.db.insert("todos", {
-          orgId: "org_a", projectId: launch, title: `Bulk item ${i}`, date: "2026-09-21",
-          status: "todo", createdBy: "user_alice", order: i,
+          orgId: "org_a",
+          projectId: launch,
+          title: `Bulk item ${i}`,
+          date: "2026-09-21",
+          status: "todo",
+          createdBy: "user_alice",
+          order: i,
         });
       }
     });

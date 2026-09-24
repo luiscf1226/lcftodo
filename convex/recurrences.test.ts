@@ -36,7 +36,10 @@ describe("recurrence rules", () => {
     const days = ["2026-09-20", MON, "2026-09-23", "2026-09-26"]; // Sun, Mon, Wed, Sat
     expect(days.filter((d) => matchesRule({ kind: "daily" }, d))).toEqual(days);
     expect(days.filter((d) => matchesRule({ kind: "weekdays" }, d))).toEqual([MON, "2026-09-23"]);
-    expect(days.filter((d) => matchesRule({ kind: "weekly", weekdays: [0, 3] }, d))).toEqual(["2026-09-20", "2026-09-23"]);
+    expect(days.filter((d) => matchesRule({ kind: "weekly", weekdays: [0, 3] }, d))).toEqual([
+      "2026-09-20",
+      "2026-09-23",
+    ]);
     expect(describeRule({ kind: "weekly", weekdays: [0, 1, 4] })).toBe("Weekly on Mon, Thu, Sun");
   });
 });
@@ -45,7 +48,10 @@ describe("recurring todos (#23)", () => {
   test("creating a series generates its first week", async () => {
     const ctx = await setup();
     await ctx.a.mutation(api.recurrences.create, {
-      projectId: ctx.projectId, title: "Standup", startDate: MON, rule: { kind: "weekdays" },
+      projectId: ctx.projectId,
+      title: "Standup",
+      startDate: MON,
+      rule: { kind: "weekdays" },
     });
     expect(await datesOf(ctx)).toEqual([MON, "2026-09-22", "2026-09-23", "2026-09-24", "2026-09-25"]);
     const [first] = await week(ctx);
@@ -55,12 +61,21 @@ describe("recurring todos (#23)", () => {
   test("generation is idempotent and fills later weeks on demand", async () => {
     const ctx = await setup();
     await ctx.a.mutation(api.recurrences.create, {
-      projectId: ctx.projectId, title: "Report", startDate: MON, rule: { kind: "weekly", weekdays: [5] },
+      projectId: ctx.projectId,
+      title: "Report",
+      startDate: MON,
+      rule: { kind: "weekly", weekdays: [5] },
     });
     expect(await datesOf(ctx, MON, NEXT_SUN)).toEqual(["2026-09-25"]);
 
     expect(await ctx.a.mutation(api.recurrences.ensureOccurrences, { from: NEXT_MON, to: NEXT_SUN })).toBe(1);
-    expect(await ctx.b.mutation(api.recurrences.ensureOccurrences, { from: NEXT_MON, to: NEXT_SUN, projectId: ctx.projectId })).toBe(0);
+    expect(
+      await ctx.b.mutation(api.recurrences.ensureOccurrences, {
+        from: NEXT_MON,
+        to: NEXT_SUN,
+        projectId: ctx.projectId,
+      }),
+    ).toBe(0);
     expect(await ctx.a.mutation(api.recurrences.ensureOccurrences, { from: MON, to: NEXT_SUN })).toBe(0);
     expect(await datesOf(ctx, MON, NEXT_SUN)).toEqual(["2026-09-25", "2026-10-02"]);
   });
@@ -68,7 +83,10 @@ describe("recurring todos (#23)", () => {
   test("nothing is generated before the start date", async () => {
     const ctx = await setup();
     await ctx.a.mutation(api.recurrences.create, {
-      projectId: ctx.projectId, title: "Daily", startDate: "2026-09-24", rule: { kind: "daily" },
+      projectId: ctx.projectId,
+      title: "Daily",
+      startDate: "2026-09-24",
+      rule: { kind: "daily" },
     });
     await ctx.a.mutation(api.recurrences.ensureOccurrences, { from: MON, to: SUN });
     expect(await datesOf(ctx)).toEqual(["2026-09-24", "2026-09-25", "2026-09-26", SUN]);
@@ -77,7 +95,10 @@ describe("recurring todos (#23)", () => {
   test("a moved or deleted occurrence is not generated again", async () => {
     const ctx = await setup();
     await ctx.a.mutation(api.recurrences.create, {
-      projectId: ctx.projectId, title: "Daily", startDate: MON, rule: { kind: "daily" },
+      projectId: ctx.projectId,
+      title: "Daily",
+      startDate: MON,
+      rule: { kind: "daily" },
     });
     const todos = await week(ctx);
     await ctx.a.mutation(api.todos.update, { todoId: todos[0]._id, title: "Daily", date: "2026-10-05" });
@@ -89,7 +110,10 @@ describe("recurring todos (#23)", () => {
   test("editing one occurrence leaves the series alone", async () => {
     const ctx = await setup();
     await ctx.a.mutation(api.recurrences.create, {
-      projectId: ctx.projectId, title: "Standup", startDate: MON, rule: { kind: "weekdays" },
+      projectId: ctx.projectId,
+      title: "Standup",
+      startDate: MON,
+      rule: { kind: "weekdays" },
     });
     const [mon] = await week(ctx);
     await ctx.a.mutation(api.todos.update, { todoId: mon._id, title: "Standup (demo day)", date: MON });
@@ -100,14 +124,21 @@ describe("recurring todos (#23)", () => {
   test("series edit changes future un-started occurrences only", async () => {
     const ctx = await setup();
     const recurrenceId = await ctx.a.mutation(api.recurrences.create, {
-      projectId: ctx.projectId, title: "Standup", startDate: MON, rule: { kind: "weekdays" },
+      projectId: ctx.projectId,
+      title: "Standup",
+      startDate: MON,
+      rule: { kind: "weekdays" },
     });
     const [mon, tue, wed, thu] = await week(ctx);
     await ctx.a.mutation(api.todos.setStatus, { todoId: thu._id, status: "doing" });
     await ctx.a.mutation(api.todos.update, { todoId: wed._id, title: "Custom", date: wed.date });
 
     await ctx.a.mutation(api.recurrences.update, {
-      recurrenceId, from: tue.date, title: "Sync", assigneeId: "", rule: { kind: "weekdays" },
+      recurrenceId,
+      from: tue.date,
+      title: "Sync",
+      assigneeId: "",
+      rule: { kind: "weekdays" },
     });
     const byDate = Object.fromEntries((await week(ctx)).map((t) => [t.date, t.title]));
     expect(byDate).toEqual({
@@ -125,13 +156,19 @@ describe("recurring todos (#23)", () => {
   test("changing the rule removes un-started days it no longer covers and never back-fills", async () => {
     const ctx = await setup();
     const recurrenceId = await ctx.a.mutation(api.recurrences.create, {
-      projectId: ctx.projectId, title: "Weekly", startDate: MON, rule: { kind: "weekly", weekdays: [1, 3] },
+      projectId: ctx.projectId,
+      title: "Weekly",
+      startDate: MON,
+      rule: { kind: "weekly", weekdays: [1, 3] },
     });
     expect(await datesOf(ctx)).toEqual([MON, "2026-09-23"]);
 
     // From Tuesday on: Tuesdays and Fridays instead.
     await ctx.a.mutation(api.recurrences.update, {
-      recurrenceId, from: "2026-09-22", title: "Weekly", rule: { kind: "weekly", weekdays: [2, 5] },
+      recurrenceId,
+      from: "2026-09-22",
+      title: "Weekly",
+      rule: { kind: "weekly", weekdays: [2, 5] },
     });
     await ctx.a.mutation(api.recurrences.ensureOccurrences, { from: MON, to: SUN });
     expect(await datesOf(ctx)).toEqual([MON, "2026-09-22", "2026-09-25"]);
@@ -140,7 +177,10 @@ describe("recurring todos (#23)", () => {
   test("stopping a series removes un-started future occurrences and stops generation", async () => {
     const ctx = await setup();
     const recurrenceId = await ctx.a.mutation(api.recurrences.create, {
-      projectId: ctx.projectId, title: "Daily", startDate: MON, rule: { kind: "daily" },
+      projectId: ctx.projectId,
+      title: "Daily",
+      startDate: MON,
+      rule: { kind: "daily" },
     });
     const todos = await week(ctx);
     await ctx.a.mutation(api.todos.setStatus, { todoId: todos[5]._id, status: "done" });
@@ -158,17 +198,30 @@ describe("recurring todos (#23)", () => {
     const ctx = await setup();
     const { a, e, projectId } = ctx;
     await expect(
-      a.mutation(api.recurrences.create, { projectId, title: "x", startDate: MON, rule: { kind: "weekly", weekdays: [] } }),
+      a.mutation(api.recurrences.create, {
+        projectId,
+        title: "x",
+        startDate: MON,
+        rule: { kind: "weekly", weekdays: [] },
+      }),
     ).rejects.toThrow(/at least one day/);
     await expect(
-      a.mutation(api.recurrences.create, { projectId, title: "x", startDate: MON, rule: { kind: "weekly", weekdays: [7] } }),
+      a.mutation(api.recurrences.create, {
+        projectId,
+        title: "x",
+        startDate: MON,
+        rule: { kind: "weekly", weekdays: [7] },
+      }),
     ).rejects.toThrow(/Invalid day/);
     await expect(
       e.mutation(api.recurrences.create, { projectId, title: "x", startDate: MON, rule: { kind: "daily" } }),
     ).rejects.toThrow(/not found/);
 
     const recurrenceId = await a.mutation(api.recurrences.create, {
-      projectId, title: "Daily", startDate: MON, rule: { kind: "daily" },
+      projectId,
+      title: "Daily",
+      startDate: MON,
+      rule: { kind: "daily" },
     });
     // Another team neither sees nor generates it.
     expect(await e.query(api.recurrences.list, {})).toEqual([]);
@@ -201,7 +254,10 @@ describe("recurring todos (#23)", () => {
   test("carrying over an occurrence copies it as a plain todo", async () => {
     const ctx = await setup();
     await ctx.a.mutation(api.recurrences.create, {
-      projectId: ctx.projectId, title: "Report", startDate: MON, rule: { kind: "weekly", weekdays: [1] },
+      projectId: ctx.projectId,
+      title: "Report",
+      startDate: MON,
+      rule: { kind: "weekly", weekdays: [1] },
     });
     await ctx.a.mutation(api.todos.carryOver, { projectId: ctx.projectId, date: MON });
     const [orig, copy] = await week(ctx);
@@ -213,7 +269,10 @@ describe("recurring todos (#23)", () => {
   test("carry-over doesn't copy an occurrence when the series recurs the next day", async () => {
     const ctx = await setup();
     await ctx.a.mutation(api.recurrences.create, {
-      projectId: ctx.projectId, title: "Standup", startDate: MON, rule: { kind: "daily" },
+      projectId: ctx.projectId,
+      title: "Standup",
+      startDate: MON,
+      rule: { kind: "daily" },
     });
     expect(await ctx.a.mutation(api.todos.carryOver, { projectId: ctx.projectId, date: MON })).toBe(1);
     const todos = await week(ctx, MON, "2026-09-22");

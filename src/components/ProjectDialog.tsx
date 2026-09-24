@@ -60,12 +60,32 @@ function ProjectForm({ onClose, project }: { onClose: () => void; project?: Doc<
   return (
     <form onSubmit={submit} className="space-y-4">
       <div>
-        <label className="label" htmlFor="project-name">Name</label>
-        <input id="project-name" autoFocus className="input" value={name} onChange={(e) => setName(e.target.value)} maxLength={LIMITS.projectName} required placeholder="e.g. Website relaunch" />
+        <label className="label" htmlFor="project-name">
+          Name
+        </label>
+        <input
+          id="project-name"
+          autoFocus
+          className="input"
+          value={name}
+          onChange={(e) => setName(e.target.value)}
+          maxLength={LIMITS.projectName}
+          required
+          placeholder="e.g. Website relaunch"
+        />
       </div>
       <div>
-        <label className="label" htmlFor="project-desc">Description</label>
-        <textarea id="project-desc" className="input min-h-16" value={description} onChange={(e) => setDescription(e.target.value)} maxLength={LIMITS.projectDescription} placeholder="Optional" />
+        <label className="label" htmlFor="project-desc">
+          Description
+        </label>
+        <textarea
+          id="project-desc"
+          className="min-h-16 input"
+          value={description}
+          onChange={(e) => setDescription(e.target.value)}
+          maxLength={LIMITS.projectDescription}
+          placeholder="Optional"
+        />
       </div>
       <fieldset>
         <legend className="label">Color</legend>
@@ -77,15 +97,24 @@ function ProjectForm({ onClose, project }: { onClose: () => void; project?: Doc<
               aria-label={`Color ${c}`}
               aria-pressed={color === c}
               onClick={() => setColor(c)}
-              className={clsx("size-7 rounded-full ring-offset-2 ring-offset-surface transition", color === c && "ring-2 ring-fg")}
+              className={clsx(
+                "size-7 rounded-full ring-offset-2 ring-offset-surface transition",
+                color === c && "ring-2 ring-fg",
+              )}
               style={{ background: c }}
             />
           ))}
         </div>
       </fieldset>
-      {error && <p className="text-sm text-danger" role="alert">{error}</p>}
+      {error && (
+        <p className="text-sm text-danger" role="alert">
+          {error}
+        </p>
+      )}
       <div className="flex justify-end gap-2">
-        <button type="button" className="btn-outline" onClick={onClose}>Cancel</button>
+        <button type="button" className="btn-outline" onClick={onClose}>
+          Cancel
+        </button>
         <button type="submit" className="btn-primary" disabled={busy || !name.trim()}>
           {project ? "Save" : "Create project"}
         </button>

@@ -57,9 +57,17 @@ type T = ReturnType<typeof convexTest>;
 async function setup() {
   const t = convexTest(schema, modules);
   await t.run(async (ctx) => {
-    for (const [who, role] of [[alice, "org:admin"], [bob, "org:member"], [eve, "org:admin"]] as const) {
+    for (const [who, role] of [
+      [alice, "org:admin"],
+      [bob, "org:member"],
+      [eve, "org:admin"],
+    ] as const) {
       await ctx.db.insert("memberships", { orgId: who.org_id, userId: who.subject, role, active: true, updatedAt: 0 });
-      await ctx.db.insert("users", { clerkId: who.subject, name: who.name, email: `${who.name.toLowerCase()}@example.com` });
+      await ctx.db.insert("users", {
+        clerkId: who.subject,
+        name: who.name,
+        email: `${who.name.toLowerCase()}@example.com`,
+      });
     }
   });
   const a = t.withIdentity(alice);
@@ -97,19 +105,67 @@ describe("daily digest", () => {
   test("contains only the member's own todos from their team", async () => {
     const { t, projectId, eveProject } = await setup();
     const archived = await t.run((ctx) =>
-      ctx.db.insert("projects", { orgId: "org_a", name: "Old", color: "#6366f1", archived: true, createdBy: alice.subject }),
+      ctx.db.insert("projects", {
+        orgId: "org_a",
+        name: "Old",
+        color: "#6366f1",
+        archived: true,
+        createdBy: alice.subject,
+      }),
     );
     const org = { orgId: "org_a", projectId };
-    await insertTodo(t, { ...org, title: "Alice today", date: TODAY, createdBy: bob.subject, assigneeId: alice.subject });
+    await insertTodo(t, {
+      ...org,
+      title: "Alice today",
+      date: TODAY,
+      createdBy: bob.subject,
+      assigneeId: alice.subject,
+    });
     await insertTodo(t, { ...org, title: "Alice own unassigned", date: TODAY, createdBy: alice.subject });
     await insertTodo(t, { ...org, title: "Alice done", date: TODAY, createdBy: alice.subject, status: "done" });
     await insertTodo(t, { ...org, title: "Bob today", date: TODAY, createdBy: alice.subject, assigneeId: bob.subject });
-    await insertTodo(t, { ...org, title: "Alice overdue", date: "2026-09-20", createdBy: alice.subject, status: "doing" });
-    await insertTodo(t, { ...org, title: "Alice slipped", date: "2026-09-22", createdBy: alice.subject, status: "not_done" });
-    const carried = await insertTodo(t, { ...org, title: "Alice carried", date: "2026-09-22", createdBy: alice.subject, status: "not_done" });
-    await insertTodo(t, { ...org, title: "Alice carried", date: TODAY, createdBy: alice.subject, carriedFrom: carried });
-    await insertTodo(t, { orgId: "org_a", projectId: archived, title: "Archived work", date: TODAY, createdBy: alice.subject });
-    await insertTodo(t, { orgId: "org_b", projectId: eveProject, title: "Eve today", date: TODAY, createdBy: eve.subject });
+    await insertTodo(t, {
+      ...org,
+      title: "Alice overdue",
+      date: "2026-09-20",
+      createdBy: alice.subject,
+      status: "doing",
+    });
+    await insertTodo(t, {
+      ...org,
+      title: "Alice slipped",
+      date: "2026-09-22",
+      createdBy: alice.subject,
+      status: "not_done",
+    });
+    const carried = await insertTodo(t, {
+      ...org,
+      title: "Alice carried",
+      date: "2026-09-22",
+      createdBy: alice.subject,
+      status: "not_done",
+    });
+    await insertTodo(t, {
+      ...org,
+      title: "Alice carried",
+      date: TODAY,
+      createdBy: alice.subject,
+      carriedFrom: carried,
+    });
+    await insertTodo(t, {
+      orgId: "org_a",
+      projectId: archived,
+      title: "Archived work",
+      date: TODAY,
+      createdBy: alice.subject,
+    });
+    await insertTodo(t, {
+      orgId: "org_b",
+      projectId: eveProject,
+      title: "Eve today",
+      date: TODAY,
+      createdBy: eve.subject,
+    });
 
     const digest = await t.run((ctx) => buildDigest(ctx, "org_a", alice.subject, TODAY));
     expect(digest.today.map((i) => i.title)).toEqual(["Alice today", "Alice own unassigned", "Alice carried"]);
@@ -147,7 +203,9 @@ describe("daily digest", () => {
     for (const time of ["07:07", "08:07", "09:07", "12:07"]) await dispatchAt(t, `${TODAY}T${time}:00Z`);
     expect(emailsTo("alice@example.com")).toHaveLength(1);
     const rows = await t.run((ctx) => ctx.db.query("digestSends").collect());
-    expect(rows.filter((r) => r.userId === alice.subject)).toMatchObject([{ date: TODAY, status: "sent", attempts: 1 }]);
+    expect(rows.filter((r) => r.userId === alice.subject)).toMatchObject([
+      { date: TODAY, status: "sent", attempts: 1 },
+    ]);
 
     // The next day gets its own digest (the todo is now overdue).
     await dispatchAt(t, "2026-09-24T07:07:00Z");
@@ -158,11 +216,21 @@ describe("daily digest", () => {
     const { t, projectId } = await setup();
     await t.run((ctx) =>
       ctx.db.insert("teamSettings", {
-        orgId: "org_a", timeZone: "America/New_York", autoCarryOver: false, updatedBy: alice.subject, updatedAt: 0,
+        orgId: "org_a",
+        timeZone: "America/New_York",
+        autoCarryOver: false,
+        updatedBy: alice.subject,
+        updatedAt: 0,
       }),
     );
     // 2026-09-24 07:xx in New York is 11:xx UTC (EDT, UTC-4).
-    await insertTodo(t, { orgId: "org_a", projectId, title: "NY morning", date: "2026-09-24", createdBy: alice.subject });
+    await insertTodo(t, {
+      orgId: "org_a",
+      projectId,
+      title: "NY morning",
+      date: "2026-09-24",
+      createdBy: alice.subject,
+    });
 
     await dispatchAt(t, "2026-09-24T07:30:00Z"); // 03:30 in New York
     expect(emailsTo("alice@example.com")).toHaveLength(0);
@@ -192,7 +260,11 @@ describe("daily digest", () => {
     await insertTodo(t, { orgId: "org_a", projectId, title: "A", date: TODAY, createdBy: alice.subject });
     await insertTodo(t, { orgId: "org_a", projectId, title: "B", date: TODAY, createdBy: bob.subject });
     await a.mutation(api.notifications.updateMyPrefs, { emailDigest: false });
-    expect(await a.query(api.notifications.myPrefs, {})).toMatchObject({ emailDigest: false, emailAssigned: true, hasEmail: true });
+    expect(await a.query(api.notifications.myPrefs, {})).toMatchObject({
+      emailDigest: false,
+      emailAssigned: true,
+      hasEmail: true,
+    });
     await t.run(async (ctx) => {
       const m = await ctx.db
         .query("memberships")
@@ -218,7 +290,11 @@ describe("daily digest", () => {
 
   test("posts one Slack summary per team per day when enabled", async () => {
     const { t, a, projectId } = await setup();
-    await a.mutation(api.notifications.updateSlack, { webhookUrl: SLACK_URL, postAssignments: false, postDigest: true });
+    await a.mutation(api.notifications.updateSlack, {
+      webhookUrl: SLACK_URL,
+      postAssignments: false,
+      postDigest: true,
+    });
     await insertTodo(t, { orgId: "org_a", projectId, title: "Ship", date: TODAY, createdBy: alice.subject });
     await dispatchAt(t, `${TODAY}T07:07:00Z`);
     await dispatchAt(t, `${TODAY}T08:07:00Z`);
@@ -247,7 +323,9 @@ describe("unsubscribe links", () => {
     expect(done.status).toBe(200);
     expect(await a.query(api.notifications.myPrefs, {})).toMatchObject({ emailDigest: false, emailAssigned: true });
 
-    const bad = await t.fetch(`/notifications/unsubscribe?token=${encodeURIComponent(`${token}x`)}`, { method: "POST" });
+    const bad = await t.fetch(`/notifications/unsubscribe?token=${encodeURIComponent(`${token}x`)}`, {
+      method: "POST",
+    });
     expect(bad.status).toBe(400);
   });
 
@@ -261,7 +339,12 @@ describe("assignment notifications", () => {
   test("assigning someone else notifies them in-app and by email; self-assignment is silent", async () => {
     const { t, a, b, projectId } = await setup();
     await a.mutation(api.todos.create, { projectId, title: "Mine", date: TODAY, assigneeId: alice.subject });
-    const todoId = await a.mutation(api.todos.create, { projectId, title: "Review <copy>", date: TODAY, assigneeId: bob.subject });
+    const todoId = await a.mutation(api.todos.create, {
+      projectId,
+      title: "Review <copy>",
+      date: TODAY,
+      assigneeId: bob.subject,
+    });
     await runScheduled(t);
 
     expect(await a.query(api.notifications.unreadCount, {})).toBe(0);
@@ -290,7 +373,11 @@ describe("assignment notifications", () => {
   test("assignment email respects opt-out but still shows in-app; Slack gets the event", async () => {
     const { t, a, b, e, projectId } = await setup();
     await b.mutation(api.notifications.updateMyPrefs, { emailAssigned: false });
-    await a.mutation(api.notifications.updateSlack, { webhookUrl: SLACK_URL, postAssignments: true, postDigest: false });
+    await a.mutation(api.notifications.updateSlack, {
+      webhookUrl: SLACK_URL,
+      postAssignments: true,
+      postDigest: false,
+    });
     await a.mutation(api.todos.create, { projectId, title: "Deploy", date: TODAY, assigneeId: bob.subject });
     await runScheduled(t);
     expect(emails()).toHaveLength(0);
@@ -326,10 +413,18 @@ describe("Slack settings", () => {
       b.mutation(api.notifications.updateSlack, { webhookUrl: SLACK_URL, postAssignments: true, postDigest: true }),
     ).rejects.toThrow(/admins/);
     await expect(
-      a.mutation(api.notifications.updateSlack, { webhookUrl: "https://example.com/hook", postAssignments: true, postDigest: true }),
+      a.mutation(api.notifications.updateSlack, {
+        webhookUrl: "https://example.com/hook",
+        postAssignments: true,
+        postDigest: true,
+      }),
     ).rejects.toThrow(/hooks\.slack\.com/);
 
-    await a.mutation(api.notifications.updateSlack, { webhookUrl: SLACK_URL, postAssignments: true, postDigest: false });
+    await a.mutation(api.notifications.updateSlack, {
+      webhookUrl: SLACK_URL,
+      postAssignments: true,
+      postDigest: false,
+    });
     const settings = await b.query(api.notifications.slackSettings, {});
     expect(settings).toEqual({ configured: true, postAssignments: true, postDigest: false, canEdit: false });
     expect(JSON.stringify(settings)).not.toContain("hooks.slack.com");

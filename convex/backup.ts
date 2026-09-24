@@ -21,23 +21,50 @@ export const teamExportPage = query({
     const opts = { ...paginationOpts, numItems: Math.max(1, Math.min(paginationOpts.numItems, MAX_EXPORT_PAGE_SIZE)) };
     switch (table) {
       case "teamSettings":
-        return await ctx.db.query("teamSettings").withIndex("by_org", (q) => q.eq("orgId", orgId)).paginate(opts);
+        return await ctx.db
+          .query("teamSettings")
+          .withIndex("by_org", (q) => q.eq("orgId", orgId))
+          .paginate(opts);
       case "projects":
-        return await ctx.db.query("projects").withIndex("by_org", (q) => q.eq("orgId", orgId)).paginate(opts);
+        return await ctx.db
+          .query("projects")
+          .withIndex("by_org", (q) => q.eq("orgId", orgId))
+          .paginate(opts);
       case "todos":
-        return await ctx.db.query("todos").withIndex("by_org_date", (q) => q.eq("orgId", orgId)).paginate(opts);
+        return await ctx.db
+          .query("todos")
+          .withIndex("by_org_date", (q) => q.eq("orgId", orgId))
+          .paginate(opts);
       case "recurrences":
-        return await ctx.db.query("recurrences").withIndex("by_org", (q) => q.eq("orgId", orgId)).paginate(opts);
+        return await ctx.db
+          .query("recurrences")
+          .withIndex("by_org", (q) => q.eq("orgId", orgId))
+          .paginate(opts);
       case "comments":
-        return await ctx.db.query("comments").withIndex("by_org", (q) => q.eq("orgId", orgId)).paginate(opts);
+        return await ctx.db
+          .query("comments")
+          .withIndex("by_org", (q) => q.eq("orgId", orgId))
+          .paginate(opts);
       case "activity":
-        return await ctx.db.query("activity").withIndex("by_org", (q) => q.eq("orgId", orgId)).paginate(opts);
+        return await ctx.db
+          .query("activity")
+          .withIndex("by_org", (q) => q.eq("orgId", orgId))
+          .paginate(opts);
       case "memberships":
-        return await ctx.db.query("memberships").withIndex("by_org", (q) => q.eq("orgId", orgId)).paginate(opts);
+        return await ctx.db
+          .query("memberships")
+          .withIndex("by_org", (q) => q.eq("orgId", orgId))
+          .paginate(opts);
       case "projectMemberships":
-        return await ctx.db.query("projectMemberships").withIndex("by_org", (q) => q.eq("orgId", orgId)).paginate(opts);
+        return await ctx.db
+          .query("projectMemberships")
+          .withIndex("by_org", (q) => q.eq("orgId", orgId))
+          .paginate(opts);
       case "projectInvitations":
-        return await ctx.db.query("projectInvitations").withIndex("by_org", (q) => q.eq("orgId", orgId)).paginate(opts);
+        return await ctx.db
+          .query("projectInvitations")
+          .withIndex("by_org", (q) => q.eq("orgId", orgId))
+          .paginate(opts);
       default: {
         // Compile-time check that every TEAM_EXPORT_TABLES entry has a case above.
         const unhandled: never = table;

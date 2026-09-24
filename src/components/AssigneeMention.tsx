@@ -42,7 +42,8 @@ export function useAssigneeMention(
 
   const onKeyDown = (e: KeyboardEvent): boolean => {
     if (!open) return false;
-    const move = (by: number) => setActive({ query: query ?? "", index: (activeIndex + by + suggestions.length) % suggestions.length });
+    const move = (by: number) =>
+      setActive({ query: query ?? "", index: (activeIndex + by + suggestions.length) % suggestions.length });
     if (e.key === "ArrowDown") move(1);
     else if (e.key === "ArrowUp") move(-1);
     else if (e.key === "Enter" || e.key === "Tab") select(suggestions[activeIndex]);
@@ -81,7 +82,10 @@ export function MentionSuggestions({ mention, className }: { mention: Mention; c
       id={id}
       role="listbox"
       aria-label="Assign to"
-      className={clsx("absolute left-0 z-20 mt-1 w-full min-w-52 overflow-hidden rounded-lg border border-line bg-surface p-1 shadow-lg", className)}
+      className={clsx(
+        "absolute left-0 z-20 mt-1 w-full min-w-52 overflow-hidden rounded-lg border border-line bg-surface p-1 shadow-lg",
+        className,
+      )}
     >
       {suggestions.map((member, index) => (
         <div
@@ -110,7 +114,12 @@ export function AssigneeChip({ mention, className }: { mention: Mention; classNa
   const { assignee, clearAssignee } = mention;
   if (!assignee) return null;
   return (
-    <span className={clsx("inline-flex min-w-0 items-center gap-1 rounded-full bg-surface-2 py-0.5 pr-0.5 pl-1 text-xs text-muted", className)}>
+    <span
+      className={clsx(
+        "inline-flex min-w-0 items-center gap-1 rounded-full bg-surface-2 py-0.5 pr-0.5 pl-1 text-xs text-muted",
+        className,
+      )}
+    >
       <Avatar member={assignee} size={16} />
       <span className="truncate" title={`Assigned to ${assignee.name}`}>
         <span className="sr-only">Assigned to </span>

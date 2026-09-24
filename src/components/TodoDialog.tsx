@@ -33,7 +33,11 @@ type Props = {
 
 export function TodoDialog(props: Props) {
   return (
-    <Modal open={props.open} onClose={props.onClose} title={props.todo ? (props.readOnly ? "Todo" : "Edit todo") : "New todo"}>
+    <Modal
+      open={props.open}
+      onClose={props.onClose}
+      title={props.todo ? (props.readOnly ? "Todo" : "Edit todo") : "New todo"}
+    >
       <TodoForm key={props.todo?._id ?? props.date} {...props} />
     </Modal>
   );
@@ -60,7 +64,8 @@ function TodoForm({ onClose, projectId, date, todo, projects, onProjectIdChange,
   // Only people with access to the project can be picked (#46).
   const { members, nameOf } = useAssignableMembers(todo?.projectId ?? selectedProjectId);
   // A historical assignee who has since lost access stays visible, but can't be re-picked.
-  const formerAssignee = todo?.assigneeId && !members.some((m) => m.id === todo.assigneeId) ? todo.assigneeId : undefined;
+  const formerAssignee =
+    todo?.assigneeId && !members.some((m) => m.id === todo.assigneeId) ? todo.assigneeId : undefined;
   // New todos: an optional repeat rule. Occurrences: edit "this" todo or the whole series (#23).
   const [repeat, setRepeat] = useState<RecurrenceRule | null>(null);
   const [scope, setScope] = useState<"this" | "series">("this");
@@ -89,7 +94,9 @@ function TodoForm({ onClose, projectId, date, todo, projects, onProjectIdChange,
       const rule = seriesRule ?? activeSeries.rule;
       // Series edits apply to this and later occurrences, never to past days.
       const from = [today, todo?.recurrenceDate ?? day].sort()[1];
-      void run(() => updateSeries({ recurrenceId: activeSeries._id, from, title, notes, assigneeId: fields.assigneeId, rule }));
+      void run(() =>
+        updateSeries({ recurrenceId: activeSeries._id, from, title, notes, assigneeId: fields.assigneeId, rule }),
+      );
     } else if (todo) {
       void run(() => update({ todoId: todo._id, ...fields }));
     } else if (repeat) {
@@ -107,7 +114,10 @@ function TodoForm({ onClose, projectId, date, todo, projects, onProjectIdChange,
     <div className="space-y-4">
       <form onSubmit={submit} className="space-y-4">
         {readOnly && (
-          <p className="flex items-center gap-2 rounded-lg border border-line bg-surface-2 px-3 py-2 text-sm text-muted" role="status">
+          <p
+            className="flex items-center gap-2 rounded-lg border border-line bg-surface-2 px-3 py-2 text-sm text-muted"
+            role="status"
+          >
             <Archive className="size-4 shrink-0" /> This project is archived, so this todo is read-only.
           </p>
         )}
@@ -141,12 +151,18 @@ function TodoForm({ onClose, projectId, date, todo, projects, onProjectIdChange,
                   : `Repeats: ${describeRule(series.rule)}`}
             </p>
             {activeSeries && !readOnly && (
-              <div className="flex flex-wrap items-center gap-x-4 gap-y-1" role="radiogroup" aria-label="Apply changes to">
+              <div
+                className="flex flex-wrap items-center gap-x-4 gap-y-1"
+                role="radiogroup"
+                aria-label="Apply changes to"
+              >
                 <label className="inline-flex items-center gap-1.5">
-                  <input type="radio" name="scope" checked={scope === "this"} onChange={() => setScope("this")} /> Only this todo
+                  <input type="radio" name="scope" checked={scope === "this"} onChange={() => setScope("this")} /> Only
+                  this todo
                 </label>
                 <label className="inline-flex items-center gap-1.5">
-                  <input type="radio" name="scope" checked={scope === "series"} onChange={() => setScope("series")} /> This and future todos
+                  <input type="radio" name="scope" checked={scope === "series"} onChange={() => setScope("series")} />{" "}
+                  This and future todos
                 </label>
               </div>
             )}
@@ -154,12 +170,25 @@ function TodoForm({ onClose, projectId, date, todo, projects, onProjectIdChange,
         )}
         <fieldset disabled={readOnly} className="space-y-4">
           <div>
-            <label className="label" htmlFor="todo-title">Title</label>
-            <input id="todo-title" autoFocus className="input" value={title} onChange={(e) => setTitle(e.target.value)} placeholder="What needs to get done?" maxLength={LIMITS.todoTitle} required />
+            <label className="label" htmlFor="todo-title">
+              Title
+            </label>
+            <input
+              id="todo-title"
+              autoFocus
+              className="input"
+              value={title}
+              onChange={(e) => setTitle(e.target.value)}
+              placeholder="What needs to get done?"
+              maxLength={LIMITS.todoTitle}
+              required
+            />
           </div>
           {!todo && projects && (
             <div>
-              <label className="label" htmlFor="todo-project">Project</label>
+              <label className="label" htmlFor="todo-project">
+                Project
+              </label>
               <select
                 id="todo-project"
                 className="input"
@@ -170,39 +199,77 @@ function TodoForm({ onClose, projectId, date, todo, projects, onProjectIdChange,
                   onProjectIdChange?.(nextProjectId);
                 }}
               >
-                {projects.filter((project) => !project.archived).map((project) => (
-                  <option key={project._id} value={project._id}>{project.name}</option>
-                ))}
+                {projects
+                  .filter((project) => !project.archived)
+                  .map((project) => (
+                    <option key={project._id} value={project._id}>
+                      {project.name}
+                    </option>
+                  ))}
               </select>
             </div>
           )}
           <div className="grid gap-4 sm:grid-cols-2">
             <div>
-              <label className="label" htmlFor="todo-date">{!todo && repeat ? "Starts" : "Day"}</label>
-              <input id="todo-date" type="date" className="input" value={day} onChange={(e) => setDay(e.target.value)} required disabled={editingSeries} title={editingSeries ? "Change the day of a single todo with “Only this todo”" : undefined} />
+              <label className="label" htmlFor="todo-date">
+                {!todo && repeat ? "Starts" : "Day"}
+              </label>
+              <input
+                id="todo-date"
+                type="date"
+                className="input"
+                value={day}
+                onChange={(e) => setDay(e.target.value)}
+                required
+                disabled={editingSeries}
+                title={editingSeries ? "Change the day of a single todo with “Only this todo”" : undefined}
+              />
             </div>
             <div>
-              <label className="label" htmlFor="todo-assignee">Assignee</label>
-              <select id="todo-assignee" className="input" value={assigneeId} onChange={(e) => setAssigneeId(e.target.value)}>
+              <label className="label" htmlFor="todo-assignee">
+                Assignee
+              </label>
+              <select
+                id="todo-assignee"
+                className="input"
+                value={assigneeId}
+                onChange={(e) => setAssigneeId(e.target.value)}
+              >
                 <option value="">Unassigned</option>
-                {formerAssignee && (
-                  <option value={formerAssignee}>{nameOf(formerAssignee)} (no project access)</option>
-                )}
+                {formerAssignee && <option value={formerAssignee}>{nameOf(formerAssignee)} (no project access)</option>}
                 {members.map((m) => (
-                  <option key={m.id} value={m.id}>{m.name}</option>
+                  <option key={m.id} value={m.id}>
+                    {m.name}
+                  </option>
                 ))}
               </select>
             </div>
           </div>
           <div>
-            <label className="label" htmlFor="todo-notes">Notes</label>
-            <textarea id="todo-notes" className="input min-h-20" value={notes} onChange={(e) => setNotes(e.target.value)} maxLength={LIMITS.todoNotes} placeholder="Optional details" />
+            <label className="label" htmlFor="todo-notes">
+              Notes
+            </label>
+            <textarea
+              id="todo-notes"
+              className="min-h-20 input"
+              value={notes}
+              onChange={(e) => setNotes(e.target.value)}
+              maxLength={LIMITS.todoNotes}
+              placeholder="Optional details"
+            />
           </div>
           {(!todo || editingSeries) && (
             <div>
-              <label className="label" htmlFor="todo-repeat">Repeat</label>
+              <label className="label" htmlFor="todo-repeat">
+                Repeat
+              </label>
               {editingSeries ? (
-                <RepeatPicker id="todo-repeat" day={day} value={seriesRule ?? activeSeries.rule} onChange={(rule) => rule && setSeriesRule(rule)} />
+                <RepeatPicker
+                  id="todo-repeat"
+                  day={day}
+                  value={seriesRule ?? activeSeries.rule}
+                  onChange={(rule) => rule && setSeriesRule(rule)}
+                />
               ) : (
                 <RepeatPicker id="todo-repeat" day={day} value={repeat} onChange={setRepeat} />
               )}
@@ -210,16 +277,27 @@ function TodoForm({ onClose, projectId, date, todo, projects, onProjectIdChange,
           )}
         </fieldset>
 
-        {error && <p className="text-sm text-danger" role="alert">{error}</p>}
+        {error && (
+          <p className="text-sm text-danger" role="alert">
+            {error}
+          </p>
+        )}
 
         {readOnly ? (
           <div className="flex justify-end">
-            <button type="button" className="btn-outline" onClick={onClose}>Close</button>
+            <button type="button" className="btn-outline" onClick={onClose}>
+              Close
+            </button>
           </div>
         ) : (
           <div className="flex items-center gap-2">
             {todo && (
-              <button type="button" className="btn-ghost text-danger" disabled={busy} onClick={() => void run(() => remove({ todoId: todo._id }))}>
+              <button
+                type="button"
+                className="btn-ghost text-danger"
+                disabled={busy}
+                onClick={() => void run(() => remove({ todoId: todo._id }))}
+              >
                 <Trash2 className="size-4" /> Delete
               </button>
             )}
@@ -230,13 +308,17 @@ function TodoForm({ onClose, projectId, date, todo, projects, onProjectIdChange,
                 disabled={busy}
                 title="Keep today's and earlier todos; remove later ones that haven't been started"
                 // Stops after today: from tomorrow on nothing is generated.
-                onClick={() => void run(() => stopSeries({ recurrenceId: activeSeries._id, from: shiftDays(today, 1) }))}
+                onClick={() =>
+                  void run(() => stopSeries({ recurrenceId: activeSeries._id, from: shiftDays(today, 1) }))
+                }
               >
                 <Repeat className="size-4" /> Stop repeating
               </button>
             )}
             <div className="ml-auto flex gap-2">
-              <button type="button" className="btn-outline" onClick={onClose}>Cancel</button>
+              <button type="button" className="btn-outline" onClick={onClose}>
+                Cancel
+              </button>
               <button type="submit" className="btn-primary" disabled={busy || !title.trim() || ruleInvalid}>
                 {todo ? (editingSeries ? "Save series" : "Save") : "Add todo"}
               </button>
@@ -261,7 +343,9 @@ function TodoForm({ onClose, projectId, date, todo, projects, onProjectIdChange,
                   <span className="min-w-0 flex-1">
                     <span className="font-medium">{nameOf(a.actorId)}</span> {describe(a, { withTitle: false })}
                   </span>
-                  <span className="shrink-0 text-xs text-muted">{formatDistanceToNow(a._creationTime, { addSuffix: true })}</span>
+                  <span className="shrink-0 text-xs text-muted">
+                    {formatDistanceToNow(a._creationTime, { addSuffix: true })}
+                  </span>
                 </li>
               ))}
             </ul>

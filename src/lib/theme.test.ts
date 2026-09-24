@@ -15,7 +15,9 @@ function runInitScript(stored: string | null, systemDark: boolean, storageThrows
     },
   };
   const matchMedia = () => ({ matches: systemDark });
-  new Function("localStorage", "matchMedia", "document", themeInitScript)(localStorage, matchMedia, { documentElement: root });
+  new Function("localStorage", "matchMedia", "document", themeInitScript)(localStorage, matchMedia, {
+    documentElement: root,
+  });
   return { theme: root.dataset.theme, dark: classes.has("dark") };
 }
 

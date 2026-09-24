@@ -21,7 +21,13 @@ import {
   type DragStartEvent,
   type UniqueIdentifier,
 } from "@dnd-kit/core";
-import { arrayMove, SortableContext, sortableKeyboardCoordinates, useSortable, verticalListSortingStrategy } from "@dnd-kit/sortable";
+import {
+  arrayMove,
+  SortableContext,
+  sortableKeyboardCoordinates,
+  useSortable,
+  verticalListSortingStrategy,
+} from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
 import { useMutation } from "convex/react";
 import { ArrowDown, ArrowLeft, ArrowRight, ArrowUp, GripVertical } from "lucide-react";
@@ -49,14 +55,22 @@ export function useMoveTodo() {
       if (!value || !todo) continue;
       const rest = value.filter((t) => t._id !== todoId);
       const next = date >= args.from && date <= args.to ? [...rest, { ...todo, date, order }] : rest;
-      store.setQuery(api.todos.listForProject, args, next.sort((a, b) => a.order - b.order));
+      store.setQuery(
+        api.todos.listForProject,
+        args,
+        next.sort((a, b) => a.order - b.order),
+      );
     }
     for (const { args, value } of store.getAllQueries(api.todos.listForTeam)) {
       const todo = value?.find((t) => t._id === todoId);
       if (!value || !todo) continue;
       const rest = value.filter((t) => t._id !== todoId);
       const next = date >= args.from && date <= args.to ? [...rest, { ...todo, date, order }] : rest;
-      store.setQuery(api.todos.listForTeam, args, next.sort((a, b) => a.date.localeCompare(b.date) || a.order - b.order));
+      store.setQuery(
+        api.todos.listForTeam,
+        args,
+        next.sort((a, b) => a.date.localeCompare(b.date) || a.order - b.order),
+      );
     }
   });
   /** Resolves to whether the move was saved; failures are shown as a toast. */
@@ -113,8 +127,7 @@ export function BoardDnd({
     useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates }),
   );
 
-  const titleOf = (id: UniqueIdentifier) =>
-    [...byDay.values()].flat().find((t) => t._id === id)?.title ?? "todo";
+  const titleOf = (id: UniqueIdentifier) => [...byDay.values()].flat().find((t) => t._id === id)?.title ?? "todo";
 
   const describe = (over: { id: UniqueIdentifier } | null) => {
     if (!over || !dragging) return undefined;
@@ -204,7 +217,9 @@ export function BoardDnd({
       onDragCancel={() => setDragging(null)}
     >
       <AnnounceContext value={setAnnouncement}>{children(columns)}</AnnounceContext>
-      <p className="sr-only" role="status" aria-live="polite">{announcement}</p>
+      <p className="sr-only" role="status" aria-live="polite">
+        {announcement}
+      </p>
       <DragOverlay>
         {dragging && (
           <div className="rounded-lg border border-accent/60 bg-surface px-3 py-2 text-sm shadow-lg">
@@ -222,7 +237,10 @@ export function DayList({ day, items, children }: { day: string; items: Todo[]; 
   const ids = useMemo(() => items.map((t) => t._id), [items]);
   return (
     <SortableContext id={day} items={ids} strategy={verticalListSortingStrategy}>
-      <div ref={setNodeRef} className={clsx("flex min-h-8 flex-col gap-1.5 rounded-lg", isOver && items.length === 0 && "bg-accent/10")}>
+      <div
+        ref={setNodeRef}
+        className={clsx("flex min-h-8 flex-col gap-1.5 rounded-lg", isOver && items.length === 0 && "bg-accent/10")}
+      >
         {children}
       </div>
     </SortableContext>
@@ -291,7 +309,11 @@ export function SortableTodo({
           <GripVertical className="size-4" />
         </button>
         <Menu
-          label={<span aria-hidden className="text-[10px] leading-none">•••</span>}
+          label={
+            <span aria-hidden className="text-[10px] leading-none">
+              •••
+            </span>
+          }
           aria-label={`Move ${todo.title}`}
           triggerClassName="grid h-5 w-5 place-items-center rounded text-muted hover:text-fg focus-visible:outline-2 focus-visible:outline-accent"
           menuClassName="left-0 right-auto! w-44"

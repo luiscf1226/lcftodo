@@ -19,7 +19,8 @@ export const openSearch = () => window.dispatchEvent(new Event(OPEN_EVENT));
 
 type Result = NonNullable<ReturnType<typeof useQuery<typeof api.search.todos>>>[number];
 
-export const resultHref = (r: Pick<Result, "projectId" | "date">) => `/app/projects/${r.projectId}?week=${weekStart(r.date)}`;
+export const resultHref = (r: Pick<Result, "projectId" | "date">) =>
+  `/app/projects/${r.projectId}?week=${weekStart(r.date)}`;
 
 const isMac = () => /Mac|iPhone|iPad/.test(navigator.platform || navigator.userAgent);
 
@@ -36,7 +37,13 @@ export function SearchButton({ compact = false }: { compact?: boolean }) {
   const shortcut = useShortcutLabel();
   if (compact) {
     return (
-      <button type="button" onClick={openSearch} className="btn-ghost p-1.5 text-muted" aria-label="Search todos" title={`Search (${shortcut})`}>
+      <button
+        type="button"
+        onClick={openSearch}
+        className="btn-ghost p-1.5 text-muted"
+        aria-label="Search todos"
+        title={`Search (${shortcut})`}
+      >
         <Search className="size-5" />
       </button>
     );
@@ -138,23 +145,33 @@ function SearchBody({ onDone }: { onDone: () => void }) {
 
       <div className="mt-3 max-h-[60dvh] overflow-y-auto" aria-live="polite">
         {!text.trim() ? (
-          <p className="px-1 py-6 text-center text-sm text-muted">Find a todo by title across every project and week.</p>
+          <p className="px-1 py-6 text-center text-sm text-muted">
+            Find a todo by title across every project and week.
+          </p>
         ) : pending && !results ? (
           <p className="px-1 py-6 text-center text-sm text-muted">Searching…</p>
         ) : count === 0 ? (
           <p className="px-1 py-6 text-center text-sm text-muted">No todos match “{term}”.</p>
         ) : (
-          <ul id={listId} role="listbox" aria-label="Search results" className={clsx("space-y-0.5", pending && "opacity-60")}>
+          <ul
+            id={listId}
+            role="listbox"
+            aria-label="Search results"
+            className={clsx("space-y-0.5", pending && "opacity-60")}
+          >
             {results!.map((r, i) => (
               <li key={r._id} id={`${listId}-${i}`} role="option" aria-selected={i === current}>
                 <Link
                   href={resultHref(r)}
                   onClick={onDone}
                   onMouseMove={() => setActive(i)}
-                  className={clsx("flex flex-col gap-1 rounded-lg px-3 py-2 text-sm", i === current ? "bg-surface-2" : "hover:bg-surface-2")}
+                  className={clsx(
+                    "flex flex-col gap-1 rounded-lg px-3 py-2 text-sm",
+                    i === current ? "bg-surface-2" : "hover:bg-surface-2",
+                  )}
                 >
                   <span className="flex items-start gap-2">
-                    <span className="min-w-0 flex-1 break-words font-medium">{r.title}</span>
+                    <span className="min-w-0 flex-1 font-medium break-words">{r.title}</span>
                     <StatusPill status={r.status} />
                   </span>
                   <span className="flex flex-wrap items-center gap-x-2 text-xs text-muted">

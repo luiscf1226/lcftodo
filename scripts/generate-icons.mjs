@@ -6,7 +6,8 @@ import sharp from "sharp";
 
 const root = fileURLToPath(new URL("..", import.meta.url));
 const ACCENT = "#4f46e5";
-const CHECK = '<path d="M154 263l66 66 138-146" fill="none" stroke="#fff" stroke-linecap="round" stroke-linejoin="round" stroke-width="48"/>';
+const CHECK =
+  '<path d="M154 263l66 66 138-146" fill="none" stroke="#fff" stroke-linecap="round" stroke-linejoin="round" stroke-width="48"/>';
 
 // "any": rounded tile, used by browsers and desktop installs as-is.
 const rounded = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><rect width="512" height="512" rx="112" fill="${ACCENT}"/>${CHECK}</svg>`;

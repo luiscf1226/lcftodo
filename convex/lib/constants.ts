@@ -44,7 +44,14 @@ export const MAX_GENERATE_DAYS = 31;
 
 // Project palette. `color` is rendered into inline styles, so only these are accepted.
 export const PROJECT_COLORS = [
-  "#6366f1", "#0ea5e9", "#10b981", "#f59e0b", "#ef4444", "#ec4899", "#8b5cf6", "#64748b",
+  "#6366f1",
+  "#0ea5e9",
+  "#10b981",
+  "#f59e0b",
+  "#ef4444",
+  "#ec4899",
+  "#8b5cf6",
+  "#64748b",
 ] as const;
 
 // Longest inclusive day range a team-wide query or export may span (#15).
@@ -72,7 +79,14 @@ export const MAX_INVITE_PROJECTS = 50;
 // Team-scoped tables included in the admin-only full team export (#36), in export order.
 // Every one has an index whose first field is `orgId`, so a page never reads another team's rows.
 export const TEAM_EXPORT_TABLES = [
-  "teamSettings", "projects", "todos", "recurrences", "comments", "activity",
-  "memberships", "projectMemberships", "projectInvitations",
+  "teamSettings",
+  "projects",
+  "todos",
+  "recurrences",
+  "comments",
+  "activity",
+  "memberships",
+  "projectMemberships",
+  "projectInvitations",
 ] as const;
 export type TeamExportTable = (typeof TEAM_EXPORT_TABLES)[number];

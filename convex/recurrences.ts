@@ -2,7 +2,13 @@ import { v } from "convex/values";
 import type { Doc, Id } from "./_generated/dataModel";
 import { mutation, query, type MutationCtx } from "./_generated/server";
 import {
-  accessibleProjectIds, getMember, inScope, isRestricted, requireMember, requireWritableProject, userCanAccessProject,
+  accessibleProjectIds,
+  getMember,
+  inScope,
+  isRestricted,
+  requireMember,
+  requireWritableProject,
+  userCanAccessProject,
   type Member,
 } from "./lib/auth";
 import { deleteTodo } from "./lib/cascade";
@@ -51,7 +57,11 @@ async function generate(ctx: MutationCtx, rec: Doc<"recurrences">, project: Doc<
       .unique();
     if (membership && !membership.active) assigneeId = undefined;
     // Nor does someone who lost access to the project (#46); an admin can reassign the series.
-    else if (assigneeId && (await isRestricted(ctx, rec.orgId)) && !(await userCanAccessProject(ctx, project, assigneeId))) {
+    else if (
+      assigneeId &&
+      (await isRestricted(ctx, rec.orgId)) &&
+      !(await userCanAccessProject(ctx, project, assigneeId))
+    ) {
       assigneeId = undefined;
     }
   }
@@ -98,15 +108,22 @@ export const ensureOccurrences = mutation({
     if (!member) return 0;
     checkGenerateRange(from, to);
     const series = projectId
-      ? await ctx.db.query("recurrences").withIndex("by_project", (q) => q.eq("projectId", projectId)).collect()
-      : await ctx.db.query("recurrences").withIndex("by_org", (q) => q.eq("orgId", member.orgId)).collect();
+      ? await ctx.db
+          .query("recurrences")
+          .withIndex("by_project", (q) => q.eq("projectId", projectId))
+          .collect()
+      : await ctx.db
+          .query("recurrences")
+          .withIndex("by_org", (q) => q.eq("orgId", member.orgId))
+          .collect();
     const days = daysBetween(from, to);
     // Only generate for projects the caller can access (#46).
     const scope = await accessibleProjectIds(ctx, member);
     const projects = new Map<Id<"projects">, Doc<"projects"> | null>();
     let created = 0;
     for (const rec of series) {
-      if (rec.orgId !== member.orgId || (rec.stoppedFrom && rec.stoppedFrom <= from) || !inScope(scope, rec.projectId)) continue;
+      if (rec.orgId !== member.orgId || (rec.stoppedFrom && rec.stoppedFrom <= from) || !inScope(scope, rec.projectId))
+        continue;
       if (!projects.has(rec.projectId)) projects.set(rec.projectId, await ctx.db.get(rec.projectId));
       const project = projects.get(rec.projectId);
       // Archived projects are read-only (#18); projects being deleted are frozen (#16).
@@ -125,8 +142,14 @@ export const list = query({
     const member = await getMember(ctx);
     if (!member) return [];
     const series = projectId
-      ? await ctx.db.query("recurrences").withIndex("by_project", (q) => q.eq("projectId", projectId)).collect()
-      : await ctx.db.query("recurrences").withIndex("by_org", (q) => q.eq("orgId", member.orgId)).collect();
+      ? await ctx.db
+          .query("recurrences")
+          .withIndex("by_project", (q) => q.eq("projectId", projectId))
+          .collect()
+      : await ctx.db
+          .query("recurrences")
+          .withIndex("by_org", (q) => q.eq("orgId", member.orgId))
+          .collect();
     const scope = await accessibleProjectIds(ctx, member);
     return series.filter((r) => r.orgId === member.orgId && !r.stoppedFrom && inScope(scope, r.projectId));
   },
@@ -187,7 +210,9 @@ export const update = mutation({
     const title = todoTitle(args.title);
     const notes = todoNotes(args.notes);
     const assigneeId =
-      args.assigneeId && args.assigneeId === rec.assigneeId ? rec.assigneeId : await assignee(ctx, project, args.assigneeId);
+      args.assigneeId && args.assigneeId === rec.assigneeId
+        ? rec.assigneeId
+        : await assignee(ctx, project, args.assigneeId);
     const rule = recurrenceRule(args.rule);
     const ruleChanged = JSON.stringify(rule) !== JSON.stringify(rec.rule);
     const startDate = ruleChanged && args.from > rec.startDate ? args.from : rec.startDate;

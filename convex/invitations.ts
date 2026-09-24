@@ -43,8 +43,10 @@ export async function applyPendingForEmails(ctx: MutationCtx, orgId: string, use
     const email = raw.trim().toLowerCase();
     if (!email || seen.has(email)) continue;
     seen.add(email);
-    const rows = await ctx.db.query("projectInvitations")
-      .withIndex("by_org_email", (q) => q.eq("orgId", orgId).eq("email", email)).collect();
+    const rows = await ctx.db
+      .query("projectInvitations")
+      .withIndex("by_org_email", (q) => q.eq("orgId", orgId).eq("email", email))
+      .collect();
     for (const row of rows) await applyGrants(ctx, row, userId);
   }
 }
@@ -53,8 +55,10 @@ export async function applyPendingForEmails(ctx: MutationCtx, orgId: string, use
 export const applyAccepted = internalMutation({
   args: { invitationId: v.string(), orgId: v.string(), userId: v.string() },
   handler: async (ctx, { invitationId, orgId, userId }) => {
-    const row = await ctx.db.query("projectInvitations")
-      .withIndex("by_invitation", (q) => q.eq("invitationId", invitationId)).unique();
+    const row = await ctx.db
+      .query("projectInvitations")
+      .withIndex("by_invitation", (q) => q.eq("invitationId", invitationId))
+      .unique();
     if (!row || row.orgId !== orgId) return;
     await applyGrants(ctx, row, userId);
   },
@@ -64,8 +68,10 @@ export const applyAccepted = internalMutation({
 export const markRevoked = internalMutation({
   args: { invitationId: v.string() },
   handler: async (ctx, { invitationId }) => {
-    const row = await ctx.db.query("projectInvitations")
-      .withIndex("by_invitation", (q) => q.eq("invitationId", invitationId)).unique();
+    const row = await ctx.db
+      .query("projectInvitations")
+      .withIndex("by_invitation", (q) => q.eq("invitationId", invitationId))
+      .unique();
     if (!row || row.appliedAt !== undefined || row.status === "revoked") return;
     await ctx.db.patch(row._id, { status: "revoked", updatedAt: Date.now() });
   },
@@ -106,18 +112,32 @@ export const prepareInvite = internalQuery({
       if (!project || project.orgId !== member.orgId || project.deleting) throw new Error("Project not found.");
     }
     let existingUserId: string | null = null;
-    const users = await ctx.db.query("users").withIndex("by_email", (q) => q.eq("email", email)).take(5);
+    const users = await ctx.db
+      .query("users")
+      .withIndex("by_email", (q) => q.eq("email", email))
+      .take(5);
     for (const u of users) {
-      const membership = await ctx.db.query("memberships")
-        .withIndex("by_org_user", (q) => q.eq("orgId", member.orgId).eq("userId", u.clerkId)).unique();
+      const membership = await ctx.db
+        .query("memberships")
+        .withIndex("by_org_user", (q) => q.eq("orgId", member.orgId).eq("userId", u.clerkId))
+        .unique();
       if (membership?.active) existingUserId = u.clerkId;
     }
-    const open = await ctx.db.query("projectInvitations")
-      .withIndex("by_org_email", (q) => q.eq("orgId", member.orgId).eq("email", email)).collect();
-    const pending = open.find((r) => r.status === "pending" && r.appliedAt === undefined && (r.expiresAt ?? Infinity) > Date.now());
+    const open = await ctx.db
+      .query("projectInvitations")
+      .withIndex("by_org_email", (q) => q.eq("orgId", member.orgId).eq("email", email))
+      .collect();
+    const pending = open.find(
+      (r) => r.status === "pending" && r.appliedAt === undefined && (r.expiresAt ?? Infinity) > Date.now(),
+    );
     return {
-      orgId: member.orgId, inviterId: member.userId, email, role: args.role, projectIds,
-      existingUserId, pendingId: pending?._id ?? null,
+      orgId: member.orgId,
+      inviterId: member.userId,
+      email,
+      role: args.role,
+      projectIds,
+      existingUserId,
+      pendingId: pending?._id ?? null,
     };
   },
 });
@@ -144,13 +164,20 @@ export const mergePending = internalMutation({
 
 export const record = internalMutation({
   args: {
-    orgId: v.string(), invitationId: v.string(), email: v.string(), role: v.string(),
-    projectIds: v.array(v.id("projects")), invitedBy: v.string(), expiresAt: v.optional(v.number()),
+    orgId: v.string(),
+    invitationId: v.string(),
+    email: v.string(),
+    role: v.string(),
+    projectIds: v.array(v.id("projects")),
+    invitedBy: v.string(),
+    expiresAt: v.optional(v.number()),
   },
   handler: async (ctx, args) => {
     const now = Date.now();
-    const existing = await ctx.db.query("projectInvitations")
-      .withIndex("by_invitation", (q) => q.eq("invitationId", args.invitationId)).unique();
+    const existing = await ctx.db
+      .query("projectInvitations")
+      .withIndex("by_invitation", (q) => q.eq("invitationId", args.invitationId))
+      .unique();
     if (existing) return existing._id;
     return await ctx.db.insert("projectInvitations", { ...args, status: "pending", createdAt: now, updatedAt: now });
   },
@@ -169,19 +196,29 @@ export const invite = action({
     const prepared: Prepared = await ctx.runQuery(internal.invitations.prepareInvite, args);
     if (prepared.existingUserId) {
       await ctx.runMutation(internal.invitations.grantExisting, {
-        orgId: prepared.orgId, userId: prepared.existingUserId, grantedBy: prepared.inviterId,
+        orgId: prepared.orgId,
+        userId: prepared.existingUserId,
+        grantedBy: prepared.inviterId,
         projectIds: prepared.projectIds,
       });
       return { outcome: "granted" };
     }
     if (prepared.pendingId) {
-      await ctx.runMutation(internal.invitations.mergePending, { id: prepared.pendingId, projectIds: prepared.projectIds });
+      await ctx.runMutation(internal.invitations.mergePending, {
+        id: prepared.pendingId,
+        projectIds: prepared.projectIds,
+      });
       return { outcome: "merged" };
     }
     const created = await clerk.createInvitation(prepared.orgId, prepared.email, prepared.role, prepared.inviterId);
     await ctx.runMutation(internal.invitations.record, {
-      orgId: prepared.orgId, invitationId: created.id, email: prepared.email, role: prepared.role,
-      projectIds: prepared.projectIds, invitedBy: prepared.inviterId, expiresAt: created.expiresAt,
+      orgId: prepared.orgId,
+      invitationId: created.id,
+      email: prepared.email,
+      role: prepared.role,
+      projectIds: prepared.projectIds,
+      invitedBy: prepared.inviterId,
+      expiresAt: created.expiresAt,
     });
     return { outcome: "invited" };
   },
@@ -208,7 +245,8 @@ export const setStatus = internalMutation({
     const row = await ctx.db.get(id);
     if (!row || row.appliedAt !== undefined) return;
     await ctx.db.patch(id, {
-      status, updatedAt: Date.now(),
+      status,
+      updatedAt: Date.now(),
       ...(invitationId ? { invitationId } : {}),
       ...(expiresAt !== undefined ? { expiresAt } : {}),
     });
@@ -220,7 +258,8 @@ export const revoke = action({
   args: { id: v.id("projectInvitations") },
   handler: async (ctx, { id }) => {
     const { row, adminId } = await ctx.runQuery(internal.invitations.loadForAdmin, { id });
-    if (row.status !== "pending" || row.appliedAt !== undefined) throw new Error("Only pending invitations can be revoked.");
+    if (row.status !== "pending" || row.appliedAt !== undefined)
+      throw new Error("Only pending invitations can be revoked.");
     await clerk.revokeInvitation(row.orgId, row.invitationId, adminId);
     await ctx.runMutation(internal.invitations.setStatus, { id, status: "revoked" });
   },
@@ -234,11 +273,16 @@ export const resend = action({
   args: { id: v.id("projectInvitations") },
   handler: async (ctx, { id }) => {
     const { row, adminId } = await ctx.runQuery(internal.invitations.loadForAdmin, { id });
-    if (row.appliedAt !== undefined || row.status === "accepted") throw new Error("This invitation was already accepted.");
-    if (row.status === "pending") await clerk.revokeInvitation(row.orgId, row.invitationId, adminId, { ignoreGone: true });
+    if (row.appliedAt !== undefined || row.status === "accepted")
+      throw new Error("This invitation was already accepted.");
+    if (row.status === "pending")
+      await clerk.revokeInvitation(row.orgId, row.invitationId, adminId, { ignoreGone: true });
     const created = await clerk.createInvitation(row.orgId, row.email, row.role, adminId);
     await ctx.runMutation(internal.invitations.setStatus, {
-      id, status: "pending", invitationId: created.id, expiresAt: created.expiresAt,
+      id,
+      status: "pending",
+      invitationId: created.id,
+      expiresAt: created.expiresAt,
     });
   },
 });
@@ -247,11 +291,15 @@ export const pendingForOrg = internalQuery({
   args: {},
   handler: async (ctx) => {
     const member = await requireAdmin(ctx);
-    const rows = await ctx.db.query("projectInvitations")
-      .withIndex("by_org", (q) => q.eq("orgId", member.orgId)).order("desc").take(200);
+    const rows = await ctx.db
+      .query("projectInvitations")
+      .withIndex("by_org", (q) => q.eq("orgId", member.orgId))
+      .order("desc")
+      .take(200);
     return {
       orgId: member.orgId,
-      rows: rows.filter((r) => r.status === "pending" && r.appliedAt === undefined)
+      rows: rows
+        .filter((r) => r.status === "pending" && r.appliedAt === undefined)
         .map((r) => ({ id: r._id, invitationId: r.invitationId, email: r.email })),
     };
   },
@@ -267,10 +315,15 @@ export const syncStatus = internalMutation({
       await ctx.db.patch(id, { status, updatedAt: now });
     } else if (status === "accepted") {
       // No webhook user id here: apply to the active member with this email, if already synced.
-      const users = await ctx.db.query("users").withIndex("by_email", (q) => q.eq("email", row.email)).take(5);
+      const users = await ctx.db
+        .query("users")
+        .withIndex("by_email", (q) => q.eq("email", row.email))
+        .take(5);
       for (const u of users) {
-        const membership = await ctx.db.query("memberships")
-          .withIndex("by_org_user", (q) => q.eq("orgId", row.orgId).eq("userId", u.clerkId)).unique();
+        const membership = await ctx.db
+          .query("memberships")
+          .withIndex("by_org_user", (q) => q.eq("orgId", row.orgId).eq("userId", u.clerkId))
+          .unique();
         if (membership?.active) {
           await applyPendingForEmails(ctx, row.orgId, u.clerkId, [row.email]);
           return;
@@ -291,7 +344,9 @@ export const refresh = action({
     for (const r of rows.slice(0, 50)) {
       const current = await clerk.getInvitation(orgId, r.invitationId);
       await ctx.runMutation(internal.invitations.syncStatus, {
-        id: r.id, status: current?.status ?? "revoked", expiresAt: current?.expiresAt,
+        id: r.id,
+        status: current?.status ?? "revoked",
+        expiresAt: current?.expiresAt,
       });
     }
     return rows.length;
@@ -306,7 +361,8 @@ export const prepareRemoval = internalQuery({
   args: { userId: v.string() },
   handler: async (ctx, { userId }) => {
     const member = await requireAdmin(ctx);
-    if (userId === member.userId) throw new Error("You can't remove yourself. Leave the team from the team menu instead.");
+    if (userId === member.userId)
+      throw new Error("You can't remove yourself. Leave the team from the team menu instead.");
     return { orgId: member.orgId };
   },
 });
@@ -315,8 +371,10 @@ export const prepareRemoval = internalQuery({
 export const afterRemoval = internalMutation({
   args: { orgId: v.string(), userId: v.string() },
   handler: async (ctx, { orgId, userId }) => {
-    const membership = await ctx.db.query("memberships")
-      .withIndex("by_org_user", (q) => q.eq("orgId", orgId).eq("userId", userId)).unique();
+    const membership = await ctx.db
+      .query("memberships")
+      .withIndex("by_org_user", (q) => q.eq("orgId", orgId).eq("userId", userId))
+      .unique();
     if (membership) {
       // Terminal, like a delivered `organizationMembership.deleted`: late events can't revive it.
       if (membership.membershipId) await tombstone(ctx, "membership", membership.membershipId);
@@ -393,7 +451,12 @@ const clerk = {
     return parseInvitation(res.body);
   },
 
-  async revokeInvitation(orgId: string, invitationId: string, requesterId: string, opts: { ignoreGone?: boolean } = {}) {
+  async revokeInvitation(
+    orgId: string,
+    invitationId: string,
+    requesterId: string,
+    opts: { ignoreGone?: boolean } = {},
+  ) {
     const res = await clerkFetch(`${org(orgId)}/invitations/${encodeURIComponent(invitationId)}/revoke`, {
       method: "POST",
       body: { requesting_user_id: requesterId },

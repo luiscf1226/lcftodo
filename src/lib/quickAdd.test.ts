@@ -28,7 +28,13 @@ describe("splitTitles", () => {
 
   test("strips list markers from pasted lists", () => {
     expect(splitTitles("- one\n* two\n• three\n1. four\n2) five\n[ ] six\n[x] seven")).toEqual([
-      "one", "two", "three", "four", "five", "six", "seven",
+      "one",
+      "two",
+      "three",
+      "four",
+      "five",
+      "six",
+      "seven",
     ]);
   });
 

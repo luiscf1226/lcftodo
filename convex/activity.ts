@@ -16,7 +16,11 @@ const emptyPage = () => ({ page: [], isDone: true, continueCursor: "" });
  * apply to the rows. Activity survives project deletion, so a deleted project's history stays
  * readable to anyone whose scope still covers it (admins and members of open teams).
  */
-async function activityScope(ctx: QueryCtx, member: Member, projectId: Id<"projects"> | undefined): Promise<Scope | null> {
+async function activityScope(
+  ctx: QueryCtx,
+  member: Member,
+  projectId: Id<"projects"> | undefined,
+): Promise<Scope | null> {
   const scope = await accessibleProjectIds(ctx, member);
   if (!projectId) return scope;
   const project = await ctx.db.get(projectId);
@@ -52,9 +56,7 @@ export const list = query({
         : ctx.db.query("activity").withIndex("by_project", (q) => q.eq("projectId", projectId));
     } else {
       q = actorId
-        ? ctx.db
-            .query("activity")
-            .withIndex("by_org_actor", (q) => q.eq("orgId", member.orgId).eq("actorId", actorId))
+        ? ctx.db.query("activity").withIndex("by_org_actor", (q) => q.eq("orgId", member.orgId).eq("actorId", actorId))
         : ctx.db.query("activity").withIndex("by_org", (q) => q.eq("orgId", member.orgId));
     }
     return await onlyProjects(q.order("desc"), scope).paginate(paginationOpts);
@@ -144,11 +146,11 @@ export const exportRange = query({
     const member = await requireMember(ctx);
     const scope = await activityScope(ctx, member, projectId);
     if (scope === null || (scope !== "all" && scope.size === 0)) return [];
-    const rows = await exportQuery(ctx, member.orgId, scope, { fromMs, toMs, projectId }).take(EXPORT_RANGE_ROW_CAP + 1);
+    const rows = await exportQuery(ctx, member.orgId, scope, { fromMs, toMs, projectId }).take(
+      EXPORT_RANGE_ROW_CAP + 1,
+    );
     if (rows.length > EXPORT_RANGE_ROW_CAP) {
-      throw new Error(
-        "This range has more than 5,000 activity rows. Narrow the date range or filters and try again.",
-      );
+      throw new Error("This range has more than 5,000 activity rows. Narrow the date range or filters and try again.");
     }
     return rows;
   },

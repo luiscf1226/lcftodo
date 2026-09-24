@@ -75,13 +75,13 @@ export function TodayQuickAdd({ date, projects, projectId, onProjectIdChange, on
 
   return (
     <form
-      className="card mb-6 flex flex-wrap items-center gap-2 p-2 focus-within:border-accent"
+      className="mb-6 flex flex-wrap items-center gap-2 card p-2 focus-within:border-accent"
       onSubmit={(e) => {
         e.preventDefault();
         void add(title);
       }}
     >
-      <span className="size-2.5 shrink-0 rounded-full ml-1.5" style={{ background: project?.color }} aria-hidden />
+      <span className="ml-1.5 size-2.5 shrink-0 rounded-full" style={{ background: project?.color }} aria-hidden />
       <div className="relative min-w-40 flex-1">
         <input
           ref={inputRef}
@@ -115,11 +115,19 @@ export function TodayQuickAdd({ date, projects, projectId, onProjectIdChange, on
           onChange={(e) => onProjectIdChange(e.target.value as Id<"projects">)}
         >
           {projects.map((p) => (
-            <option key={p._id} value={p._id}>{p.name}</option>
+            <option key={p._id} value={p._id}>
+              {p.name}
+            </option>
           ))}
         </select>
       )}
-      <button type="button" className="btn-ghost px-2 text-muted" onClick={onMore} aria-label="More options" title="More options (day, assignee, notes)">
+      <button
+        type="button"
+        className="btn-ghost px-2 text-muted"
+        onClick={onMore}
+        aria-label="More options"
+        title="More options (day, assignee, notes)"
+      >
         <SlidersHorizontal className="size-4" />
       </button>
       <button type="submit" className="btn-primary px-2.5" disabled={busy || !title.trim()} aria-label="Add todo">

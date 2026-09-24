@@ -49,7 +49,11 @@ export default function HistoryPage() {
   const rangeActivity = useQuery(
     api.activity.exportPage,
     canViewRange
-      ? { fromMs: dayStartMs(from, timeZone), toMs: dayStartMs(shiftDays(to, 1), timeZone) - 1, paginationOpts: { numItems: 1000, cursor: null } }
+      ? {
+          fromMs: dayStartMs(from, timeZone),
+          toMs: dayStartMs(shiftDays(to, 1), timeZone) - 1,
+          paginationOpts: { numItems: 1000, cursor: null },
+        }
       : "skip",
   );
   const deletedProjects = useMemo(() => {
@@ -87,31 +91,83 @@ export default function HistoryPage() {
       <PageHeader
         title="History"
         subtitle="Everything your team planned, finished and missed."
-        actions={<ExportMenu disabled={!canViewRange} from={from} to={to} projectId={projectId || undefined} projectDeleted={projectDeleted} memberId={memberId} todos={filtered} people={people} nameOf={nameOf} />}
+        actions={
+          <ExportMenu
+            disabled={!canViewRange}
+            from={from}
+            to={to}
+            projectId={projectId || undefined}
+            projectDeleted={projectDeleted}
+            memberId={memberId}
+            todos={filtered}
+            people={people}
+            nameOf={nameOf}
+          />
+        }
       />
 
-      <div className="card mb-5 grid gap-3 p-3 sm:grid-cols-2 lg:grid-cols-4">
+      <div className="mb-5 grid gap-3 card p-3 sm:grid-cols-2 lg:grid-cols-4">
         <div>
-          <label className="label" htmlFor="h-from">From</label>
-          <input id="h-from" type="date" className="input" value={from} max={to} onChange={(e) => e.target.value && setFrom(e.target.value)} />
+          <label className="label" htmlFor="h-from">
+            From
+          </label>
+          <input
+            id="h-from"
+            type="date"
+            className="input"
+            value={from}
+            max={to}
+            onChange={(e) => e.target.value && setFrom(e.target.value)}
+          />
         </div>
         <div>
-          <label className="label" htmlFor="h-to">To</label>
-          <input id="h-to" type="date" className="input" value={to} min={from} onChange={(e) => e.target.value && setTo(e.target.value)} />
+          <label className="label" htmlFor="h-to">
+            To
+          </label>
+          <input
+            id="h-to"
+            type="date"
+            className="input"
+            value={to}
+            min={from}
+            onChange={(e) => e.target.value && setTo(e.target.value)}
+          />
         </div>
         <div>
-          <label className="label" htmlFor="h-project">Project</label>
-          <select id="h-project" className="input" value={projectId} onChange={(e) => setProjectId(e.target.value as Id<"projects"> | "")}>
+          <label className="label" htmlFor="h-project">
+            Project
+          </label>
+          <select
+            id="h-project"
+            className="input"
+            value={projectId}
+            onChange={(e) => setProjectId(e.target.value as Id<"projects"> | "")}
+          >
             <option value="">All projects</option>
-            {projects?.map((p) => <option key={p._id} value={p._id}>{p.name}{p.archived ? " (archived)" : ""}</option>)}
-            {deletedProjects.map((p) => <option key={p._id} value={p._id}>{p.name} (deleted)</option>)}
+            {projects?.map((p) => (
+              <option key={p._id} value={p._id}>
+                {p.name}
+                {p.archived ? " (archived)" : ""}
+              </option>
+            ))}
+            {deletedProjects.map((p) => (
+              <option key={p._id} value={p._id}>
+                {p.name} (deleted)
+              </option>
+            ))}
           </select>
         </div>
         <div>
-          <label className="label" htmlFor="h-member">{memberFilterLabel}</label>
+          <label className="label" htmlFor="h-member">
+            {memberFilterLabel}
+          </label>
           <select id="h-member" className="input" value={memberId} onChange={(e) => setMemberId(e.target.value)}>
             <option value="">Everyone</option>
-            {members.map((m) => <option key={m.id} value={m.id}>{m.name}</option>)}
+            {members.map((m) => (
+              <option key={m.id} value={m.id}>
+                {m.name}
+              </option>
+            ))}
           </select>
         </div>
       </div>
@@ -120,14 +176,20 @@ export default function HistoryPage() {
         <p className="mb-4 rounded-lg border border-danger/30 bg-danger/10 px-3 py-2 text-sm text-danger" role="alert">
           Select valid start and end dates to view or export History.
         </p>
-      ) : !validRange && (
-        <p className="mb-4 rounded-lg border border-danger/30 bg-danger/10 px-3 py-2 text-sm text-danger" role="alert">
-          The start date must be on or before the end date. Adjust either date to view or export History.
-        </p>
+      ) : (
+        !validRange && (
+          <p
+            className="mb-4 rounded-lg border border-danger/30 bg-danger/10 px-3 py-2 text-sm text-danger"
+            role="alert"
+          >
+            The start date must be on or before the end date. Adjust either date to view or export History.
+          </p>
+        )
       )}
       {rangeTooLarge && (
         <p className="mb-4 rounded-lg border border-danger/30 bg-danger/10 px-3 py-2 text-sm text-danger" role="alert">
-          History supports ranges up to {MAX_RANGE_DAYS} days (this one is {rangeDays}). Select a shorter range to view or export it.
+          History supports ranges up to {MAX_RANGE_DAYS} days (this one is {rangeDays}). Select a shorter range to view
+          or export it.
         </p>
       )}
 
@@ -138,7 +200,10 @@ export default function HistoryPage() {
             role="tab"
             aria-selected={tab === t}
             onClick={() => setTab(t)}
-            className={clsx("-mb-px border-b-2 px-3 py-2 text-sm", tab === t ? "border-accent font-medium" : "border-transparent text-muted hover:text-fg")}
+            className={clsx(
+              "-mb-px border-b-2 px-3 py-2 text-sm",
+              tab === t ? "border-accent font-medium" : "border-transparent text-muted hover:text-fg",
+            )}
           >
             {t === "days" ? "Day by day" : t === "people" ? "People" : "Activity log"}
           </button>
@@ -146,11 +211,25 @@ export default function HistoryPage() {
       </div>
 
       {!canViewRange ? null : tab === "days" ? (
-        todos === undefined ? <Skeleton className="h-60" /> : <DaySummary todos={filtered} byId={byId} />
+        todos === undefined ? (
+          <Skeleton className="h-60" />
+        ) : (
+          <DaySummary todos={filtered} byId={byId} />
+        )
       ) : tab === "people" ? (
-        todos === undefined ? <Skeleton className="h-60" /> : <PeopleSummary people={people} />
+        todos === undefined ? (
+          <Skeleton className="h-60" />
+        ) : (
+          <PeopleSummary people={people} />
+        )
       ) : (
-        <ActivityLog projectId={projectId || undefined} projectDeleted={projectDeleted} actorId={memberId || undefined} byId={byId} nameOf={nameOf} />
+        <ActivityLog
+          projectId={projectId || undefined}
+          projectDeleted={projectDeleted}
+          actorId={memberId || undefined}
+          byId={byId}
+          nameOf={nameOf}
+        />
       )}
     </div>
   );
@@ -160,7 +239,17 @@ type TeamTodos = NonNullable<ReturnType<typeof useQuery<typeof api.todos.listFor
 type Members = ReturnType<typeof useMembers>;
 
 // Fixed export columns, so empty sheets/CSVs still carry their headers.
-const TODO_HEADERS = ["date", "project", "title", "status", "assignee", "created_by", "notes", "completed_at", "carried_over"];
+const TODO_HEADERS = [
+  "date",
+  "project",
+  "title",
+  "status",
+  "assignee",
+  "created_by",
+  "notes",
+  "completed_at",
+  "carried_over",
+];
 const ACTIVITY_HEADERS = ["time", "person", "project", "action", "todo", "from", "to", "day", "description"];
 const PEOPLE_HEADERS = ["person", "assigned", "done", "didnt_finish", "open", "completion_percent"];
 
@@ -175,31 +264,54 @@ function DaySummary({ todos, byId }: { todos: TeamTodos; byId: Members["byId"] }
   const totals = emptyStatusCounts();
   for (const t of todos) totals[t.status]++;
 
-  if (days.length === 0) return <Empty title="No todos in this range" body="Try a wider date range or different filters." />;
+  if (days.length === 0)
+    return <Empty title="No todos in this range" body="Try a wider date range or different filters." />;
 
   return (
     <>
       <div className="mb-4 flex flex-wrap gap-x-4 gap-y-1 text-sm text-muted">
-        <span><span className="font-semibold text-fg">{todos.length}</span> todos</span>
+        <span>
+          <span className="font-semibold text-fg">{todos.length}</span> todos
+        </span>
         {STATUSES.map((s) => (
-          <span key={s}><span className="font-semibold text-fg">{totals[s]}</span> {STATUS_META[s].label.toLowerCase()}</span>
+          <span key={s}>
+            <span className="font-semibold text-fg">{totals[s]}</span> {STATUS_META[s].label.toLowerCase()}
+          </span>
         ))}
-        <span><span className="font-semibold text-fg">{Math.round((totals.done / todos.length) * 100)}%</span> completion</span>
+        <span>
+          <span className="font-semibold text-fg">{Math.round((totals.done / todos.length) * 100)}%</span> completion
+        </span>
       </div>
-      <ul className="card divide-y divide-line">
+      <ul className="divide-y divide-line card">
         {days.map(([day, items]) => {
           const c = emptyStatusCounts();
           for (const t of items) c[t.status]++;
           const expanded = open === day;
           return (
             <li key={day}>
-              <button className="flex w-full items-center gap-3 px-4 py-3 text-left hover:bg-surface-2/60" aria-expanded={expanded} onClick={() => setOpen(expanded ? null : day)}>
+              <button
+                className="flex w-full items-center gap-3 px-4 py-3 text-left hover:bg-surface-2/60"
+                aria-expanded={expanded}
+                onClick={() => setOpen(expanded ? null : day)}
+              >
                 <span className="w-28 shrink-0 text-sm font-medium sm:w-36">{fmt(day, "EEE, MMM d")}</span>
                 <span className="flex h-2 min-w-0 flex-1 overflow-hidden rounded-full bg-surface-2">
-                  {STATUSES.map((s) => (c[s] ? <span key={s} className={STATUS_META[s].dot} style={{ width: `${(c[s] / items.length) * 100}%` }} /> : null))}
+                  {STATUSES.map((s) =>
+                    c[s] ? (
+                      <span
+                        key={s}
+                        className={STATUS_META[s].dot}
+                        style={{ width: `${(c[s] / items.length) * 100}%` }}
+                      />
+                    ) : null,
+                  )}
                 </span>
-                <span className="w-14 shrink-0 text-right text-xs text-muted tabular-nums">{c.done}/{items.length}</span>
-                <ChevronDown className={clsx("size-4 shrink-0 text-muted transition-transform", expanded && "rotate-180")} />
+                <span className="w-14 shrink-0 text-right text-xs text-muted tabular-nums">
+                  {c.done}/{items.length}
+                </span>
+                <ChevronDown
+                  className={clsx("size-4 shrink-0 text-muted transition-transform", expanded && "rotate-180")}
+                />
               </button>
               {expanded && (
                 <ul className="space-y-1.5 px-4 pb-3">
@@ -228,7 +340,7 @@ function PeopleSummary({ people }: { people: PersonStats[] }) {
 
   // The person column stays pinned while the numbers scroll sideways on phones.
   return (
-    <div className="card overflow-x-auto">
+    <div className="overflow-x-auto card">
       <table className="w-full min-w-120 text-left text-sm">
         <thead className="border-b border-line bg-surface-2/60 text-xs font-medium tracking-wide text-muted uppercase">
           <tr>
@@ -243,12 +355,16 @@ function PeopleSummary({ people }: { people: PersonStats[] }) {
         <tbody className="divide-y divide-line">
           {people.map((person) => (
             <tr key={person.id ?? "unassigned"}>
-              <td className={clsx("sticky left-0 bg-surface px-4 py-3 font-medium", !person.id && "text-muted italic")}>{person.name}</td>
+              <td className={clsx("sticky left-0 bg-surface px-4 py-3 font-medium", !person.id && "text-muted italic")}>
+                {person.name}
+              </td>
               <td className="px-3 py-3 text-right tabular-nums">{person.assigned}</td>
               <td className="px-3 py-3 text-right tabular-nums">{person.done}</td>
               <td className="px-3 py-3 text-right tabular-nums">{person.notDone}</td>
               <td className="px-3 py-3 text-right tabular-nums">{person.open}</td>
-              <td className="px-4 py-3 text-right tabular-nums">{completion(person) === null ? "—" : `${completion(person)}%`}</td>
+              <td className="px-4 py-3 text-right tabular-nums">
+                {completion(person) === null ? "—" : `${completion(person)}%`}
+              </td>
             </tr>
           ))}
         </tbody>
@@ -271,12 +387,19 @@ function ActivityLog({
   nameOf: Members["nameOf"];
 }) {
   // The server only filters by projects that still exist; a deleted one is filtered here instead.
-  const { results: all, status, loadMore } = usePaginatedQuery(
+  const {
+    results: all,
+    status,
+    loadMore,
+  } = usePaginatedQuery(
     api.activity.list,
     { projectId: projectDeleted ? undefined : projectId, actorId },
     { initialNumItems: 40 },
   );
-  const results = useMemo(() => (projectDeleted ? all.filter((a) => a.projectId === projectId) : all), [all, projectDeleted, projectId]);
+  const results = useMemo(
+    () => (projectDeleted ? all.filter((a) => a.projectId === projectId) : all),
+    [all, projectDeleted, projectId],
+  );
 
   if (status === "LoadingFirstPage") return <Skeleton className="h-60" />;
   if (results.length === 0 && status === "Exhausted") return <Empty title="No activity yet" />;
@@ -284,22 +407,32 @@ function ActivityLog({
   return (
     <div>
       {results.length === 0 ? (
-        <p className="card p-4 text-sm text-muted">No matching activity in the latest entries. Load more to look further back.</p>
+        <p className="card p-4 text-sm text-muted">
+          No matching activity in the latest entries. Load more to look further back.
+        </p>
       ) : (
-        <ul className="card divide-y divide-line">
+        <ul className="divide-y divide-line card">
           {results.map((a, i) => {
             const day = format(a._creationTime, "yyyy-MM-dd");
             const header = i === 0 || day !== format(results[i - 1]._creationTime, "yyyy-MM-dd");
             return (
               <li key={a._id}>
-                {header && <p className="bg-surface-2/60 px-4 py-1.5 text-xs font-medium text-muted">{fmt(day, "EEEE, MMMM d, yyyy")}</p>}
+                {header && (
+                  <p className="bg-surface-2/60 px-4 py-1.5 text-xs font-medium text-muted">
+                    {fmt(day, "EEEE, MMMM d, yyyy")}
+                  </p>
+                )}
                 <div className="flex items-start gap-3 px-4 py-2.5 text-sm">
                   <Avatar member={byId.get(a.actorId)} size={22} />
                   <p className="min-w-0 flex-1">
                     <span className="font-medium">{nameOf(a.actorId)}</span> {describe(a)}
                     {!a.action.startsWith("project_") && <span className="text-muted"> · {a.projectName}</span>}
                   </p>
-                  <time className="shrink-0 text-xs text-muted" dateTime={new Date(a._creationTime).toISOString()} title={new Date(a._creationTime).toLocaleString()}>
+                  <time
+                    className="shrink-0 text-xs text-muted"
+                    dateTime={new Date(a._creationTime).toISOString()}
+                    title={new Date(a._creationTime).toLocaleString()}
+                  >
                     {formatDistanceToNow(a._creationTime, { addSuffix: true })}
                   </time>
                 </div>
@@ -401,9 +534,12 @@ function ExportMenu({
     setBusy(true);
     setError(null);
     try {
-      if (kind === "todos-csv") download(`todos_${stamp}.csv`, toCsv(todoRows(), TODO_HEADERS), "text/csv;charset=utf-8");
-      if (kind === "people-csv") download(`people_${stamp}.csv`, toCsv(peopleRows(), PEOPLE_HEADERS), "text/csv;charset=utf-8");
-      if (kind === "activity-csv") download(`activity_${stamp}.csv`, toCsv(await activityRows(), ACTIVITY_HEADERS), "text/csv;charset=utf-8");
+      if (kind === "todos-csv")
+        download(`todos_${stamp}.csv`, toCsv(todoRows(), TODO_HEADERS), "text/csv;charset=utf-8");
+      if (kind === "people-csv")
+        download(`people_${stamp}.csv`, toCsv(peopleRows(), PEOPLE_HEADERS), "text/csv;charset=utf-8");
+      if (kind === "activity-csv")
+        download(`activity_${stamp}.csv`, toCsv(await activityRows(), ACTIVITY_HEADERS), "text/csv;charset=utf-8");
       if (kind === "excel") {
         await downloadXlsx(`lcftodos_${stamp}.xlsx`, [
           { name: "Todos", rows: todoRows(), headers: TODO_HEADERS },
@@ -412,7 +548,15 @@ function ExportMenu({
         ]);
       }
       if (kind === "json") {
-        const data = { exportedAt: new Date().toISOString(), from, to, timeZone: timeZone ?? browserTimeZone(), todos: todoRows(), people: peopleRows(), activity: await activityRows() };
+        const data = {
+          exportedAt: new Date().toISOString(),
+          from,
+          to,
+          timeZone: timeZone ?? browserTimeZone(),
+          todos: todoRows(),
+          people: peopleRows(),
+          activity: await activityRows(),
+        };
         download(`lcftodos_${stamp}.json`, JSON.stringify(data, null, 2), "application/json");
       }
     } catch (caught) {
@@ -422,12 +566,21 @@ function ExportMenu({
     }
   }
 
-  if (disabled) return <button className="btn-outline" disabled>Export</button>;
+  if (disabled)
+    return (
+      <button className="btn-outline" disabled>
+        Export
+      </button>
+    );
 
   return (
     <div className="relative">
       <Menu
-        label={<><Download className="size-4" /> {busy ? "Exporting…" : "Export"}</>}
+        label={
+          <>
+            <Download className="size-4" /> {busy ? "Exporting…" : "Export"}
+          </>
+        }
         disabled={busy}
         triggerClassName="btn-outline aria-disabled:cursor-progress aria-disabled:opacity-60"
         menuClassName="w-56"
@@ -439,7 +592,14 @@ function ExportMenu({
         <MenuItem onSelect={() => void run("json")}>Everything (JSON)</MenuItem>
         <p className="px-3 pt-1 pb-1.5 text-[11px] text-muted">Uses the current date range and filters.</p>
       </Menu>
-      {error && <p className="absolute right-0 top-full z-10 mt-2 w-72 rounded-lg border border-danger/30 bg-surface px-3 py-2 text-sm text-danger shadow-lg" role="alert">{error}</p>}
+      {error && (
+        <p
+          className="absolute top-full right-0 z-10 mt-2 w-72 rounded-lg border border-danger/30 bg-surface px-3 py-2 text-sm text-danger shadow-lg"
+          role="alert"
+        >
+          {error}
+        </p>
+      )}
     </div>
   );
 }

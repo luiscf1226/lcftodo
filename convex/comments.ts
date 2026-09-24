@@ -2,7 +2,13 @@ import { v } from "convex/values";
 import type { Id } from "./_generated/dataModel";
 import { mutation, query, type MutationCtx } from "./_generated/server";
 import {
-  canReadProject, getMember, log, requireMember, requireTodo, requireWritableProject, type Member,
+  canReadProject,
+  getMember,
+  log,
+  requireMember,
+  requireTodo,
+  requireWritableProject,
+  type Member,
 } from "./lib/auth";
 import { commentBody } from "./lib/validate";
 

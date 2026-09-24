@@ -3,8 +3,10 @@ import type { MutationCtx, QueryCtx } from "../_generated/server";
 type Kind = "membership" | "user";
 
 export async function isTombstoned(ctx: QueryCtx, kind: Kind, clerkId: string): Promise<boolean> {
-  const row = await ctx.db.query("tombstones")
-    .withIndex("by_kind_clerkId", (q) => q.eq("kind", kind).eq("clerkId", clerkId)).first();
+  const row = await ctx.db
+    .query("tombstones")
+    .withIndex("by_kind_clerkId", (q) => q.eq("kind", kind).eq("clerkId", clerkId))
+    .first();
   return row !== null;
 }
 

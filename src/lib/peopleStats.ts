@@ -26,7 +26,14 @@ export function peopleStats(
   members: readonly { id: string; name: string }[],
   nameOf: (id: string) => string,
 ): PersonStats[] {
-  const empty = (id: string | undefined, name: string): PersonStats => ({ id, name, assigned: 0, done: 0, notDone: 0, open: 0 });
+  const empty = (id: string | undefined, name: string): PersonStats => ({
+    id,
+    name,
+    assigned: 0,
+    done: 0,
+    notDone: 0,
+    open: 0,
+  });
   const byPerson = new Map<string | undefined, PersonStats>();
   for (const member of members) byPerson.set(member.id, empty(member.id, member.name));
   byPerson.set(undefined, empty(undefined, UNASSIGNED));

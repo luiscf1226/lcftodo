@@ -21,7 +21,11 @@ const subscribe = (onChange: () => void) => {
  */
 export function SetupChecklist({ orgId }: { orgId: string }) {
   const status = useQuery(api.projectAccess.setupStatus, {});
-  const stored = useSyncExternalStore(subscribe, () => window.localStorage.getItem(storageKey(orgId)), () => "1");
+  const stored = useSyncExternalStore(
+    subscribe,
+    () => window.localStorage.getItem(storageKey(orgId)),
+    () => "1",
+  );
   const [dismissed, setDismissed] = useState(false);
 
   if (!status || dismissed || stored) return null;
@@ -40,13 +44,23 @@ export function SetupChecklist({ orgId }: { orgId: string }) {
   };
 
   return (
-    <section className="card mb-6 p-4" aria-labelledby="setup-heading">
+    <section className="mb-6 card p-4" aria-labelledby="setup-heading">
       <div className="mb-3 flex items-start justify-between gap-2">
         <div>
-          <h2 id="setup-heading" className="font-medium">Set up your team</h2>
-          <p className="text-sm text-muted">{doneCount} of {steps.length} done</p>
+          <h2 id="setup-heading" className="font-medium">
+            Set up your team
+          </h2>
+          <p className="text-sm text-muted">
+            {doneCount} of {steps.length} done
+          </p>
         </div>
-        <button type="button" className="btn-ghost p-1.5 text-muted" onClick={dismiss} aria-label="Hide setup checklist" title="Hide">
+        <button
+          type="button"
+          className="btn-ghost p-1.5 text-muted"
+          onClick={dismiss}
+          aria-label="Hide setup checklist"
+          title="Hide"
+        >
           <X className="size-4" />
         </button>
       </div>
@@ -63,7 +77,9 @@ export function SetupChecklist({ orgId }: { orgId: string }) {
               {step.done ? <Check className="size-3" /> : i + 1}
             </span>
             {!step.done && step.href ? (
-              <Link href={step.href} className="font-medium text-accent hover:underline">{step.label}</Link>
+              <Link href={step.href} className="font-medium text-accent hover:underline">
+                {step.label}
+              </Link>
             ) : (
               <span className={clsx(step.done && "text-muted line-through")}>{step.label}</span>
             )}

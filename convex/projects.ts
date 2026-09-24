@@ -2,7 +2,15 @@ import { v } from "convex/values";
 import type { Id } from "./_generated/dataModel";
 import { internal } from "./_generated/api";
 import { internalMutation, mutation, query } from "./_generated/server";
-import { accessibleProjectIds, canReadProject, getMember, inScope, log, requireMember, requireProject } from "./lib/auth";
+import {
+  accessibleProjectIds,
+  canReadProject,
+  getMember,
+  inScope,
+  log,
+  requireMember,
+  requireProject,
+} from "./lib/auth";
 import { emptyStatusCounts, STATUSES, type Status } from "./lib/constants";
 import { checkRange, projectColor, projectDescription, projectName } from "./lib/validate";
 
@@ -89,7 +97,11 @@ export const create = mutation({
     // The creator keeps access to their own project if the team restricts access later (#46).
     if (!member.isAdmin) {
       await ctx.db.insert("projectMemberships", {
-        orgId: member.orgId, projectId, userId: member.userId, grantedBy: member.userId, grantedAt: Date.now(),
+        orgId: member.orgId,
+        projectId,
+        userId: member.userId,
+        grantedBy: member.userId,
+        grantedAt: Date.now(),
       });
     }
     const project = (await ctx.db.get(projectId))!;
@@ -114,11 +126,16 @@ export const update = mutation({
     // A project created before the palette check keeps its color until it is changed.
     const color = args.color === project.color ? project.color : projectColor(args.color);
     await ctx.db.patch(projectId, { name, description, color });
-    await log(ctx, member, { ...project, name }, {
-      action: "project_updated",
-      from: project.name !== name ? project.name : undefined,
-      to: project.name !== name ? name : undefined,
-    });
+    await log(
+      ctx,
+      member,
+      { ...project, name },
+      {
+        action: "project_updated",
+        from: project.name !== name ? project.name : undefined,
+        to: project.name !== name ? name : undefined,
+      },
+    );
   },
 });
 
@@ -164,8 +181,14 @@ export const deleteBatch = internalMutation({
     if (!project?.deleting) return;
     // Comments (#24) and recurring series (#23) go first, then todos, each in bounded batches.
     const [comments, series] = await Promise.all([
-      ctx.db.query("comments").withIndex("by_project", (q) => q.eq("projectId", projectId)).take(DELETE_BATCH_SIZE),
-      ctx.db.query("recurrences").withIndex("by_project", (q) => q.eq("projectId", projectId)).take(DELETE_BATCH_SIZE),
+      ctx.db
+        .query("comments")
+        .withIndex("by_project", (q) => q.eq("projectId", projectId))
+        .take(DELETE_BATCH_SIZE),
+      ctx.db
+        .query("recurrences")
+        .withIndex("by_project", (q) => q.eq("projectId", projectId))
+        .take(DELETE_BATCH_SIZE),
     ]);
     for (const row of [...comments, ...series]) await ctx.db.delete(row._id);
     if (comments.length === DELETE_BATCH_SIZE || series.length === DELETE_BATCH_SIZE) {
@@ -181,7 +204,8 @@ export const deleteBatch = internalMutation({
       await ctx.scheduler.runAfter(0, internal.projects.deleteBatch, { projectId });
     } else {
       // Access grants go with the project (#46). Pending invitations just skip missing ids.
-      const grants = await ctx.db.query("projectMemberships")
+      const grants = await ctx.db
+        .query("projectMemberships")
         .withIndex("by_project_user", (q) => q.eq("projectId", projectId))
         .collect();
       for (const g of grants) await ctx.db.delete(g._id);
