@@ -16,6 +16,7 @@ import type * as lib_auth from "../lib/auth.js";
 import type * as lib_carryOver from "../lib/carryOver.js";
 import type * as lib_cascade from "../lib/cascade.js";
 import type * as lib_constants from "../lib/constants.js";
+import type * as lib_ordering from "../lib/ordering.js";
 import type * as lib_recurrence from "../lib/recurrence.js";
 import type * as lib_timezone from "../lib/timezone.js";
 import type * as lib_tombstones from "../lib/tombstones.js";
@@ -43,6 +44,7 @@ declare const fullApi: ApiFromModules<{
   "lib/carryOver": typeof lib_carryOver;
   "lib/cascade": typeof lib_cascade;
   "lib/constants": typeof lib_constants;
+  "lib/ordering": typeof lib_ordering;
   "lib/recurrence": typeof lib_recurrence;
   "lib/timezone": typeof lib_timezone;
   "lib/tombstones": typeof lib_tombstones;
