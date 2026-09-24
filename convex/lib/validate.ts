@@ -1,19 +1,6 @@
 import type { QueryCtx } from "../_generated/server";
-
-// Shared server-side limits. Source of truth for both Convex and the UI
-// (the UI should import these instead of hard-coding its own limits).
-export const LIMITS = {
-  todoTitle: 300,
-  todoNotes: 5000,
-  projectName: 80,
-  projectDescription: 500,
-} as const;
-
-// Project palette. Mirrors PROJECT_COLORS in src/lib/status.ts; the UI should
-// import this list so the two can't drift.
-export const PROJECT_COLORS = [
-  "#6366f1", "#0ea5e9", "#10b981", "#f59e0b", "#ef4444", "#ec4899", "#8b5cf6", "#64748b",
-] as const;
+// Limits and the palette live in ./constants so the UI can share them (#29, #37).
+import { LIMITS, MAX_RANGE_DAYS, PROJECT_COLORS } from "./constants";
 
 const fmt = (n: number) => n.toLocaleString("en-US");
 
@@ -64,8 +51,6 @@ export function isCalendarDate(date: string): boolean {
 export function checkDate(date: string) {
   if (!isCalendarDate(date)) throw new Error("Invalid date.");
 }
-
-export const MAX_RANGE_DAYS = 366;
 
 /**
  * Validates an inclusive "YYYY-MM-DD" range for team-wide queries (#15):

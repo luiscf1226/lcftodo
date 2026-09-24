@@ -3,6 +3,7 @@ import { v } from "convex/values";
 import type { Id } from "./_generated/dataModel";
 import { query, type QueryCtx } from "./_generated/server";
 import { getMember, requireMember } from "./lib/auth";
+import { MAX_EXPORT_PAGE_SIZE, MAX_RANGE_DAYS } from "./lib/constants";
 
 export const list = query({
   args: {
@@ -51,9 +52,8 @@ export const forTodo = query({
 });
 
 const DAY_MS = 24 * 60 * 60 * 1000;
-// 366 calendar days, inclusive, plus an hour of slack for a DST shift inside the range.
-const MAX_EXPORT_RANGE_MS = 366 * DAY_MS + 60 * 60 * 1000;
-const MAX_EXPORT_PAGE_SIZE = 1000;
+// MAX_RANGE_DAYS calendar days, inclusive, plus an hour of slack for a DST shift inside the range.
+const MAX_EXPORT_RANGE_MS = MAX_RANGE_DAYS * DAY_MS + 60 * 60 * 1000;
 const EXPORT_RANGE_ROW_CAP = 5000;
 
 // Activity rows for [fromMs, toMs], newest first, optionally narrowed to a project and/or actor.
@@ -104,7 +104,7 @@ export const exportPage = query({
     if (!Number.isFinite(range.fromMs) || !Number.isFinite(range.toMs)) throw new Error("Invalid date range.");
     if (range.fromMs > range.toMs) throw new Error("Invalid date range: the start must be before the end.");
     if (range.toMs - range.fromMs > MAX_EXPORT_RANGE_MS) {
-      throw new Error("Date range is too long: export at most 366 days at a time.");
+      throw new Error(`Date range is too long: export at most ${MAX_RANGE_DAYS} days at a time.`);
     }
     if (!(await projectInOrg(ctx, member.orgId, range.projectId))) {
       return { page: [], isDone: true, continueCursor: "" };

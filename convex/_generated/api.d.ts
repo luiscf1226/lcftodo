@@ -11,6 +11,7 @@
 import type * as activity from "../activity.js";
 import type * as http from "../http.js";
 import type * as lib_auth from "../lib/auth.js";
+import type * as lib_constants from "../lib/constants.js";
 import type * as lib_tombstones from "../lib/tombstones.js";
 import type * as lib_validate from "../lib/validate.js";
 import type * as memberships from "../memberships.js";
@@ -28,6 +29,7 @@ declare const fullApi: ApiFromModules<{
   activity: typeof activity;
   http: typeof http;
   "lib/auth": typeof lib_auth;
+  "lib/constants": typeof lib_constants;
   "lib/tombstones": typeof lib_tombstones;
   "lib/validate": typeof lib_validate;
   memberships: typeof memberships;

@@ -31,5 +31,12 @@ export function describe(a: Doc<"activity">, { withTitle = true } = {}) {
       return `restored project ${a.projectName}`;
     case "project_deleted":
       return `deleted project ${a.projectName}`;
+    default:
+      // Adding an action to ACTIONS without describing it here is a type error.
+      return unreachable(a.action);
   }
+}
+
+function unreachable(action: never): string {
+  return String(action);
 }
