@@ -31,6 +31,35 @@ npx convex dev            # log in, create a project; writes CONVEX_* to .env.lo
 npx convex env set CLERK_JWT_ISSUER_DOMAIN https://your-app.clerk.accounts.dev
 ```
 
+### Membership sync (required before assigning teammates)
+
+In Clerk, add a webhook endpoint at `https://<deployment>.convex.site/clerk-webhook`.
+Subscribe to `organizationMembership.created`, `.updated`, `.deleted` and
+`user.created`, `.updated`, `.deleted`. In the **Convex deployment environment**
+(dev and prod separately), set `CLERK_WEBHOOK_SECRET` to that endpoint's signing
+secret and `CLERK_SECRET_KEY` to the matching Clerk instance's secret key. Keep
+both values out of the repository. The `.site` webhook URL differs from the
+`.cloud` URL used by the browser.
+
+For each existing team, run the one-time `memberships:backfill` action as a team
+admin. The action reads all Clerk organization membership pages and reconciles
+Convex before enabling membership-based access checks. A Convex operator can run:
+
+```bash
+npx convex run memberships:backfill '{}' --identity '{"subject":"user_...","org_id":"org_...","org_role":"org:admin"}'
+```
+
+Use `--prod` for the production deployment. New teams should also run it once
+after setup. Until then, the app uses the signed organization claim for team
+access, while assignee validation requires a synced membership row. If Clerk has
+not delivered its webhook yet, run the backfill before assigning work.
+
+After a successful backfill, Convex checks the synced active membership and role
+on every team query and mutation. A removed member's stale session token then
+stops granting access. Webhook delivery is asynchronous, so revocation takes
+effect when Clerk delivers the signed membership event. Monitor failed webhook
+attempts in Clerk and retry them after resolving configuration issues.
+
 ### 3. Run
 
 ```bash

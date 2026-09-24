@@ -25,6 +25,15 @@ export async function getMember(ctx: QueryCtx): Promise<Member | null> {
   if (!identity) return null;
   const { orgId, role } = readOrg(identity);
   if (!orgId) return null;
+  const sync = await ctx.db.query("membershipSync")
+    .withIndex("by_org", (q) => q.eq("orgId", orgId)).unique();
+  if (sync?.ready) {
+    const membership = await ctx.db.query("memberships")
+      .withIndex("by_org_user", (q) => q.eq("orgId", orgId).eq("userId", identity.subject)).unique();
+    if (!membership?.active) return null;
+    return { userId: identity.subject, orgId, isAdmin: membership.role === "org:admin" };
+  }
+  // Existing organizations keep working until their one-off Clerk backfill completes.
   return { userId: identity.subject, orgId, isAdmin: role === "org:admin" };
 }
 
