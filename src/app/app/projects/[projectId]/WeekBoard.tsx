@@ -2,7 +2,8 @@
 
 import clsx from "clsx";
 import { useMutation, useQuery } from "convex/react";
-import { ArchiveRestore, Archive, ChevronLeft, ChevronRight, CornerDownRight, MoreHorizontal, Pencil, Plus, Trash2 } from "lucide-react";
+import { isValid } from "date-fns";
+import { ArchiveRestore, Archive, ChevronLeft, ChevronRight, CornerDownRight, MoreHorizontal, Pencil, Plus, Trash2, UserRound, X } from "lucide-react";
 import Link from "next/link";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useEffect, useMemo, useRef, useState } from "react";
@@ -15,7 +16,10 @@ import { TodoDialog } from "@/components/TodoDialog";
 import { TodoItem } from "@/components/TodoItem";
 import { Modal } from "@/components/Modal";
 import { useMembers } from "@/components/useMembers";
-import { fmt, shiftDays, todayKey, weekDays, weekLabel, weekStart } from "@/lib/dates";
+import { showToast } from "@/components/ToastViewport";
+import { useDismissibleMenu } from "@/components/useDismissibleMenu";
+import { fmt, fromKey, shiftDays, todayKey, weekDays, weekLabel, weekStart } from "@/lib/dates";
+import { errorMessage } from "@/lib/errors";
 import { STATUS_META, STATUSES } from "@/lib/status";
 
 type Editing = { date: string; todo?: Doc<"todos"> } | null;
@@ -26,8 +30,9 @@ export function WeekBoard({ projectId }: { projectId: Id<"projects"> }) {
   const search = useSearchParams();
   const { userId } = useAuth();
   const today = todayKey();
-  const start = weekStart(search.get("week") ?? today);
-  const days = weekDays(start);
+  const requestedWeek = search.get("week");
+  const start = weekStart(requestedWeek && isValid(fromKey(requestedWeek)) ? requestedWeek : today);
+  const days = useMemo(() => weekDays(start), [start]);
 
   const project = useQuery(api.projects.get, { projectId });
   const todos = useQuery(api.todos.listForProject, { projectId, from: days[0], to: days[6] });
@@ -107,6 +112,12 @@ export function WeekBoard({ projectId }: { projectId: Id<"projects"> }) {
         )}
       </div>
 
+      {project?.archived && (
+        <p className="mb-4 flex items-center gap-2 rounded-lg border border-line bg-surface-2 px-3 py-2 text-sm text-muted" role="status">
+          <Archive className="size-4 shrink-0" /> This project is archived. Its todos are read-only; restore the project to make changes.
+        </p>
+      )}
+
       <div className="mb-4 flex flex-wrap items-center gap-2">
         <div className="flex items-center rounded-lg border border-line bg-surface">
           <button className="btn-ghost rounded-r-none px-2" aria-label="Previous week" onClick={() => setWeek(shiftDays(start, -7))}>
@@ -176,7 +187,7 @@ export function WeekBoard({ projectId }: { projectId: Id<"projects"> }) {
               ) : (
                 <div className="flex flex-col gap-1.5">
                   {items.map((t) => (
-                    <TodoItem key={t._id} todo={t} assignee={t.assigneeId ? byId.get(t.assigneeId) : undefined} onOpen={() => setEditing({ date: day, todo: t })} />
+                    <TodoItem key={t._id} todo={t} assignee={t.assigneeId ? byId.get(t.assigneeId) : undefined} readOnly={project?.archived} onOpen={() => setEditing({ date: day, todo: t })} />
                   ))}
                 </div>
               )}
@@ -209,8 +220,24 @@ export function WeekBoard({ projectId }: { projectId: Id<"projects"> }) {
 
 function QuickAdd({ projectId, date, onMore }: { projectId: Id<"projects">; date: string; onMore: () => void }) {
   const create = useMutation(api.todos.create);
+  const { members } = useMembers();
   const [adding, setAdding] = useState(false);
   const [title, setTitle] = useState("");
+  const [assigneeId, setAssigneeId] = useState<string>();
+  const [activeSuggestion, setActiveSuggestion] = useState(0);
+  const [busy, setBusy] = useState(false);
+  const mentionMatch = title.match(/(?:^|\s)@([^\s@]*)$/);
+  const mentionQuery = mentionMatch?.[1].toLocaleLowerCase();
+  const suggestions = mentionQuery === undefined
+    ? []
+    : members.filter((member) => member.name.toLocaleLowerCase().includes(mentionQuery)).slice(0, 5);
+  const assignee = members.find((member) => member.id === assigneeId);
+
+  const selectAssignee = (member: (typeof members)[number]) => {
+    setAssigneeId(member.id);
+    setTitle((value) => value.replace(/(^|\s)@[^\s@]*$/, "$1").trimEnd());
+    setActiveSuggestion(0);
+  };
 
   if (!adding) {
     return (
@@ -223,27 +250,90 @@ function QuickAdd({ projectId, date, onMore }: { projectId: Id<"projects">; date
   return (
     <form
       className="flex w-full flex-col gap-1.5"
-      onSubmit={(e) => {
+      onSubmit={async (e) => {
         e.preventDefault();
         const value = title.trim();
-        if (!value) return;
-        setTitle("");
-        void create({ projectId, date, title: value });
+        if (!value || busy) return;
+        setBusy(true);
+        try {
+          await create({ projectId, date, title: value, assigneeId });
+          setTitle("");
+          setAssigneeId(undefined);
+        } catch (error) {
+          showToast(errorMessage(error, "Couldn't add the todo."));
+        } finally {
+          setBusy(false);
+        }
       }}
     >
-      <input
-        autoFocus
-        className="input py-1.5"
-        placeholder="New todo… (Enter)"
-        value={title}
-        maxLength={300}
-        onChange={(e) => setTitle(e.target.value)}
-        onKeyDown={(e) => e.key === "Escape" && setAdding(false)}
-        onBlur={() => !title.trim() && setAdding(false)}
-      />
+      <div className="relative">
+        <input
+          autoFocus
+          className="input py-1.5"
+          placeholder="New todo… Type @ to assign"
+          value={title}
+          maxLength={300}
+          role="combobox"
+          aria-autocomplete="list"
+          aria-controls={suggestions.length > 0 ? `assignee-suggestions-${date}` : undefined}
+          aria-expanded={suggestions.length > 0}
+          aria-activedescendant={suggestions.length > 0 ? `assignee-suggestion-${date}-${activeSuggestion}` : undefined}
+          onChange={(e) => {
+            setTitle(e.target.value);
+            setActiveSuggestion(0);
+          }}
+          onKeyDown={(e) => {
+            if (suggestions.length > 0) {
+              if (e.key === "ArrowDown") {
+                e.preventDefault();
+                setActiveSuggestion((index) => (index + 1) % suggestions.length);
+                return;
+              }
+              if (e.key === "ArrowUp") {
+                e.preventDefault();
+                setActiveSuggestion((index) => (index - 1 + suggestions.length) % suggestions.length);
+                return;
+              }
+              if (e.key === "Enter") {
+                e.preventDefault();
+                selectAssignee(suggestions[activeSuggestion]);
+                return;
+              }
+            }
+            if (e.key === "Escape") setAdding(false);
+          }}
+          onBlur={() => window.setTimeout(() => !title.trim() && setAdding(false), 0)}
+        />
+        {suggestions.length > 0 && (
+          <div id={`assignee-suggestions-${date}`} role="listbox" className="absolute z-10 mt-1 w-full overflow-hidden rounded-lg border border-line bg-surface p-1 shadow-lg">
+            {suggestions.map((member, index) => (
+              <button
+                key={member.id}
+                id={`assignee-suggestion-${date}-${index}`}
+                type="button"
+                role="option"
+                aria-selected={index === activeSuggestion}
+                className={clsx("btn-ghost w-full justify-start", index === activeSuggestion && "bg-surface-2")}
+                onMouseDown={(e) => e.preventDefault()}
+                onClick={() => selectAssignee(member)}
+              >
+                <UserRound className="size-4" /> {member.name}
+              </button>
+            ))}
+          </div>
+        )}
+      </div>
+      {assignee && (
+        <div className="flex items-center justify-between gap-2 rounded-md bg-surface-2 px-2 py-1 text-xs text-muted">
+          <span className="inline-flex items-center gap-1"><UserRound className="size-3.5" /> Assigned to {assignee.name}</span>
+          <button type="button" className="btn-ghost min-h-0 px-1 py-0 text-xs" onClick={() => setAssigneeId(undefined)} aria-label={`Remove ${assignee.name} as assignee`}>
+            <X className="size-3.5" />
+          </button>
+        </div>
+      )}
       <div className="flex gap-1">
-        <button type="submit" className="btn-primary flex-1 py-1 text-xs" disabled={!title.trim()}>Add</button>
-        <button type="button" className="btn-ghost py-1 text-xs" onMouseDown={(e) => e.preventDefault()} onClick={() => { setAdding(false); onMore(); }}>
+        <button type="submit" className="btn-primary flex-1 py-1 text-xs" disabled={busy || !title.trim()}>Add</button>
+        <button type="button" className="btn-ghost py-1 text-xs" disabled={busy} onMouseDown={(e) => e.preventDefault()} onClick={() => { setAdding(false); onMore(); }}>
           More…
         </button>
       </div>
@@ -263,6 +353,8 @@ function CarryOver({ projectId, date, count }: { projectId: Id<"projects">; date
         setBusy(true);
         try {
           await carry({ projectId, date });
+        } catch (error) {
+          showToast(errorMessage(error, "Couldn't carry unfinished todos."));
         } finally {
           setBusy(false);
         }
@@ -277,28 +369,38 @@ function ProjectMenu({ project, onEdit, onDelete }: { project: Doc<"projects">; 
   const { has } = useAuth();
   const setArchived = useMutation(api.projects.setArchived);
   const isAdmin = has?.({ role: "org:admin" }) ?? false;
-  const ref = useRef<HTMLDetailsElement>(null);
-  const close = () => ref.current?.removeAttribute("open");
+  const { open, setOpen, close, containerRef, triggerRef } = useDismissibleMenu();
+
+  const archive = async () => {
+    close();
+    try {
+      await setArchived({ projectId: project._id, archived: !project.archived });
+    } catch (error) {
+      showToast(errorMessage(error, `Couldn't ${project.archived ? "restore" : "archive"} the project.`));
+    }
+  };
 
   return (
-    <details ref={ref} className="relative">
-      <summary className="btn-outline list-none px-2" aria-label="Project options">
+    <div ref={containerRef} className="relative">
+      <button ref={triggerRef} type="button" className="btn-outline px-2" aria-label="Project options" aria-haspopup="menu" aria-expanded={open} onClick={() => setOpen((value) => !value)}>
         <MoreHorizontal className="size-4" />
-      </summary>
-      <div className="absolute right-0 z-10 mt-1 w-44 rounded-xl border border-line bg-surface p-1 shadow-lg">
-        <button className="btn-ghost w-full justify-start" onClick={() => { close(); onEdit(); }}>
+      </button>
+      {open && <div role="menu" className="absolute right-0 z-10 mt-1 w-44 rounded-xl border border-line bg-surface p-1 shadow-lg">
+        <button role="menuitem" className="btn-ghost w-full justify-start" onClick={() => { close(); onEdit(); }}>
           <Pencil className="size-4" /> Edit
         </button>
-        <button className="btn-ghost w-full justify-start" onClick={() => { close(); void setArchived({ projectId: project._id, archived: !project.archived }); }}>
-          {project.archived ? <><ArchiveRestore className="size-4" /> Restore</> : <><Archive className="size-4" /> Archive</>}
-        </button>
         {isAdmin && (
-          <button className="btn-ghost w-full justify-start text-danger" onClick={() => { close(); onDelete(); }}>
-            <Trash2 className="size-4" /> Delete
-          </button>
+          <>
+            <button role="menuitem" className="btn-ghost w-full justify-start" onClick={() => void archive()}>
+              {project.archived ? <><ArchiveRestore className="size-4" /> Restore</> : <><Archive className="size-4" /> Archive</>}
+            </button>
+            <button role="menuitem" className="btn-ghost w-full justify-start text-danger" onClick={() => { close(); onDelete(); }}>
+              <Trash2 className="size-4" /> Delete
+            </button>
+          </>
         )}
-      </div>
-    </details>
+      </div>}
+    </div>
   );
 }
 
@@ -319,8 +421,11 @@ function DeleteProject({ open, onClose, project }: { open: boolean; onClose: () 
           onClick={async () => {
             setBusy(true);
             try {
-              router.replace("/app/projects");
               await remove({ projectId: project._id });
+              onClose();
+              router.replace("/app/projects");
+            } catch (error) {
+              showToast(errorMessage(error, "Couldn't delete the project."));
             } finally {
               setBusy(false);
             }

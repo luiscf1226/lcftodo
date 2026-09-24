@@ -1,12 +1,13 @@
-import { addDays, format, parseISO, startOfWeek } from "date-fns";
+import { addDays, format, isValid, parseISO, startOfWeek } from "date-fns";
 
 // Dates are stored as local calendar days ("YYYY-MM-DD"), weeks start Monday.
 export const toKey = (d: Date) => format(d, "yyyy-MM-dd");
 export const fromKey = (key: string) => parseISO(key);
 export const todayKey = () => toKey(new Date());
 
-export function weekStart(key: string) {
-  return toKey(startOfWeek(fromKey(key), { weekStartsOn: 1 }));
+export function weekStart(key?: string | null) {
+  const date = key ? fromKey(key) : new Date();
+  return toKey(startOfWeek(isValid(date) ? date : new Date(), { weekStartsOn: 1 }));
 }
 
 export function weekDays(startKey: string) {

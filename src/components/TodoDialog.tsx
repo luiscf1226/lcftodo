@@ -16,6 +16,8 @@ type Props = {
   projectId: Id<"projects">;
   date: string;
   todo?: Doc<"todos">;
+  projects?: Array<{ _id: Id<"projects">; name: string; archived: boolean }>;
+  onProjectIdChange?: (projectId: Id<"projects">) => void;
 };
 
 export function TodoDialog(props: Props) {
@@ -26,7 +28,7 @@ export function TodoDialog(props: Props) {
   );
 }
 
-function TodoForm({ onClose, projectId, date, todo }: Props) {
+function TodoForm({ onClose, projectId, date, todo, projects, onProjectIdChange }: Props) {
   const { members, nameOf } = useMembers();
   const create = useMutation(api.todos.create);
   const update = useMutation(api.todos.update);
@@ -37,6 +39,7 @@ function TodoForm({ onClose, projectId, date, todo }: Props) {
   const [notes, setNotes] = useState(todo?.notes ?? "");
   const [day, setDay] = useState(todo?.date ?? date);
   const [assigneeId, setAssigneeId] = useState(todo?.assigneeId ?? "");
+  const [selectedProjectId, setSelectedProjectId] = useState(projectId);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -56,7 +59,7 @@ function TodoForm({ onClose, projectId, date, todo }: Props) {
     e.preventDefault();
     if (!title.trim() || busy) return;
     const fields = { title, notes, date: day, assigneeId: assigneeId || undefined };
-    void run(() => (todo ? update({ todoId: todo._id, ...fields }) : create({ projectId, ...fields })));
+    void run(() => (todo ? update({ todoId: todo._id, ...fields }) : create({ projectId: selectedProjectId, ...fields })));
   }
 
   return (
@@ -65,6 +68,25 @@ function TodoForm({ onClose, projectId, date, todo }: Props) {
         <label className="label" htmlFor="todo-title">Title</label>
         <input id="todo-title" autoFocus className="input" value={title} onChange={(e) => setTitle(e.target.value)} placeholder="What needs to get done?" maxLength={300} required />
       </div>
+      {!todo && projects && (
+        <div>
+          <label className="label" htmlFor="todo-project">Project</label>
+          <select
+            id="todo-project"
+            className="input"
+            value={selectedProjectId}
+            onChange={(e) => {
+              const nextProjectId = e.target.value as Id<"projects">;
+              setSelectedProjectId(nextProjectId);
+              onProjectIdChange?.(nextProjectId);
+            }}
+          >
+            {projects.filter((project) => !project.archived).map((project) => (
+              <option key={project._id} value={project._id}>{project.name}</option>
+            ))}
+          </select>
+        </div>
+      )}
       <div className="grid gap-4 sm:grid-cols-2">
         <div>
           <label className="label" htmlFor="todo-date">Day</label>

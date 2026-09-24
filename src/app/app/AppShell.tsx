@@ -8,6 +8,8 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useEffect, type ReactNode } from "react";
 import { api } from "../../../convex/_generated/api";
+import { ToastViewport } from "@/components/ToastViewport";
+import { ThemeToggle } from "@/components/ThemeToggle";
 
 const NAV = [
   { href: "/app", label: "Today", icon: LayoutDashboard },
@@ -63,14 +65,18 @@ export function AppShell({ children }: { children: ReactNode }) {
             </Link>
           ))}
         </nav>
-        <div className="mt-auto px-1">
+        <div className="mt-auto space-y-3 px-1">
+          <ThemeToggle />
           <UserButton showName />
         </div>
       </aside>
 
       <header className="sticky top-0 z-20 flex items-center justify-between gap-2 border-b border-line bg-surface/90 px-4 py-2.5 backdrop-blur md:hidden">
         <OrganizationSwitcher hidePersonal afterSelectOrganizationUrl="/app" afterCreateOrganizationUrl="/app" />
-        <UserButton />
+        <div className="flex items-center gap-2">
+          <ThemeToggle />
+          <UserButton />
+        </div>
       </header>
 
       <main className="min-w-0 px-4 pt-5 pb-24 sm:px-6 md:pb-10 lg:px-8">{children}</main>
@@ -86,6 +92,7 @@ export function AppShell({ children }: { children: ReactNode }) {
           </Link>
         ))}
       </nav>
+      <ToastViewport />
     </div>
   );
 }
