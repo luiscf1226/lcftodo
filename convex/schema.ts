@@ -58,6 +58,8 @@ export default defineSchema({
     imageUrl: v.optional(v.string()),
     // Clerk's `updated_at` (ms) of the last applied profile webhook.
     clerkUpdatedAt: v.optional(v.number()),
+    // When the user checked off the first-run tutorial. Missing = not completed yet.
+    onboardingCompletedAt: v.optional(v.number()),
   }).index("by_clerkId", ["clerkId"]),
 
   projects: defineTable({
