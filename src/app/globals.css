@@ -12,6 +12,19 @@
   --accent: #4f46e5;
   --accent-fg: #ffffff;
   --danger: #dc2626;
+
+  /* Clerk components follow the app theme (light and dark) through its CSS variables. */
+  --clerk-color-primary: var(--accent);
+  --clerk-color-primary-foreground: var(--accent-fg);
+  --clerk-color-background: var(--surface);
+  --clerk-color-foreground: var(--fg);
+  --clerk-color-muted-foreground: var(--muted);
+  --clerk-color-muted: var(--surface-2);
+  --clerk-color-input: var(--surface);
+  --clerk-color-input-foreground: var(--fg);
+  --clerk-color-ring: var(--accent);
+  --clerk-color-danger: var(--danger);
+  --clerk-font-family: var(--font-geist-sans);
 }
 
 :root[data-theme="dark"] {
