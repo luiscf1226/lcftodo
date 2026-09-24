@@ -75,7 +75,7 @@ export const create = mutation({
     checkDate(args.date);
     const title = todoTitle(args.title);
     const notes = todoNotes(args.notes);
-    const assigneeId = await assignee(ctx, args.assigneeId);
+    const assigneeId = await assignee(ctx, member.orgId, args.assigneeId);
     const todoId = await ctx.db.insert("todos", {
       orgId: member.orgId,
       projectId: project._id,
@@ -107,10 +107,10 @@ export const update = mutation({
     checkDate(args.date);
     const title = todoTitle(args.title);
     const notes = todoNotes(args.notes);
-    // An unchanged assignee isn't re-validated, so a todo can still be edited if its assignee has
-    // no `users` row (yet).
+    // Preserve a historical assignee when editing other fields, even if their
+    // membership has since been removed.
     const assigneeId =
-      args.assigneeId && args.assigneeId === todo.assigneeId ? todo.assigneeId : await assignee(ctx, args.assigneeId);
+      args.assigneeId && args.assigneeId === todo.assigneeId ? todo.assigneeId : await assignee(ctx, member.orgId, args.assigneeId);
     await ctx.db.patch(todo._id, { title, notes, date: args.date, assigneeId });
 
     if (todo.date !== args.date) {

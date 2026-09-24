@@ -218,6 +218,9 @@ describe("server-side input validation (#29)", () => {
   test("assigneeId must be a known user", async () => {
     const { t, a, b, projectId } = await setup();
     await b.mutation(api.users.store, {});
+    await t.run((ctx) => ctx.db.insert("memberships", {
+      orgId: "org_a", userId: bob.subject, role: "org:member", active: true, updatedAt: Date.now(),
+    }));
     const todoId = await a.mutation(api.todos.create, {
       projectId, title: "assigned", date: "2026-09-21", assigneeId: bob.subject,
     });
@@ -227,7 +230,7 @@ describe("server-side input validation (#29)", () => {
     await expect(
       a.mutation(api.todos.update, { todoId, title: "x", date: "2026-09-21", assigneeId: "user_ghost" }),
     ).rejects.toThrow(/Assignee/);
-    // An unchanged assignee isn't re-validated, so a todo whose assignee has no `users` row can still be edited.
+    // An unchanged former assignee does not block edits to other fields.
     const orphan = await t.run((ctx) =>
       ctx.db.insert("todos", {
         orgId: "org_a", projectId, title: "orphan", date: "2026-09-21", status: "todo",

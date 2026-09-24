@@ -23,6 +23,25 @@ export const action = v.union(
 );
 
 export default defineSchema({
+  memberships: defineTable({
+    orgId: v.string(),
+    userId: v.string(),
+    role: v.string(),
+    active: v.boolean(),
+    lastEventAt: v.optional(v.number()),
+    updatedAt: v.number(),
+    backfillRunId: v.optional(v.string()),
+  })
+    .index("by_org", ["orgId"])
+    .index("by_org_user", ["orgId", "userId"])
+    .index("by_user", ["userId"]),
+
+  membershipSync: defineTable({
+    orgId: v.string(),
+    ready: v.boolean(),
+    backfilledAt: v.number(),
+  }).index("by_org", ["orgId"]),
+
   users: defineTable({
     clerkId: v.string(),
     name: v.string(),

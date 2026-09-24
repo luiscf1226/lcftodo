@@ -1,6 +1,6 @@
 import { v } from "convex/values";
 import type { UserIdentity } from "convex/server";
-import { mutation, query, type QueryCtx } from "./_generated/server";
+import { internalMutation, mutation, query, type QueryCtx } from "./_generated/server";
 import { requireMember } from "./lib/auth";
 
 function profileFields(identity: UserIdentity) {
@@ -19,7 +19,7 @@ function findUser(ctx: QueryCtx, clerkId: string) {
     .unique();
 }
 
-// Called by the client after sign-in so teammates can see names and avatars.
+// Called after sign-in so teammates can see names and avatars. Webhooks keep it in sync later.
 export const store = mutation({
   args: {},
   handler: async (ctx) => {
@@ -38,14 +38,15 @@ export const store = mutation({
 export const byClerkIds = query({
   args: { clerkIds: v.array(v.string()) },
   handler: async (ctx, { clerkIds }) => {
-    await requireMember(ctx);
+    const member = await requireMember(ctx);
     const users = await Promise.all(
-      [...new Set(clerkIds)].slice(0, 200).map((clerkId) =>
-        ctx.db
-          .query("users")
-          .withIndex("by_clerkId", (q) => q.eq("clerkId", clerkId))
-          .unique(),
-      ),
+      [...new Set(clerkIds)].slice(0, 200).map(async (clerkId) => {
+        const membership = await ctx.db.query("memberships")
+          .withIndex("by_org_user", (q) => q.eq("orgId", member.orgId).eq("userId", clerkId)).unique();
+        if (!membership && clerkId !== member.userId) return null;
+        return await ctx.db.query("users")
+          .withIndex("by_clerkId", (q) => q.eq("clerkId", clerkId)).unique();
+      }),
     );
     return users
       .filter((u) => u !== null)
@@ -81,5 +82,33 @@ export const completeOnboarding = mutation({
       return;
     }
     await ctx.db.insert("users", { ...profileFields(identity), onboardingCompletedAt: Date.now() });
+  },
+});
+
+export const upsertFromWebhook = internalMutation({
+  args: {
+    clerkId: v.string(), name: v.string(), email: v.optional(v.string()), imageUrl: v.optional(v.string()),
+  },
+  handler: async (ctx, fields) => {
+    const existing = await ctx.db.query("users")
+      .withIndex("by_clerkId", (q) => q.eq("clerkId", fields.clerkId)).unique();
+    if (existing) await ctx.db.patch(existing._id, fields);
+    else await ctx.db.insert("users", fields);
+  },
+});
+
+export const deleteFromWebhook = internalMutation({
+  args: { clerkId: v.string(), eventAt: v.number() },
+  handler: async (ctx, { clerkId, eventAt }) => {
+    const user = await ctx.db.query("users")
+      .withIndex("by_clerkId", (q) => q.eq("clerkId", clerkId)).unique();
+    if (user) await ctx.db.delete(user._id);
+    const memberships = await ctx.db.query("memberships")
+      .withIndex("by_user", (q) => q.eq("userId", clerkId)).collect();
+    for (const membership of memberships) {
+      if (!membership.lastEventAt || membership.lastEventAt <= eventAt) {
+        await ctx.db.patch(membership._id, { active: false, lastEventAt: eventAt, updatedAt: Date.now() });
+      }
+    }
   },
 });
