@@ -1,6 +1,7 @@
 import { paginationOptsValidator } from "convex/server";
 import { v } from "convex/values";
-import { query } from "./_generated/server";
+import type { Id } from "./_generated/dataModel";
+import { query, type QueryCtx } from "./_generated/server";
 import { getMember, requireMember } from "./lib/auth";
 
 export const list = query({
@@ -49,18 +50,84 @@ export const forTodo = query({
   },
 });
 
-// Full activity log in a time range, for export. Capped to keep the query bounded.
+const DAY_MS = 24 * 60 * 60 * 1000;
+// 366 calendar days, inclusive, plus an hour of slack for a DST shift inside the range.
+const MAX_EXPORT_RANGE_MS = 366 * DAY_MS + 60 * 60 * 1000;
+const MAX_EXPORT_PAGE_SIZE = 1000;
+const EXPORT_RANGE_ROW_CAP = 5000;
+
+// Activity rows for [fromMs, toMs], newest first, optionally narrowed to a project and/or actor.
+// Every combination is served by an index whose last field is `_creationTime`.
+function exportQuery(
+  ctx: QueryCtx,
+  orgId: string,
+  { fromMs, toMs, projectId, actorId }: { fromMs: number; toMs: number; projectId?: Id<"projects">; actorId?: string },
+) {
+  const activity = ctx.db.query("activity");
+  const q = projectId
+    ? actorId
+      ? activity.withIndex("by_project_actor", (q) =>
+          q.eq("projectId", projectId).eq("actorId", actorId).gte("_creationTime", fromMs).lte("_creationTime", toMs),
+        )
+      : activity.withIndex("by_project", (q) =>
+          q.eq("projectId", projectId).gte("_creationTime", fromMs).lte("_creationTime", toMs),
+        )
+    : actorId
+      ? activity.withIndex("by_org_actor", (q) =>
+          q.eq("orgId", orgId).eq("actorId", actorId).gte("_creationTime", fromMs).lte("_creationTime", toMs),
+        )
+      : activity.withIndex("by_org", (q) =>
+          q.eq("orgId", orgId).gte("_creationTime", fromMs).lte("_creationTime", toMs),
+        );
+  return q.order("desc");
+}
+
+async function projectInOrg(ctx: QueryCtx, orgId: string, projectId: Id<"projects"> | undefined) {
+  if (!projectId) return true;
+  const project = await ctx.db.get(projectId);
+  return !!project && project.orgId === orgId;
+}
+
+// Paginated full activity export. The client calls this repeatedly, passing `continueCursor`
+// back as `paginationOpts.cursor`, until `isDone`. `numItems` is clamped to 1,000.
+// The range may span at most 366 days.
+export const exportPage = query({
+  args: {
+    fromMs: v.number(),
+    toMs: v.number(),
+    projectId: v.optional(v.id("projects")),
+    actorId: v.optional(v.string()),
+    paginationOpts: paginationOptsValidator,
+  },
+  handler: async (ctx, { paginationOpts, ...range }) => {
+    const member = await requireMember(ctx);
+    if (range.fromMs > range.toMs) throw new Error("Invalid date range: the start must be before the end.");
+    if (range.toMs - range.fromMs > MAX_EXPORT_RANGE_MS) {
+      throw new Error("Date range is too long: export at most 366 days at a time.");
+    }
+    if (!(await projectInOrg(ctx, member.orgId, range.projectId))) {
+      return { page: [], isDone: true, continueCursor: "" };
+    }
+    return await exportQuery(ctx, member.orgId, range).paginate({
+      ...paginationOpts,
+      numItems: Math.max(1, Math.min(paginationOpts.numItems, MAX_EXPORT_PAGE_SIZE)),
+    });
+  },
+});
+
+// Deprecated: use `exportPage`. Kept for existing callers. Returns every row in the range, or
+// throws if there are more than 5,000 instead of silently dropping the rest.
 export const exportRange = query({
   args: { fromMs: v.number(), toMs: v.number(), projectId: v.optional(v.id("projects")) },
   handler: async (ctx, { fromMs, toMs, projectId }) => {
     const member = await requireMember(ctx);
-    const rows = await ctx.db
-      .query("activity")
-      .withIndex("by_org", (q) =>
-        q.eq("orgId", member.orgId).gte("_creationTime", fromMs).lte("_creationTime", toMs),
-      )
-      .order("desc")
-      .take(5000);
-    return projectId ? rows.filter((r) => r.projectId === projectId) : rows;
+    if (!(await projectInOrg(ctx, member.orgId, projectId))) return [];
+    const rows = await exportQuery(ctx, member.orgId, { fromMs, toMs, projectId }).take(EXPORT_RANGE_ROW_CAP + 1);
+    if (rows.length > EXPORT_RANGE_ROW_CAP) {
+      throw new Error(
+        "This range has more than 5,000 activity rows. Narrow the date range or filters and try again.",
+      );
+    }
+    return rows;
   },
 });
