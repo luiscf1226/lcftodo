@@ -50,7 +50,5 @@ npm test                  # backend tests (convex-test)
 
 ## Deploy
 
-1. `npx convex deploy` (set `CLERK_JWT_ISSUER_DOMAIN` on the prod deployment to your
-   **production** Clerk Frontend API URL).
-2. Import the repo in Vercel. Build command: `npx convex deploy --cmd 'npm run build'`.
-   Env vars: `CONVEX_DEPLOY_KEY`, `NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY`, `CLERK_SECRET_KEY`.
+Vercel + Convex + Clerk, deployed from `main` on every merge. One-time account setup,
+env vars and rollback: see [`docs/DEPLOY.md`](docs/DEPLOY.md).
