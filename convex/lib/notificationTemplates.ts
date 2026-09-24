@@ -59,13 +59,13 @@ export function renderDigestEmail(
 ): Rendered {
   const parts = [
     section("Hoy", digest.today, false),
-    section("Pendientes", digest.overdue, true),
+    section("Atrasadas", digest.overdue, true),
     section("Sin terminar ayer", digest.didntFinish, false),
   ];
   const foot = footer(links, "el resumen diario");
   const greeting = `¡Buenos días${name ? `, ${name}` : ""}! Este es tu plan para el ${date}.`;
   return {
-    subject: `Tus tareas para el ${date}: ${digest.today.length} para hoy${digest.overdue.length ? `, ${digest.overdue.length} pendientes` : ""}`,
+    subject: `Tus tareas para el ${date}: ${digest.today.length} para hoy${digest.overdue.length ? `, ${digest.overdue.length} atrasadas` : ""}`,
     html:
       `<div style="font-family:system-ui,-apple-system,Segoe UI,sans-serif;font-size:14px;color:#0f172a">` +
       `<p>${escapeHtml(greeting)}</p>${parts.map((p) => p.html).join("")}${foot.html}</div>`,

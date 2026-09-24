@@ -69,6 +69,12 @@ export function errorMessage(error: unknown, fallback = "Ocurrió un error. Int�
   if (length) return `${FIELD_LABELS[length[1]]} debe tener como máximo ${length[2]} caracteres.`;
   const range = /^Date range too large: pick at most (\d+) days\.$/.exec(message);
   if (range) return `El período es demasiado largo. Elige como máximo ${range[1]} días.`;
+  const exportRange = /^Date range is too long: export at most ([\d,]+) days at a time\.$/.exec(message);
+  if (exportRange) return `El período es demasiado largo. Exporta como máximo ${exportRange[1]} días a la vez.`;
+  const pickDays = /^Pick at most ([\d,]+) days\.$/.exec(message);
+  if (pickDays) return `Elige como máximo ${pickDays[1]} días.`;
+  const pickProjects = /^Pick at most ([\d,]+) projects\.$/.exec(message);
+  if (pickProjects) return `Elige como máximo ${pickProjects[1]} proyectos.`;
   const activityRange = /^This range has more than ([\d,]+) activity rows\./.exec(message);
   if (activityRange)
     return `Este período tiene más de ${activityRange[1]} entradas de actividad. Reduce el período o ajusta los filtros.`;

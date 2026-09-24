@@ -33,6 +33,7 @@ export const shiftDays = (key: string, n: number) => toKey(addDays(fromKey(key),
 const SPANISH_PATTERNS: Record<string, string> = {
   "EEEE, MMMM d": "EEEE d 'de' MMMM",
   "EEEE, MMMM d, yyyy": "EEEE d 'de' MMMM 'de' yyyy",
+  "EEEE, MMM d": "EEEE d MMM",
   "EEE, MMM d": "EEE d MMM",
   "EEE, MMM d, yyyy": "EEE d MMM yyyy",
   "MMM d": "d MMM",
