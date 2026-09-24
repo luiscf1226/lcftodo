@@ -1,6 +1,6 @@
 import type { QueryCtx } from "../_generated/server";
 // Limits and the palette live in ./constants so the UI can share them (#29, #37).
-import { LIMITS, MAX_RANGE_DAYS, PROJECT_COLORS } from "./constants";
+import { LIMITS, MAX_RANGE_DAYS, PROJECT_COLORS, type RecurrenceRule } from "./constants";
 
 const fmt = (n: number) => n.toLocaleString("en-US");
 
@@ -29,6 +29,17 @@ export const todoNotes = (s: string | undefined) => optionalText(s, LIMITS.todoN
 export const projectName = (s: string) => requiredText(s, LIMITS.projectName, "Project name");
 export const projectDescription = (s: string | undefined) =>
   optionalText(s, LIMITS.projectDescription, "Description");
+
+export const commentBody = (s: string) => requiredText(s, LIMITS.comment, "Comment");
+
+/** Validates a recurrence rule (#23); weekly rules get sorted, de-duplicated weekdays. */
+export function recurrenceRule(rule: RecurrenceRule): RecurrenceRule {
+  if (rule.kind !== "weekly") return { kind: rule.kind };
+  const weekdays = [...new Set(rule.weekdays ?? [])].sort((a, b) => a - b);
+  if (weekdays.length === 0) throw new Error("Pick at least one day of the week.");
+  if (weekdays.some((d) => !Number.isInteger(d) || d < 0 || d > 6)) throw new Error("Invalid day of the week.");
+  return { kind: "weekly", weekdays };
+}
 
 /** Returns the canonical (lower-case) palette color or throws. */
 export function projectColor(color: string): string {

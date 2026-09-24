@@ -14,6 +14,7 @@ import { TodoDialog } from "@/components/TodoDialog";
 import { TodoItem } from "@/components/TodoItem";
 import { useMembers } from "@/components/useMembers";
 import { useToday } from "@/components/useToday";
+import { useRecurringTodos } from "@/components/useRecurringTodos";
 import { fmt, shiftDays, weekDays, weekStart } from "@/lib/dates";
 import { emptyStatusCounts, STATUS_META, STATUSES } from "@/lib/status";
 
@@ -26,6 +27,7 @@ export default function TodayPage() {
   const start = weekStart(today);
   const days = useMemo(() => weekDays(start), [start]);
   const todos = useQuery(api.todos.listForTeam, { from: start, to: shiftDays(start, 6) });
+  useRecurringTodos(start, shiftDays(start, 6));
   const projects = useQuery(api.projects.list, {});
   const { byId } = useMembers();
   const [scope, setScope] = useState<"mine" | "team">("mine");
