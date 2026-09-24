@@ -63,12 +63,12 @@ export function TodoItem({
       </button>
 
       <div className="min-w-0 flex-1">
+        {/* Read-only todos still open, in a view-only dialog (#18). */}
         <button
           type="button"
           onClick={onOpen}
-          disabled={readOnly}
           className={clsx(
-            "block w-full cursor-pointer break-words text-left focus-visible:outline-2 focus-visible:outline-accent disabled:cursor-not-allowed",
+            "block w-full cursor-pointer break-words text-left focus-visible:outline-2 focus-visible:outline-accent",
             (done || notDone) && "text-muted",
             done && "line-through",
           )}

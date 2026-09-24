@@ -7,6 +7,7 @@ import { ChevronDown, Download } from "lucide-react";
 import { useMemo, useState } from "react";
 import type { Id } from "../../../../convex/_generated/dataModel";
 import { api } from "../../../../convex/_generated/api";
+import { MAX_EXPORT_PAGE_SIZE, MAX_RANGE_DAYS } from "../../../../convex/lib/constants";
 import { Avatar } from "@/components/Avatar";
 import { Empty, PageHeader, Skeleton } from "@/components/PageHeader";
 import { StatusPill } from "@/components/StatusSelect";
@@ -16,7 +17,10 @@ import { describe } from "@/lib/activity";
 import { download, toCsv } from "@/lib/csv";
 import { fmt, fromKey, shiftDays, todayKey } from "@/lib/dates";
 import { errorMessage } from "@/lib/errors";
-import { STATUS_META, STATUSES } from "@/lib/status";
+import { collectPages } from "@/lib/export";
+import { completion, peopleStats, type PersonStats } from "@/lib/peopleStats";
+import { emptyStatusCounts, STATUS_META, STATUSES } from "@/lib/status";
+import { downloadXlsx } from "@/lib/xlsx";
 
 export default function HistoryPage() {
   const today = todayKey();
@@ -28,7 +32,7 @@ export default function HistoryPage() {
   const validDates = Boolean(from && to) && isValid(fromKey(from)) && isValid(fromKey(to));
   const validRange = validDates && from <= to;
   const rangeDays = validRange ? differenceInCalendarDays(fromKey(to), fromKey(from)) + 1 : 0;
-  const rangeTooLarge = rangeDays > 366;
+  const rangeTooLarge = rangeDays > MAX_RANGE_DAYS;
   const canViewRange = validRange && !rangeTooLarge;
   const memberFilterLabel = tab === "activity" ? "Changed by" : "Assigned to";
 
@@ -65,13 +69,18 @@ export default function HistoryPage() {
   const { members, byId, nameOf } = useMembers(
     useMemo(() => (todos ?? []).flatMap((t) => [t.assigneeId, t.createdBy]).filter((x): x is string => !!x), [todos]),
   );
+  // Per-person totals for the People tab and exports; an "Assigned to" filter narrows it to that person.
+  const people = useMemo(() => {
+    const rows = peopleStats(filtered, members, nameOf);
+    return memberId ? rows.filter((p) => p.id === memberId) : rows;
+  }, [filtered, members, nameOf, memberId]);
 
   return (
     <div className="mx-auto max-w-5xl">
       <PageHeader
         title="History"
         subtitle="Everything your team planned, finished and missed."
-        actions={<ExportMenu disabled={!canViewRange} from={from} to={to} projectId={projectId || undefined} projectDeleted={projectDeleted} memberId={memberId} todos={filtered} members={members} nameOf={nameOf} />}
+        actions={<ExportMenu disabled={!canViewRange} from={from} to={to} projectId={projectId || undefined} projectDeleted={projectDeleted} memberId={memberId} todos={filtered} people={people} nameOf={nameOf} />}
       />
 
       <div className="card mb-5 grid gap-3 p-3 sm:grid-cols-2 lg:grid-cols-4">
@@ -111,7 +120,7 @@ export default function HistoryPage() {
       )}
       {rangeTooLarge && (
         <p className="mb-4 rounded-lg border border-danger/30 bg-danger/10 px-3 py-2 text-sm text-danger" role="alert">
-          History supports ranges up to 366 days. Select a shorter range to view or export it.
+          History supports ranges up to {MAX_RANGE_DAYS} days (this one is {rangeDays}). Select a shorter range to view or export it.
         </p>
       )}
 
@@ -132,7 +141,7 @@ export default function HistoryPage() {
       {!canViewRange ? null : tab === "days" ? (
         todos === undefined ? <Skeleton className="h-60" /> : <DaySummary todos={filtered} byId={byId} />
       ) : tab === "people" ? (
-        todos === undefined ? <Skeleton className="h-60" /> : <PeopleSummary todos={filtered} members={members} nameOf={nameOf} />
+        todos === undefined ? <Skeleton className="h-60" /> : <PeopleSummary people={people} />
       ) : (
         <ActivityLog projectId={projectId || undefined} projectDeleted={projectDeleted} actorId={memberId || undefined} byId={byId} nameOf={nameOf} />
       )}
@@ -143,6 +152,11 @@ export default function HistoryPage() {
 type TeamTodos = NonNullable<ReturnType<typeof useQuery<typeof api.todos.listForTeam>>>;
 type Members = ReturnType<typeof useMembers>;
 
+// Fixed export columns, so empty sheets/CSVs still carry their headers.
+const TODO_HEADERS = ["date", "project", "title", "status", "assignee", "created_by", "notes", "completed_at", "carried_over"];
+const ACTIVITY_HEADERS = ["time", "person", "project", "action", "todo", "from", "to", "day", "description"];
+const PEOPLE_HEADERS = ["person", "assigned", "done", "didnt_finish", "open", "completion_percent"];
+
 function DaySummary({ todos, byId }: { todos: TeamTodos; byId: Members["byId"] }) {
   const [open, setOpen] = useState<string | null>(null);
   const days = useMemo(() => {
@@ -151,7 +165,7 @@ function DaySummary({ todos, byId }: { todos: TeamTodos; byId: Members["byId"] }
     return [...map.entries()].sort(([a], [b]) => b.localeCompare(a));
   }, [todos]);
 
-  const totals = { todo: 0, doing: 0, done: 0, not_done: 0 };
+  const totals = emptyStatusCounts();
   for (const t of todos) totals[t.status]++;
 
   if (days.length === 0) return <Empty title="No todos in this range" body="Try a wider date range or different filters." />;
@@ -167,7 +181,7 @@ function DaySummary({ todos, byId }: { todos: TeamTodos; byId: Members["byId"] }
       </div>
       <ul className="card divide-y divide-line">
         {days.map(([day, items]) => {
-          const c = { todo: 0, doing: 0, done: 0, not_done: 0 };
+          const c = emptyStatusCounts();
           for (const t of items) c[t.status]++;
           const expanded = open === day;
           return (
@@ -202,47 +216,16 @@ function DaySummary({ todos, byId }: { todos: TeamTodos; byId: Members["byId"] }
   );
 }
 
-type PersonStats = {
-  id?: string;
-  name: string;
-  assigned: number;
-  done: number;
-  notDone: number;
-  open: number;
-};
+function PeopleSummary({ people }: { people: PersonStats[] }) {
+  if (people.length === 0) return <Empty title="No people to show" body="Try clearing the Assigned to filter." />;
 
-function peopleStats(todos: TeamTodos, members: Members["members"], nameOf: Members["nameOf"]): PersonStats[] {
-  const byPerson = new Map<string, PersonStats>();
-  for (const member of members) byPerson.set(member.id, { id: member.id, name: member.name, assigned: 0, done: 0, notDone: 0, open: 0 });
-  byPerson.set("unassigned", { name: "Unassigned", assigned: 0, done: 0, notDone: 0, open: 0 });
-  for (const todo of todos) {
-    const key = todo.assigneeId ?? "unassigned";
-    const person = byPerson.get(key) ?? {
-      id: todo.assigneeId,
-      name: todo.assigneeId ? nameOf(todo.assigneeId) : "Unassigned",
-      assigned: 0,
-      done: 0,
-      notDone: 0,
-      open: 0,
-    };
-    person.assigned++;
-    if (todo.status === "done") person.done++;
-    else if (todo.status === "not_done") person.notDone++;
-    else person.open++;
-    byPerson.set(key, person);
-  }
-  return [...byPerson.values()].sort((a, b) => b.assigned - a.assigned || a.name.localeCompare(b.name));
-}
-
-function PeopleSummary({ todos, members, nameOf }: { todos: TeamTodos; members: Members["members"]; nameOf: Members["nameOf"] }) {
-  const people = useMemo(() => peopleStats(todos, members, nameOf), [todos, members, nameOf]);
-
+  // The person column stays pinned while the numbers scroll sideways on phones.
   return (
     <div className="card overflow-x-auto">
-      <table className="w-full min-w-150 text-left text-sm">
+      <table className="w-full min-w-120 text-left text-sm">
         <thead className="border-b border-line bg-surface-2/60 text-xs font-medium tracking-wide text-muted uppercase">
           <tr>
-            <th className="px-4 py-2.5">Person</th>
+            <th className="sticky left-0 bg-surface px-4 py-2.5">Person</th>
             <th className="px-3 py-2.5 text-right">Assigned</th>
             <th className="px-3 py-2.5 text-right">Done</th>
             <th className="px-3 py-2.5 text-right">Didn&apos;t finish</th>
@@ -253,12 +236,12 @@ function PeopleSummary({ todos, members, nameOf }: { todos: TeamTodos; members: 
         <tbody className="divide-y divide-line">
           {people.map((person) => (
             <tr key={person.id ?? "unassigned"}>
-              <td className="px-4 py-3 font-medium">{person.name}</td>
+              <td className={clsx("sticky left-0 bg-surface px-4 py-3 font-medium", !person.id && "text-muted italic")}>{person.name}</td>
               <td className="px-3 py-3 text-right tabular-nums">{person.assigned}</td>
               <td className="px-3 py-3 text-right tabular-nums">{person.done}</td>
               <td className="px-3 py-3 text-right tabular-nums">{person.notDone}</td>
               <td className="px-3 py-3 text-right tabular-nums">{person.open}</td>
-              <td className="px-4 py-3 text-right tabular-nums">{person.assigned ? `${Math.round((person.done / person.assigned) * 100)}%` : "—"}</td>
+              <td className="px-4 py-3 text-right tabular-nums">{completion(person) === null ? "—" : `${completion(person)}%`}</td>
             </tr>
           ))}
         </tbody>
@@ -337,7 +320,7 @@ function ExportMenu({
   projectDeleted,
   memberId,
   todos,
-  members,
+  people,
   nameOf,
 }: {
   disabled: boolean;
@@ -347,7 +330,7 @@ function ExportMenu({
   projectDeleted: boolean;
   memberId: string;
   todos: TeamTodos;
-  members: Members["members"];
+  people: PersonStats[];
   nameOf: Members["nameOf"];
 }) {
   const convex = useConvex();
@@ -369,24 +352,29 @@ function ExportMenu({
     }));
 
   const peopleRows = () =>
-    peopleStats(todos, members, nameOf).map((person) => ({
+    people.map((person) => ({
       person: person.name,
       assigned: person.assigned,
       done: person.done,
       didnt_finish: person.notDone,
       open: person.open,
-      completion_percent: person.assigned ? Math.round((person.done / person.assigned) * 100) : "",
+      completion_percent: completion(person) ?? "",
     }));
 
   async function activityRows() {
-    const rows = await convex.query(api.activity.exportRange, {
-      fromMs: fromKey(from).getTime(),
-      toMs: fromKey(shiftDays(to, 1)).getTime() - 1,
-      // The server only filters by projects that still exist; a deleted one is filtered below.
-      projectId: projectDeleted ? undefined : projectId,
-    });
+    // Pages through every row on the server (filtered by index), so nothing is silently dropped (#15).
+    const rows = await collectPages((cursor) =>
+      convex.query(api.activity.exportPage, {
+        fromMs: fromKey(from).getTime(),
+        toMs: fromKey(shiftDays(to, 1)).getTime() - 1,
+        // The server only filters by projects that still exist; a deleted one is filtered below.
+        projectId: projectDeleted ? undefined : projectId,
+        actorId: memberId || undefined,
+        paginationOpts: { numItems: MAX_EXPORT_PAGE_SIZE, cursor },
+      }),
+    );
     return rows
-      .filter((a) => (!memberId || a.actorId === memberId) && (!projectDeleted || a.projectId === projectId))
+      .filter((a) => !projectDeleted || a.projectId === projectId)
       .map((a) => ({
         time: new Date(a._creationTime).toISOString(),
         person: nameOf(a.actorId),
@@ -400,34 +388,20 @@ function ExportMenu({
       }));
   }
 
-  async function downloadExcel() {
-    const { default: ExcelJS } = await import("exceljs");
-    const workbook = new ExcelJS.Workbook();
-    const addSheet = (name: string, rows: Record<string, string | number>[]) => {
-      const worksheet = workbook.addWorksheet(name);
-      worksheet.columns = Object.keys(rows[0] ?? {}).map((key) => ({ header: key, key }));
-      rows.forEach((row) => worksheet.addRow(row));
-    };
-    addSheet("Todos", todoRows());
-    addSheet("Activity", await activityRows());
-    addSheet("People", peopleRows());
-    const content = await workbook.xlsx.writeBuffer();
-    const url = URL.createObjectURL(new Blob([content], { type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" }));
-    const link = document.createElement("a");
-    link.href = url;
-    link.download = `lcftodos_${stamp}.xlsx`;
-    link.click();
-    setTimeout(() => URL.revokeObjectURL(url), 1000);
-  }
-
   async function run(kind: "todos-csv" | "people-csv" | "activity-csv" | "excel" | "json") {
     setBusy(true);
     setError(null);
     try {
-      if (kind === "todos-csv") download(`todos_${stamp}.csv`, toCsv(todoRows()), "text/csv;charset=utf-8");
-      if (kind === "people-csv") download(`people_${stamp}.csv`, toCsv(peopleRows()), "text/csv;charset=utf-8");
-      if (kind === "activity-csv") download(`activity_${stamp}.csv`, toCsv(await activityRows()), "text/csv;charset=utf-8");
-      if (kind === "excel") await downloadExcel();
+      if (kind === "todos-csv") download(`todos_${stamp}.csv`, toCsv(todoRows(), TODO_HEADERS), "text/csv;charset=utf-8");
+      if (kind === "people-csv") download(`people_${stamp}.csv`, toCsv(peopleRows(), PEOPLE_HEADERS), "text/csv;charset=utf-8");
+      if (kind === "activity-csv") download(`activity_${stamp}.csv`, toCsv(await activityRows(), ACTIVITY_HEADERS), "text/csv;charset=utf-8");
+      if (kind === "excel") {
+        await downloadXlsx(`lcftodos_${stamp}.xlsx`, [
+          { name: "Todos", rows: todoRows(), headers: TODO_HEADERS },
+          { name: "Activity", rows: await activityRows(), headers: ACTIVITY_HEADERS },
+          { name: "People", rows: peopleRows(), headers: PEOPLE_HEADERS },
+        ]);
+      }
       if (kind === "json") {
         const data = { exportedAt: new Date().toISOString(), from, to, todos: todoRows(), people: peopleRows(), activity: await activityRows() };
         download(`lcftodos_${stamp}.json`, JSON.stringify(data, null, 2), "application/json");

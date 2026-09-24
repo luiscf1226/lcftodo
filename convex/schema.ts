@@ -1,26 +1,13 @@
 import { defineSchema, defineTable } from "convex/server";
 import { v } from "convex/values";
+import { ACTIONS, STATUSES } from "./lib/constants";
 
-export const status = v.union(
-  v.literal("todo"),
-  v.literal("doing"),
-  v.literal("done"),
-  v.literal("not_done"),
-);
+// Validators are derived from the shared constants so a new status or action
+// is added in one place (#37).
+const literals = <T extends string>(values: readonly T[]) => v.union(...values.map((value) => v.literal(value)));
 
-export const action = v.union(
-  v.literal("created"),
-  v.literal("updated"),
-  v.literal("status"),
-  v.literal("moved"),
-  v.literal("carried_over"),
-  v.literal("deleted"),
-  v.literal("project_created"),
-  v.literal("project_updated"),
-  v.literal("project_archived"),
-  v.literal("project_restored"),
-  v.literal("project_deleted"),
-);
+export const status = literals(STATUSES);
+export const action = literals(ACTIONS);
 
 export default defineSchema({
   memberships: defineTable({
@@ -88,7 +75,9 @@ export default defineSchema({
     carriedFrom: v.optional(v.id("todos")),
   })
     .index("by_project_date", ["projectId", "date"])
-    .index("by_org_date", ["orgId", "date"]),
+    .index("by_org_date", ["orgId", "date"])
+    // Full-text search on titles, always scoped to one team (#26).
+    .searchIndex("search_title", { searchField: "title", filterFields: ["orgId"] }),
 
   activity: defineTable({
     orgId: v.string(),

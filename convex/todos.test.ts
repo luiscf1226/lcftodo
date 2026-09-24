@@ -263,4 +263,88 @@ describe("server-side input validation (#29)", () => {
     // Palette colors are accepted case-insensitively.
     await a.mutation(api.projects.update, { projectId, name: "ok", color: "#6366F1" });
   });
+
+  test("a legacy off-palette project color survives edits until it is changed", async () => {
+    const { t, a } = await setup();
+    const projectId = await t.run((ctx) =>
+      ctx.db.insert("projects", { orgId: "org_a", name: "Old", color: "#123456", archived: false, createdBy: "u" }),
+    );
+    await a.mutation(api.projects.update, { projectId, name: "Renamed", color: "#123456" });
+    expect(await a.query(api.projects.get, { projectId })).toMatchObject({ name: "Renamed", color: "#123456" });
+    // Changing it still requires a palette color.
+    await expect(a.mutation(api.projects.update, { projectId, name: "Renamed", color: "#654321" })).rejects.toThrow(/color/);
+    await a.mutation(api.projects.update, { projectId, name: "Renamed", color: "#0ea5e9" });
+    expect(await a.query(api.projects.get, { projectId })).toMatchObject({ color: "#0ea5e9" });
+  });
+
+  test("assignees must be active members of the caller's team, not just known users", async () => {
+    const { t, a, b, projectId } = await setup();
+    // Bob has a profile but no membership row yet: rejected.
+    await b.mutation(api.users.store, {});
+    await expect(
+      a.mutation(api.todos.create, { projectId, title: "x", date: "2026-09-21", assigneeId: bob.subject }),
+    ).rejects.toThrow(/active member/);
+    // An inactive membership, or one in another team, is rejected too.
+    await t.run((ctx) => ctx.db.insert("memberships", {
+      orgId: "org_a", userId: bob.subject, role: "org:member", active: false, updatedAt: Date.now(),
+    }));
+    await t.run((ctx) => ctx.db.insert("memberships", {
+      orgId: "org_b", userId: "user_eve", role: "org:admin", active: true, updatedAt: Date.now(),
+    }));
+    for (const assigneeId of [bob.subject, "user_eve"]) {
+      await expect(
+        a.mutation(api.todos.create, { projectId, title: "x", date: "2026-09-21", assigneeId }),
+      ).rejects.toThrow(/active member/);
+    }
+  });
+});
+
+describe("archived projects in team views (#18)", () => {
+  test("listForTeam flags todos of archived projects so the UI can make them read-only", async () => {
+    const { a, projectId } = await setup();
+    const other = await a.mutation(api.projects.create, { name: "Live", color: "#0ea5e9" });
+    await a.mutation(api.todos.create, { projectId, title: "Frozen", date: "2026-09-21" });
+    await a.mutation(api.todos.create, { projectId: other, title: "Open", date: "2026-09-21" });
+    await a.mutation(api.projects.setArchived, { projectId, archived: true });
+    const rows = await a.query(api.todos.listForTeam, { from: "2026-09-21", to: "2026-09-21" });
+    expect(Object.fromEntries(rows.map((r) => [r.title, r.projectArchived]))).toEqual({ Frozen: true, Open: false });
+  });
+});
+
+describe("carry-over links (#33)", () => {
+  test("todos.get resolves the original of a carried copy, scoped to the team", async () => {
+    const { a, e, projectId } = await setup();
+    const original = await a.mutation(api.todos.create, { projectId, title: "Slipped", date: "2026-09-21" });
+    await a.mutation(api.todos.carryOver, { projectId, date: "2026-09-21" });
+    const [copy] = await a.query(api.todos.listForProject, { projectId, from: "2026-09-22", to: "2026-09-22" });
+    expect(copy.carriedFrom).toBe(original);
+
+    expect(await a.query(api.todos.get, { todoId: copy.carriedFrom! })).toMatchObject({
+      _id: original, date: "2026-09-21", status: "not_done", projectId,
+    });
+    expect(await e.query(api.todos.get, { todoId: original })).toBeNull();
+
+    // A deleted original resolves to null, so the dialog falls back to plain text.
+    await a.mutation(api.todos.remove, { todoId: original });
+    expect(await a.query(api.todos.get, { todoId: original })).toBeNull();
+  });
+});
+
+describe("bounded project queries (#15)", () => {
+  test("listForProject rejects oversized, inverted and impossible ranges", async () => {
+    const { a, projectId } = await setup();
+    await a.mutation(api.todos.create, { projectId, title: "Week", date: "2026-09-21" });
+    expect(
+      (await a.query(api.todos.listForProject, { projectId, from: "2026-09-21", to: "2026-09-27" })).map((t) => t.title),
+    ).toEqual(["Week"]);
+    await expect(
+      a.query(api.todos.listForProject, { projectId, from: "2026-01-01", to: "2027-01-02" }),
+    ).rejects.toThrow(/at most 366 days/);
+    await expect(
+      a.query(api.todos.listForProject, { projectId, from: "2026-09-27", to: "2026-09-21" }),
+    ).rejects.toThrow(/start date/);
+    await expect(
+      a.query(api.todos.listForProject, { projectId, from: "2026-02-30", to: "2026-03-01" }),
+    ).rejects.toThrow(/date/);
+  });
 });

@@ -8,6 +8,7 @@ import { api } from "../../convex/_generated/api";
 import { errorMessage } from "@/lib/errors";
 import { isQuickAddShortcut, splitTitles } from "@/lib/quickAdd";
 import { AssigneeChip, MentionSuggestions, useAssigneeMention } from "./AssigneeMention";
+import { LIMITS } from "@/lib/status";
 import { showToast } from "./ToastViewport";
 
 type Props = {
@@ -89,7 +90,7 @@ export function TodayQuickAdd({ date, projects, projectId, onProjectIdChange, on
           aria-label="New todo for today"
           aria-keyshortcuts="/ n"
           value={title}
-          maxLength={300}
+          maxLength={LIMITS.todoTitle}
           enterKeyHint="done"
           {...mention.inputProps}
           onChange={(e) => setTitle(e.target.value)}

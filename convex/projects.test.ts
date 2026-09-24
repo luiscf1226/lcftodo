@@ -2,6 +2,7 @@ import { convexTest } from "convex-test";
 import { describe, expect, test, vi } from "vitest";
 import { api } from "./_generated/api";
 import type { Id } from "./_generated/dataModel";
+import type { Status } from "./lib/constants";
 import schema from "./schema";
 
 const modules = import.meta.glob("./**/*.ts");
@@ -9,8 +10,6 @@ const modules = import.meta.glob("./**/*.ts");
 const alice = { subject: "user_alice", name: "Alice", org_id: "org_a", org_role: "org:admin" };
 const bob = { subject: "user_bob", name: "Bob", org_id: "org_a", org_role: "org:member" };
 const eve = { subject: "user_eve", name: "Eve", org_id: "org_b", org_role: "org:admin" };
-
-type Status = "todo" | "doing" | "done" | "not_done";
 
 describe("projects.listWithStats", () => {
   test("counts todos per project and status within the range only", async () => {

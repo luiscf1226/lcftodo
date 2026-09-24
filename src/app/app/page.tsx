@@ -15,9 +15,9 @@ import { TodoItem } from "@/components/TodoItem";
 import { useMembers } from "@/components/useMembers";
 import { useToday } from "@/components/useToday";
 import { fmt, shiftDays, weekDays, weekStart } from "@/lib/dates";
-import { STATUS_META, STATUSES } from "@/lib/status";
+import { emptyStatusCounts, STATUS_META, STATUSES } from "@/lib/status";
 
-type TeamTodo = Doc<"todos"> & { projectName: string; projectColor: string };
+type TeamTodo = Doc<"todos"> & { projectName: string; projectColor: string; projectArchived: boolean };
 
 export default function TodayPage() {
   const { userId } = useAuth();
@@ -56,7 +56,7 @@ export default function TodayPage() {
     const list = inScope.filter((t) => t.date === d);
     return { day: d, total: list.length, done: list.filter((t) => t.status === "done").length };
   });
-  const weekCounts = { todo: 0, doing: 0, done: 0, not_done: 0 };
+  const weekCounts = emptyStatusCounts();
   for (const t of inScope) weekCounts[t.status]++;
 
   const list = (items: TeamTodo[]) => (
@@ -67,6 +67,7 @@ export default function TodayPage() {
           todo={t}
           project={{ name: t.projectName, color: t.projectColor }}
           assignee={t.assigneeId ? byId.get(t.assigneeId) : undefined}
+          readOnly={t.projectArchived}
           onOpen={() => setEditing(t)}
         />
       ))}
@@ -170,7 +171,7 @@ export default function TodayPage() {
       )}
 
       {editing && (
-        <TodoDialog open onClose={() => setEditing(null)} projectId={editing.projectId} date={editing.date} todo={editing} />
+        <TodoDialog open onClose={() => setEditing(null)} projectId={editing.projectId} date={editing.date} todo={editing} readOnly={editing.projectArchived} />
       )}
       {creating && newProjectId && (
         <TodoDialog
