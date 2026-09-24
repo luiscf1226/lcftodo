@@ -71,7 +71,8 @@ npm test                  # backend tests (convex-test)
 ## How it works
 
 - Every Convex function reads the active team from the signed Clerk token
-  (`convex/lib/auth.ts`) — teams can never see each other's data.
+  (`convex/lib/auth.ts`) — teams can never see each other's data. After the
+  membership backfill, it also requires an active synced membership.
 - `activity` is an append-only log; deleting a todo or project keeps its history.
 - *Carry* on a day moves unfinished todos to the next day and marks the originals
   *Didn't finish*, so slippage stays visible in History.
