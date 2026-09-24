@@ -42,8 +42,9 @@ both values out of the repository. The `.site` webhook URL differs from the
 `.cloud` URL used by the browser.
 
 For each existing team, run the one-time `memberships:backfill` action as a team
-admin. The action reads all Clerk organization membership pages and reconciles
-Convex before enabling membership-based access checks. A Convex operator can run:
+admin. The action reads all Clerk organization membership pages twice and
+reconciles Convex before enabling membership-based access checks. If the member
+list changes between reads, it fails without enabling them; rerun it. A Convex operator can run:
 
 ```bash
 npx convex run memberships:backfill '{}' --identity '{"subject":"user_...","org_id":"org_...","org_role":"org:admin"}'

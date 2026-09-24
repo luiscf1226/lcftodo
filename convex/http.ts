@@ -30,25 +30,30 @@ http.route({
     if (!event || typeof event !== "object" || !("type" in event) || !("data" in event)) {
       return new Response("Invalid webhook event.", { status: 400 });
     }
+    // Order by Clerk's payload timestamps: svix-timestamp is re-signed on every delivery attempt.
     const { type, data } = event;
-    const eventAt = Number(timestamp) * 1000;
-    if (!Number.isFinite(eventAt)) return new Response("Invalid webhook timestamp.", { status: 400 });
 
     if (type === "organizationMembership.created" || type === "organizationMembership.updated" || type === "organizationMembership.deleted") {
-      if (!data || typeof data !== "object" || !("organization" in data) || !("public_user_data" in data) || !("role" in data)) {
+      if (!data || typeof data !== "object" || !("id" in data) || !("organization" in data) ||
+          !("public_user_data" in data) || !("role" in data) || !("created_at" in data) || !("updated_at" in data)) {
         return new Response("Invalid membership event.", { status: 400 });
       }
       const org = data.organization;
       const user = data.public_user_data;
       if (!org || typeof org !== "object" || !("id" in org) || typeof org.id !== "string" ||
           !user || typeof user !== "object" || !("user_id" in user) || typeof user.user_id !== "string" ||
-          typeof data.role !== "string") return new Response("Invalid membership event.", { status: 400 });
+          typeof data.id !== "string" || !data.id || typeof data.role !== "string" ||
+          typeof data.created_at !== "number" || !Number.isFinite(data.created_at) ||
+          typeof data.updated_at !== "number" || !Number.isFinite(data.updated_at)) {
+        return new Response("Invalid membership event.", { status: 400 });
+      }
       await ctx.runMutation(internal.memberships.applyWebhook, {
-        orgId: org.id, userId: user.user_id, role: data.role,
-        active: type !== "organizationMembership.deleted", eventAt,
+        orgId: org.id, userId: user.user_id, membershipId: data.id, role: data.role,
+        active: type !== "organizationMembership.deleted", createdAt: data.created_at, updatedAt: data.updated_at,
       });
     } else if (type === "user.created" || type === "user.updated") {
-      if (!data || typeof data !== "object" || !("id" in data) || typeof data.id !== "string") {
+      if (!data || typeof data !== "object" || !("id" in data) || typeof data.id !== "string" ||
+          !("updated_at" in data) || typeof data.updated_at !== "number" || !Number.isFinite(data.updated_at)) {
         return new Response("Invalid user event.", { status: 400 });
       }
       const first = "first_name" in data && typeof data.first_name === "string" ? data.first_name : "";
@@ -60,12 +65,14 @@ http.route({
       const primary = emailAddresses.find((entry) => entry && typeof entry === "object" && "id" in entry && entry.id === primaryEmailId);
       const email = primary && "email_address" in primary && typeof primary.email_address === "string" ? primary.email_address : undefined;
       const imageUrl = "image_url" in data && typeof data.image_url === "string" ? data.image_url : undefined;
-      await ctx.runMutation(internal.users.upsertFromWebhook, { clerkId: data.id, name, email, imageUrl });
+      await ctx.runMutation(internal.users.upsertFromWebhook, {
+        clerkId: data.id, name, email, imageUrl, updatedAt: data.updated_at,
+      });
     } else if (type === "user.deleted") {
       if (!data || typeof data !== "object" || !("id" in data) || typeof data.id !== "string") {
         return new Response("Invalid user event.", { status: 400 });
       }
-      await ctx.runMutation(internal.users.deleteFromWebhook, { clerkId: data.id, eventAt });
+      await ctx.runMutation(internal.users.deleteFromWebhook, { clerkId: data.id });
     }
     return new Response("OK");
   }),

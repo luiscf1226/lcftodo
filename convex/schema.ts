@@ -28,6 +28,9 @@ export default defineSchema({
     userId: v.string(),
     role: v.string(),
     active: v.boolean(),
+    // Clerk's immutable membership id and timestamps (ms); a re-invite gets a new id.
+    membershipId: v.optional(v.string()),
+    membershipCreatedAt: v.optional(v.number()),
     lastEventAt: v.optional(v.number()),
     updatedAt: v.number(),
     backfillRunId: v.optional(v.string()),
@@ -35,6 +38,12 @@ export default defineSchema({
     .index("by_org", ["orgId"])
     .index("by_org_user", ["orgId", "userId"])
     .index("by_user", ["userId"]),
+
+  // Clerk deletions are terminal for a membership or user id, so retried older events are ignored.
+  tombstones: defineTable({
+    kind: v.union(v.literal("membership"), v.literal("user")),
+    clerkId: v.string(),
+  }).index("by_kind_clerkId", ["kind", "clerkId"]),
 
   membershipSync: defineTable({
     orgId: v.string(),
@@ -47,6 +56,8 @@ export default defineSchema({
     name: v.string(),
     email: v.optional(v.string()),
     imageUrl: v.optional(v.string()),
+    // Clerk's `updated_at` (ms) of the last applied profile webhook.
+    clerkUpdatedAt: v.optional(v.number()),
   }).index("by_clerkId", ["clerkId"]),
 
   projects: defineTable({
