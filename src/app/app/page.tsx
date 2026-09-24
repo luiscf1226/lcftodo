@@ -9,6 +9,7 @@ import { useEffect, useMemo, useState } from "react";
 import type { Doc, Id } from "../../../convex/_generated/dataModel";
 import { api } from "../../../convex/_generated/api";
 import { Empty, PageHeader, Skeleton } from "@/components/PageHeader";
+import { TodayQuickAdd } from "@/components/TodayQuickAdd";
 import { TodoDialog } from "@/components/TodoDialog";
 import { TodoItem } from "@/components/TodoItem";
 import { useMembers } from "@/components/useMembers";
@@ -120,6 +121,16 @@ export default function TodayPage() {
         }
       />
 
+      {newProjectId && (
+        <TodayQuickAdd
+          date={today}
+          projects={activeProjects}
+          projectId={newProjectId}
+          onProjectIdChange={selectProject}
+          onMore={() => setCreating(true)}
+        />
+      )}
+
       <div className="mb-6 grid grid-cols-2 gap-3 sm:grid-cols-4">
         {STATUSES.map((s) => (
           <div key={s} className="card p-3">
@@ -159,7 +170,7 @@ export default function TodayPage() {
           <section>
             <h2 className="mb-2 text-sm font-semibold">Today <span className="font-normal text-muted">({todayItems.length})</span></h2>
             {todayItems.length === 0 ? (
-              <p className="card p-4 text-sm text-muted">Nothing planned for today. Open a project to add todos.</p>
+              <p className="card p-4 text-sm text-muted">Nothing planned for today. Type above and press Enter to add one.</p>
             ) : list(todayItems)}
           </section>
           <section>
