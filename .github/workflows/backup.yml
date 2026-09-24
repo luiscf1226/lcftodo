@@ -1,0 +1,109 @@
+name: Backup
+
+# Nightly snapshot of the PRODUCTION Convex deployment, kept as a workflow artifact (#36).
+# Free-plan alternative to Convex scheduled backups. Restore steps: docs/BACKUPS.md.
+# This workflow only runs on a schedule or by hand; it is not (and must not be) a required check.
+#
+# The repository is PUBLIC, and artifacts of a public repo can be downloaded by any signed-in
+# GitHub user, so the snapshot is encrypted (gpg, AES-256) before upload and never uploaded in
+# plaintext. Required secrets: CONVEX_BACKUP_DEPLOY_KEY and BACKUP_ENCRYPTION_PASSPHRASE.
+
+on:
+  schedule:
+    # 07:17 UTC daily (off the top of the hour, when GitHub schedules are least delayed).
+    - cron: "17 7 * * *"
+  workflow_dispatch:
+
+concurrency:
+  group: backup
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  backup:
+    name: backup
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      # Secrets are passed only to the steps that need them (not to `npm ci` install scripts).
+      - name: Check for backup secrets
+        id: key
+        env:
+          CONVEX_DEPLOY_KEY: ${{ secrets.CONVEX_BACKUP_DEPLOY_KEY }}
+          BACKUP_ENCRYPTION_PASSPHRASE: ${{ secrets.BACKUP_ENCRYPTION_PASSPHRASE }}
+        run: |
+          missing=""
+          [ -z "$CONVEX_DEPLOY_KEY" ] && missing="$missing CONVEX_BACKUP_DEPLOY_KEY"
+          [ -z "$BACKUP_ENCRYPTION_PASSPHRASE" ] && missing="$missing BACKUP_ENCRYPTION_PASSPHRASE"
+          if [ -n "$missing" ]; then
+            echo "::notice title=Backup skipped::Repository secret(s) not set:$missing. See docs/BACKUPS.md (Operator setup) to create the production backup deploy key and encryption passphrase."
+            echo "## Backup skipped" >> "$GITHUB_STEP_SUMMARY"
+            echo "Missing repository secret(s):$missing. See docs/BACKUPS.md." >> "$GITHUB_STEP_SUMMARY"
+            echo "present=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "present=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      - if: steps.key.outputs.present == 'true'
+        uses: actions/checkout@v4
+
+      - if: steps.key.outputs.present == 'true'
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install
+        if: steps.key.outputs.present == 'true'
+        run: npm ci
+
+      - name: Export production snapshot
+        id: export
+        if: steps.key.outputs.present == 'true'
+        env:
+          # Prod deploy key with backup permissions (docs/BACKUPS.md). The CLI targets its deployment.
+          CONVEX_DEPLOY_KEY: ${{ secrets.CONVEX_BACKUP_DEPLOY_KEY }}
+        run: |
+          name="convex-prod-$(date -u +%Y-%m-%dT%H%M%SZ)"
+          npx convex export --path "$RUNNER_TEMP/$name.zip"
+          echo "name=$name" >> "$GITHUB_OUTPUT"
+          {
+            echo "### Convex production backup"
+            echo ""
+            echo "- Artifact: \`$name\` containing \`$name.zip.gpg\` (kept 30 days)"
+            echo "- Size (before encryption): $(du -h "$RUNNER_TEMP/$name.zip" | cut -f1)"
+            echo ""
+            echo "| table | documents |"
+            echo "| --- | ---: |"
+            unzip -Z1 "$RUNNER_TEMP/$name.zip" | grep '/documents.jsonl$' | grep -v '^_' | while read -r f; do
+              echo "| ${f%/documents.jsonl} | $(unzip -p "$RUNNER_TEMP/$name.zip" "$f" | wc -l | tr -d ' ') |"
+            done
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Encrypt snapshot
+        id: encrypt
+        if: steps.key.outputs.present == 'true'
+        env:
+          NAME: ${{ steps.export.outputs.name }}
+          BACKUP_ENCRYPTION_PASSPHRASE: ${{ secrets.BACKUP_ENCRYPTION_PASSPHRASE }}
+        run: |
+          mkdir -p "$RUNNER_TEMP/out"
+          printf '%s' "$BACKUP_ENCRYPTION_PASSPHRASE" | gpg --batch --yes --pinentry-mode loopback \
+            --passphrase-fd 0 --symmetric --cipher-algo AES256 \
+            --output "$RUNNER_TEMP/out/$NAME.zip.gpg" "$RUNNER_TEMP/$NAME.zip"
+          # Never leave the plaintext snapshot where a later step could upload it.
+          rm -f "$RUNNER_TEMP/$NAME.zip"
+          echo "path=$RUNNER_TEMP/out/$NAME.zip.gpg" >> "$GITHUB_OUTPUT"
+
+      - name: Upload artifact
+        if: steps.key.outputs.present == 'true'
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ steps.export.outputs.name }}
+          path: ${{ steps.encrypt.outputs.path }}
+          retention-days: 30
+          if-no-files-found: error
+          # The encrypted zip does not compress further.
+          compression-level: 0

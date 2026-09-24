@@ -123,3 +123,6 @@ npm test                  # backend tests (convex-test)
 
 Vercel + Convex + Clerk, deployed from `main` on every merge. One-time account setup,
 env vars and rollback: see [`docs/DEPLOY.md`](docs/DEPLOY.md).
+
+Nightly encrypted prod backups, the restore runbook and the admin JSON export: see
+[`docs/BACKUPS.md`](docs/BACKUPS.md).
