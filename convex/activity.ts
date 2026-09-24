@@ -101,6 +101,7 @@ export const exportPage = query({
   },
   handler: async (ctx, { paginationOpts, ...range }) => {
     const member = await requireMember(ctx);
+    if (!Number.isFinite(range.fromMs) || !Number.isFinite(range.toMs)) throw new Error("Invalid date range.");
     if (range.fromMs > range.toMs) throw new Error("Invalid date range: the start must be before the end.");
     if (range.toMs - range.fromMs > MAX_EXPORT_RANGE_MS) {
       throw new Error("Date range is too long: export at most 366 days at a time.");

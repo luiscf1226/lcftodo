@@ -190,6 +190,17 @@ describe("activity export", () => {
     ).rejects.toThrow(/before/);
   });
 
+  test("exportPage rejects non-finite bounds", async () => {
+    const { a } = await setup();
+    const paginationOpts = { numItems: 100, cursor: null };
+    await expect(
+      a.query(api.activity.exportPage, { fromMs: Number.NaN, toMs: Date.now(), paginationOpts }),
+    ).rejects.toThrow(/Invalid date range/);
+    await expect(
+      a.query(api.activity.exportPage, { fromMs: 0, toMs: Number.POSITIVE_INFINITY, paginationOpts }),
+    ).rejects.toThrow(/Invalid date range/);
+  });
+
   test("exportPage is scoped to the caller's team", async () => {
     const { t, p1, seed } = await setup();
     await seed([{ actorId: "user_bob", projectId: p1, n: 3 }]);

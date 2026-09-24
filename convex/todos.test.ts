@@ -216,7 +216,7 @@ describe("server-side input validation (#29)", () => {
   });
 
   test("assigneeId must be a known user", async () => {
-    const { a, b, projectId } = await setup();
+    const { t, a, b, projectId } = await setup();
     await b.mutation(api.users.store, {});
     const todoId = await a.mutation(api.todos.create, {
       projectId, title: "assigned", date: "2026-09-21", assigneeId: bob.subject,
@@ -227,6 +227,14 @@ describe("server-side input validation (#29)", () => {
     await expect(
       a.mutation(api.todos.update, { todoId, title: "x", date: "2026-09-21", assigneeId: "user_ghost" }),
     ).rejects.toThrow(/Assignee/);
+    // An unchanged assignee isn't re-validated, so a todo whose assignee has no `users` row can still be edited.
+    const orphan = await t.run((ctx) =>
+      ctx.db.insert("todos", {
+        orgId: "org_a", projectId, title: "orphan", date: "2026-09-21", status: "todo",
+        assigneeId: "user_left", createdBy: "u", order: 0,
+      }),
+    );
+    await a.mutation(api.todos.update, { todoId: orphan, title: "renamed", date: "2026-09-21", assigneeId: "user_left" });
     // Clearing the assignee is still allowed.
     await a.mutation(api.todos.update, { todoId, title: "x", date: "2026-09-21", assigneeId: "" });
   });

@@ -3,7 +3,7 @@ import type { Id } from "./_generated/dataModel";
 import { internal } from "./_generated/api";
 import { internalMutation, mutation, query } from "./_generated/server";
 import { getMember, log, requireMember, requireProject } from "./lib/auth";
-import { projectColor, projectDescription, projectName } from "./lib/validate";
+import { checkRange, projectColor, projectDescription, projectName } from "./lib/validate";
 
 export const list = query({
   args: { includeArchived: v.optional(v.boolean()) },
@@ -27,6 +27,7 @@ export const listWithStats = query({
   handler: async (ctx, { from, to }) => {
     const member = await getMember(ctx);
     if (!member) return [];
+    checkRange(from, to);
     const [projects, todos] = await Promise.all([
       ctx.db
         .query("projects")
@@ -97,6 +98,7 @@ export const update = mutation({
   handler: async (ctx, { projectId, ...args }) => {
     const member = await requireMember(ctx);
     const project = await requireProject(ctx, member, projectId);
+    if (project.deleting) throw new Error("This project is being deleted.");
     const name = projectName(args.name);
     const description = projectDescription(args.description);
     const color = projectColor(args.color);
@@ -116,6 +118,7 @@ export const setArchived = mutation({
     const member = await requireMember(ctx);
     if (!member.isAdmin) throw new Error("Only team admins can archive or restore projects.");
     const project = await requireProject(ctx, member, projectId);
+    if (project.deleting) throw new Error("This project is being deleted.");
     await ctx.db.patch(projectId, { archived });
     await log(ctx, member, project, { action: archived ? "project_archived" : "project_restored" });
   },
@@ -131,9 +134,12 @@ export const remove = mutation({
     const member = await requireMember(ctx);
     if (!member.isAdmin) throw new Error("Only team admins can delete projects.");
     const project = await requireProject(ctx, member, projectId);
-    if (project.deleting) return; // Already in progress: don't log or schedule twice.
-    await ctx.db.patch(projectId, { deleting: true });
-    await log(ctx, member, project, { action: "project_deleted" });
+    // Retrying an in-progress delete doesn't log twice, but it does re-schedule the batches so a
+    // failed batch chain can't leave the project hidden forever. `deleteBatch` is idempotent.
+    if (!project.deleting) {
+      await ctx.db.patch(projectId, { deleting: true });
+      await log(ctx, member, project, { action: "project_deleted" });
+    }
     await ctx.scheduler.runAfter(0, internal.projects.deleteBatch, { projectId });
   },
 });

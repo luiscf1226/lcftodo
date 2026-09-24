@@ -107,7 +107,10 @@ export const update = mutation({
     checkDate(args.date);
     const title = todoTitle(args.title);
     const notes = todoNotes(args.notes);
-    const assigneeId = await assignee(ctx, args.assigneeId);
+    // An unchanged assignee isn't re-validated, so a todo can still be edited if its assignee has
+    // no `users` row (yet).
+    const assigneeId =
+      args.assigneeId && args.assigneeId === todo.assigneeId ? todo.assigneeId : await assignee(ctx, args.assigneeId);
     await ctx.db.patch(todo._id, { title, notes, date: args.date, assigneeId });
 
     if (todo.date !== args.date) {

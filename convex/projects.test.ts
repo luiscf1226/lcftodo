@@ -62,6 +62,13 @@ describe("projects.listWithStats", () => {
     const eveRows = await e.query(api.projects.listWithStats, { from: "2026-09-21", to: "2026-09-27" });
     expect(eveRows.map((r) => [r.name, r.total])).toEqual([["Other team", 1]]);
   });
+
+  test("rejects invalid and oversized ranges", async () => {
+    const a = convexTest(schema, modules).withIdentity(alice);
+    await expect(a.query(api.projects.listWithStats, { from: "2026-09-27", to: "2026-09-21" })).rejects.toThrow(/start date/);
+    await expect(a.query(api.projects.listWithStats, { from: "2026-02-31", to: "2026-03-01" })).rejects.toThrow(/date/);
+    await expect(a.query(api.projects.listWithStats, { from: "2025-01-01", to: "2026-12-31" })).rejects.toThrow(/too large/);
+  });
 });
 
 describe("projects.remove (batched)", () => {
@@ -164,5 +171,51 @@ describe("projects.setArchived", () => {
 
     await a.mutation(api.projects.setArchived, { projectId, archived: false });
     expect((await t.run((ctx) => ctx.db.get(projectId)))?.archived).toBe(false);
+  });
+});
+
+describe("projects being deleted", () => {
+  async function markDeleting() {
+    vi.useFakeTimers();
+    const t = convexTest(schema, modules);
+    const a = t.withIdentity(alice);
+    const projectId = await a.mutation(api.projects.create, { name: "Doomed", color: "#6366f1" });
+    await a.mutation(api.todos.create, { projectId, title: "x", date: "2026-09-21" });
+    await a.mutation(api.projects.remove, { projectId });
+    return { t, a, projectId };
+  }
+
+  test("can't be renamed or archived", async () => {
+    try {
+      const { a, projectId } = await markDeleting();
+      await expect(
+        a.mutation(api.projects.update, { projectId, name: "New", color: "#6366f1" }),
+      ).rejects.toThrow(/being deleted/);
+      await expect(a.mutation(api.projects.setArchived, { projectId, archived: true })).rejects.toThrow(/being deleted/);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  test("retrying remove re-schedules batches after a failed chain", async () => {
+    try {
+      const { t, a, projectId } = await markDeleting();
+      // Simulate the scheduled batch never running: drop pending jobs, project stays hidden.
+      await t.run(async (ctx) => {
+        for (const job of await ctx.db.system.query("_scheduled_functions").collect()) {
+          await ctx.scheduler.cancel(job._id);
+        }
+      });
+      expect(await t.run((ctx) => ctx.db.get(projectId))).not.toBeNull();
+
+      await a.mutation(api.projects.remove, { projectId });
+      await t.finishAllScheduledFunctions(vi.runAllTimers);
+
+      expect(await t.run((ctx) => ctx.db.get(projectId))).toBeNull();
+      const log = await t.run((ctx) => ctx.db.query("activity").collect());
+      expect(log.filter((r) => r.action === "project_deleted")).toHaveLength(1);
+    } finally {
+      vi.useRealTimers();
+    }
   });
 });
