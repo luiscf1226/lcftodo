@@ -68,3 +68,11 @@ export type InviteRole = (typeof INVITE_ROLES)[number];
 
 // Most projects a single invitation may grant.
 export const MAX_INVITE_PROJECTS = 50;
+
+// Team-scoped tables included in the admin-only full team export (#36), in export order.
+// Every one has an index whose first field is `orgId`, so a page never reads another team's rows.
+export const TEAM_EXPORT_TABLES = [
+  "teamSettings", "projects", "todos", "recurrences", "comments", "activity",
+  "memberships", "projectMemberships", "projectInvitations",
+] as const;
+export type TeamExportTable = (typeof TEAM_EXPORT_TABLES)[number];

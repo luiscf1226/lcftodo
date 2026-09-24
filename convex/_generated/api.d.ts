@@ -9,6 +9,7 @@
  */
 
 import type * as activity from "../activity.js";
+import type * as backup from "../backup.js";
 import type * as comments from "../comments.js";
 import type * as crons from "../crons.js";
 import type * as http from "../http.js";
@@ -45,6 +46,7 @@ import type {
 
 declare const fullApi: ApiFromModules<{
   activity: typeof activity;
+  backup: typeof backup;
   comments: typeof comments;
   crons: typeof crons;
   http: typeof http;
