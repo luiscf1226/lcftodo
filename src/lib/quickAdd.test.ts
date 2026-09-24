@@ -1,5 +1,25 @@
 import { describe, expect, test } from "vitest";
-import { isQuickAddShortcut, splitTitles } from "./quickAdd";
+import { isQuickAddShortcut, matchMembers, mentionQuery, splitTitles, stripMention } from "./quickAdd";
+
+describe("mentions", () => {
+  test("finds a trailing @mention at the start or after a space", () => {
+    expect(mentionQuery("@")).toBe("");
+    expect(mentionQuery("Email the client @an")).toBe("an");
+    expect(mentionQuery("Email ana@example.com")).toBeUndefined();
+    expect(mentionQuery("@ana done")).toBeUndefined();
+  });
+
+  test("strips the mention and trailing space", () => {
+    expect(stripMention("Email the client @an")).toBe("Email the client");
+    expect(stripMention("@an")).toBe("");
+  });
+
+  test("ranks name and word prefixes before substring matches", () => {
+    const members = [{ name: "Diana Ruiz" }, { name: "Ana Lopez" }, { name: "Bob Anaya" }, { name: "Carl" }];
+    expect(matchMembers(members, "ana").map((m) => m.name)).toEqual(["Ana Lopez", "Bob Anaya", "Diana Ruiz"]);
+    expect(matchMembers(members, "", 2)).toHaveLength(2);
+  });
+});
 
 describe("splitTitles", () => {
   test("creates one title per non-empty line", () => {

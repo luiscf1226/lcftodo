@@ -10,7 +10,7 @@ import { api } from "../../../../convex/_generated/api";
 import { Avatar } from "@/components/Avatar";
 import { Empty, PageHeader, Skeleton } from "@/components/PageHeader";
 import { StatusPill } from "@/components/StatusSelect";
-import { useDismissibleMenu } from "@/components/useDismissibleMenu";
+import { Menu, MenuItem } from "@/components/Menu";
 import { useMembers } from "@/components/useMembers";
 import { describe } from "@/lib/activity";
 import { download, toCsv } from "@/lib/csv";
@@ -33,6 +33,27 @@ export default function HistoryPage() {
   const memberFilterLabel = tab === "activity" ? "Changed by" : "Assigned to";
 
   const projects = useQuery(api.projects.list, { includeArchived: true });
+  // Activity keeps the names of projects that have since been deleted. List those projects too,
+  // so their history stays reachable from the filter.
+  const rangeActivity = useQuery(
+    api.activity.exportPage,
+    canViewRange
+      ? { fromMs: fromKey(from).getTime(), toMs: fromKey(shiftDays(to, 1)).getTime() - 1, paginationOpts: { numItems: 1000, cursor: null } }
+      : "skip",
+  );
+  const deletedProjects = useMemo(() => {
+    if (!projects) return [];
+    const known = new Set<string>(projects.map((p) => p._id));
+    const names = new Map<Id<"projects">, string>();
+    // Newest first, so the first name seen is the project's last name.
+    for (const a of rangeActivity?.page ?? []) {
+      if (!known.has(a.projectId) && !names.has(a.projectId)) names.set(a.projectId, a.projectName);
+    }
+    // Keep the current choice listed even if a new date range no longer mentions it.
+    if (projectId && !known.has(projectId) && !names.has(projectId)) names.set(projectId, "Deleted project");
+    return [...names].map(([_id, name]) => ({ _id, name })).sort((a, b) => a.name.localeCompare(b.name));
+  }, [projects, rangeActivity, projectId]);
+  const projectDeleted = deletedProjects.some((p) => p._id === projectId);
   const todos = useQuery(api.todos.listForTeam, canViewRange ? { from, to } : "skip");
   const filtered = useMemo(
     () =>
@@ -50,7 +71,7 @@ export default function HistoryPage() {
       <PageHeader
         title="History"
         subtitle="Everything your team planned, finished and missed."
-        actions={<ExportMenu disabled={!canViewRange} from={from} to={to} projectId={projectId || undefined} memberId={memberId} todos={filtered} members={members} nameOf={nameOf} />}
+        actions={<ExportMenu disabled={!canViewRange} from={from} to={to} projectId={projectId || undefined} projectDeleted={projectDeleted} memberId={memberId} todos={filtered} members={members} nameOf={nameOf} />}
       />
 
       <div className="card mb-5 grid gap-3 p-3 sm:grid-cols-2 lg:grid-cols-4">
@@ -67,6 +88,7 @@ export default function HistoryPage() {
           <select id="h-project" className="input" value={projectId} onChange={(e) => setProjectId(e.target.value as Id<"projects"> | "")}>
             <option value="">All projects</option>
             {projects?.map((p) => <option key={p._id} value={p._id}>{p.name}{p.archived ? " (archived)" : ""}</option>)}
+            {deletedProjects.map((p) => <option key={p._id} value={p._id}>{p.name} (deleted)</option>)}
           </select>
         </div>
         <div>
@@ -112,7 +134,7 @@ export default function HistoryPage() {
       ) : tab === "people" ? (
         todos === undefined ? <Skeleton className="h-60" /> : <PeopleSummary todos={filtered} members={members} nameOf={nameOf} />
       ) : (
-        <ActivityLog projectId={projectId || undefined} actorId={memberId || undefined} byId={byId} nameOf={nameOf} />
+        <ActivityLog projectId={projectId || undefined} projectDeleted={projectDeleted} actorId={memberId || undefined} byId={byId} nameOf={nameOf} />
       )}
     </div>
   );
@@ -247,43 +269,55 @@ function PeopleSummary({ todos, members, nameOf }: { todos: TeamTodos; members: 
 
 function ActivityLog({
   projectId,
+  projectDeleted,
   actorId,
   byId,
   nameOf,
 }: {
   projectId?: Id<"projects">;
+  projectDeleted: boolean;
   actorId?: string;
   byId: Members["byId"];
   nameOf: Members["nameOf"];
 }) {
-  const { results, status, loadMore } = usePaginatedQuery(api.activity.list, { projectId, actorId }, { initialNumItems: 40 });
+  // The server only filters by projects that still exist; a deleted one is filtered here instead.
+  const { results: all, status, loadMore } = usePaginatedQuery(
+    api.activity.list,
+    { projectId: projectDeleted ? undefined : projectId, actorId },
+    { initialNumItems: 40 },
+  );
+  const results = useMemo(() => (projectDeleted ? all.filter((a) => a.projectId === projectId) : all), [all, projectDeleted, projectId]);
 
   if (status === "LoadingFirstPage") return <Skeleton className="h-60" />;
-  if (results.length === 0) return <Empty title="No activity yet" />;
+  if (results.length === 0 && status === "Exhausted") return <Empty title="No activity yet" />;
 
   return (
     <div>
-      <ul className="card divide-y divide-line">
-        {results.map((a, i) => {
-          const day = format(a._creationTime, "yyyy-MM-dd");
-          const header = i === 0 || day !== format(results[i - 1]._creationTime, "yyyy-MM-dd");
-          return (
-            <li key={a._id}>
-              {header && <p className="bg-surface-2/60 px-4 py-1.5 text-xs font-medium text-muted">{fmt(day, "EEEE, MMMM d, yyyy")}</p>}
-              <div className="flex items-start gap-3 px-4 py-2.5 text-sm">
-                <Avatar member={byId.get(a.actorId)} size={22} />
-                <p className="min-w-0 flex-1">
-                  <span className="font-medium">{nameOf(a.actorId)}</span> {describe(a)}
-                  {!a.action.startsWith("project_") && <span className="text-muted"> · {a.projectName}</span>}
-                </p>
-                <time className="shrink-0 text-xs text-muted" dateTime={new Date(a._creationTime).toISOString()} title={new Date(a._creationTime).toLocaleString()}>
-                  {formatDistanceToNow(a._creationTime, { addSuffix: true })}
-                </time>
-              </div>
-            </li>
-          );
-        })}
-      </ul>
+      {results.length === 0 ? (
+        <p className="card p-4 text-sm text-muted">No matching activity in the latest entries. Load more to look further back.</p>
+      ) : (
+        <ul className="card divide-y divide-line">
+          {results.map((a, i) => {
+            const day = format(a._creationTime, "yyyy-MM-dd");
+            const header = i === 0 || day !== format(results[i - 1]._creationTime, "yyyy-MM-dd");
+            return (
+              <li key={a._id}>
+                {header && <p className="bg-surface-2/60 px-4 py-1.5 text-xs font-medium text-muted">{fmt(day, "EEEE, MMMM d, yyyy")}</p>}
+                <div className="flex items-start gap-3 px-4 py-2.5 text-sm">
+                  <Avatar member={byId.get(a.actorId)} size={22} />
+                  <p className="min-w-0 flex-1">
+                    <span className="font-medium">{nameOf(a.actorId)}</span> {describe(a)}
+                    {!a.action.startsWith("project_") && <span className="text-muted"> · {a.projectName}</span>}
+                  </p>
+                  <time className="shrink-0 text-xs text-muted" dateTime={new Date(a._creationTime).toISOString()} title={new Date(a._creationTime).toLocaleString()}>
+                    {formatDistanceToNow(a._creationTime, { addSuffix: true })}
+                  </time>
+                </div>
+              </li>
+            );
+          })}
+        </ul>
+      )}
       {status !== "Exhausted" && (
         <div className="mt-4 flex justify-center">
           <button className="btn-outline" disabled={status === "LoadingMore"} onClick={() => loadMore(60)}>
@@ -300,6 +334,7 @@ function ExportMenu({
   from,
   to,
   projectId,
+  projectDeleted,
   memberId,
   todos,
   members,
@@ -309,6 +344,7 @@ function ExportMenu({
   from: string;
   to: string;
   projectId?: Id<"projects">;
+  projectDeleted: boolean;
   memberId: string;
   todos: TeamTodos;
   members: Members["members"];
@@ -317,7 +353,6 @@ function ExportMenu({
   const convex = useConvex();
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const { open, setOpen, close, containerRef, triggerRef } = useDismissibleMenu();
   const stamp = `${from}_to_${to}`;
 
   const todoRows = () =>
@@ -347,10 +382,11 @@ function ExportMenu({
     const rows = await convex.query(api.activity.exportRange, {
       fromMs: fromKey(from).getTime(),
       toMs: fromKey(shiftDays(to, 1)).getTime() - 1,
-      projectId,
+      // The server only filters by projects that still exist; a deleted one is filtered below.
+      projectId: projectDeleted ? undefined : projectId,
     });
     return rows
-      .filter((a) => !memberId || a.actorId === memberId)
+      .filter((a) => (!memberId || a.actorId === memberId) && (!projectDeleted || a.projectId === projectId))
       .map((a) => ({
         time: new Date(a._creationTime).toISOString(),
         person: nameOf(a.actorId),
@@ -400,25 +436,26 @@ function ExportMenu({
       setError(errorMessage(caught, "Couldn’t export this range. Please try a shorter range."));
     } finally {
       setBusy(false);
-      close();
     }
   }
 
   if (disabled) return <button className="btn-outline" disabled>Export</button>;
 
   return (
-    <div ref={containerRef} className="relative">
-      <button ref={triggerRef} type="button" className="btn-outline" aria-expanded={open} aria-haspopup="menu" disabled={busy} onClick={() => setOpen((value) => !value)}>
-        <Download className="size-4" /> {busy ? "Exporting…" : "Export"}
-      </button>
-      {open && <div role="menu" className="absolute right-0 z-10 mt-1 w-56 rounded-xl border border-line bg-surface p-1 shadow-lg">
-        <button role="menuitem" className="btn-ghost w-full justify-start" disabled={busy} onClick={() => void run("todos-csv")}>Todos (CSV)</button>
-        <button role="menuitem" className="btn-ghost w-full justify-start" disabled={busy} onClick={() => void run("people-csv")}>People (CSV)</button>
-        <button role="menuitem" className="btn-ghost w-full justify-start" disabled={busy} onClick={() => void run("activity-csv")}>Activity log (CSV)</button>
-        <button role="menuitem" className="btn-ghost w-full justify-start" disabled={busy} onClick={() => void run("excel")}>Excel (.xlsx)</button>
-        <button role="menuitem" className="btn-ghost w-full justify-start" disabled={busy} onClick={() => void run("json")}>Everything (JSON)</button>
+    <div className="relative">
+      <Menu
+        label={<><Download className="size-4" /> {busy ? "Exporting…" : "Export"}</>}
+        disabled={busy}
+        triggerClassName="btn-outline aria-disabled:cursor-progress aria-disabled:opacity-60"
+        menuClassName="w-56"
+      >
+        <MenuItem onSelect={() => void run("todos-csv")}>Todos (CSV)</MenuItem>
+        <MenuItem onSelect={() => void run("people-csv")}>People (CSV)</MenuItem>
+        <MenuItem onSelect={() => void run("activity-csv")}>Activity log (CSV)</MenuItem>
+        <MenuItem onSelect={() => void run("excel")}>Excel (.xlsx)</MenuItem>
+        <MenuItem onSelect={() => void run("json")}>Everything (JSON)</MenuItem>
         <p className="px-3 pt-1 pb-1.5 text-[11px] text-muted">Uses the current date range and filters.</p>
-      </div>}
+      </Menu>
       {error && <p className="absolute right-0 top-full z-10 mt-2 w-72 rounded-lg border border-danger/30 bg-surface px-3 py-2 text-sm text-danger shadow-lg" role="alert">{error}</p>}
     </div>
   );
