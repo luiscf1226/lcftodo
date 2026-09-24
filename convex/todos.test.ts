@@ -37,13 +37,13 @@ describe("team scoping", () => {
   test("signed-in users without an active team are rejected", async () => {
     const t = convexTest(schema, modules);
     const noOrg = t.withIdentity({ subject: "user_x" });
-    await expect(noOrg.mutation(api.projects.create, { name: "x", color: "#000" })).rejects.toThrow(/team/);
+    await expect(noOrg.mutation(api.projects.create, { name: "x", color: "#6366f1" })).rejects.toThrow(/team/);
   });
 
   test("native Clerk integration `o` claim is accepted", async () => {
     const t = convexTest(schema, modules);
     const native = t.withIdentity({ subject: "user_n", o: { id: "org_n", rol: "admin" } } as never);
-    const projectId = await native.mutation(api.projects.create, { name: "Native", color: "#000" });
+    const projectId = await native.mutation(api.projects.create, { name: "Native", color: "#6366f1" });
     await native.mutation(api.projects.remove, { projectId });
     expect(await native.query(api.projects.list, {})).toEqual([]);
   });
@@ -101,5 +101,84 @@ describe("todos and history", () => {
     const { a, projectId } = await setup();
     await expect(a.mutation(api.todos.create, { projectId, title: "  ", date: "2026-09-21" })).rejects.toThrow(/Title/);
     await expect(a.mutation(api.todos.create, { projectId, title: "x", date: "tomorrow" })).rejects.toThrow(/date/);
+  });
+});
+
+describe("server-side input validation (#29)", () => {
+  test("todo title is trimmed, required and capped at 300 chars", async () => {
+    const { a, projectId } = await setup();
+    const todoId = await a.mutation(api.todos.create, { projectId, title: "  Trim me  ", date: "2026-09-21" });
+    const [todo] = await a.query(api.todos.listForProject, { projectId, from: "2026-09-21", to: "2026-09-21" });
+    expect(todo.title).toBe("Trim me");
+    await a.mutation(api.todos.create, { projectId, title: "x".repeat(300), date: "2026-09-21" });
+    await expect(
+      a.mutation(api.todos.create, { projectId, title: "x".repeat(301), date: "2026-09-21" }),
+    ).rejects.toThrow(/Title.*300/);
+    await expect(
+      a.mutation(api.todos.update, { todoId, title: "x".repeat(301), date: "2026-09-21" }),
+    ).rejects.toThrow(/Title.*300/);
+    await expect(a.mutation(api.todos.update, { todoId, title: "   ", date: "2026-09-21" })).rejects.toThrow(/Title/);
+  });
+
+  test("todo notes are capped at 5000 chars", async () => {
+    const { a, projectId } = await setup();
+    const todoId = await a.mutation(api.todos.create, {
+      projectId, title: "ok", notes: "n".repeat(5000), date: "2026-09-21",
+    });
+    await expect(
+      a.mutation(api.todos.create, { projectId, title: "x", notes: "n".repeat(5001), date: "2026-09-21" }),
+    ).rejects.toThrow(/Notes.*5,000/);
+    await expect(
+      a.mutation(api.todos.update, { todoId, title: "ok", notes: "n".repeat(5001), date: "2026-09-21" }),
+    ).rejects.toThrow(/Notes.*5,000/);
+  });
+
+  test("dates must be real calendar days", async () => {
+    const { a, projectId } = await setup();
+    await a.mutation(api.todos.create, { projectId, title: "leap", date: "2028-02-29" });
+    for (const date of ["2026-02-31", "2026-13-01", "2026-00-10", "2026-04-31", "2027-02-29"]) {
+      await expect(a.mutation(api.todos.create, { projectId, title: "x", date })).rejects.toThrow(/date/);
+    }
+    const todoId = await a.mutation(api.todos.create, { projectId, title: "x", date: "2026-09-21" });
+    await expect(a.mutation(api.todos.update, { todoId, title: "x", date: "2026-02-31" })).rejects.toThrow(/date/);
+    await expect(a.mutation(api.todos.carryOver, { projectId, date: "2026-02-31" })).rejects.toThrow(/date/);
+  });
+
+  test("assigneeId must be a known user", async () => {
+    const { a, b, projectId } = await setup();
+    await b.mutation(api.users.store, {});
+    const todoId = await a.mutation(api.todos.create, {
+      projectId, title: "assigned", date: "2026-09-21", assigneeId: bob.subject,
+    });
+    await expect(
+      a.mutation(api.todos.create, { projectId, title: "x", date: "2026-09-21", assigneeId: "user_ghost" }),
+    ).rejects.toThrow(/Assignee/);
+    await expect(
+      a.mutation(api.todos.update, { todoId, title: "x", date: "2026-09-21", assigneeId: "user_ghost" }),
+    ).rejects.toThrow(/Assignee/);
+    // Clearing the assignee is still allowed.
+    await a.mutation(api.todos.update, { todoId, title: "x", date: "2026-09-21", assigneeId: "" });
+  });
+
+  test("project name ≤ 80, description ≤ 500, color from the palette", async () => {
+    const { a, projectId } = await setup();
+    await a.mutation(api.projects.create, { name: "n".repeat(80), description: "d".repeat(500), color: "#0ea5e9" });
+    await expect(a.mutation(api.projects.create, { name: "n".repeat(81), color: "#0ea5e9" })).rejects.toThrow(/name.*80/);
+    await expect(
+      a.mutation(api.projects.create, { name: "ok", description: "d".repeat(501), color: "#0ea5e9" }),
+    ).rejects.toThrow(/Description.*500/);
+    await expect(a.mutation(api.projects.create, { name: "ok", color: "red" })).rejects.toThrow(/color/);
+    await expect(
+      a.mutation(api.projects.create, { name: "ok", color: "#000;background:url(x)" }),
+    ).rejects.toThrow(/color/);
+    await expect(
+      a.mutation(api.projects.update, { projectId, name: "n".repeat(81), color: "#6366f1" }),
+    ).rejects.toThrow(/name.*80/);
+    await expect(
+      a.mutation(api.projects.update, { projectId, name: "ok", description: "d".repeat(501), color: "#6366f1" }),
+    ).rejects.toThrow(/Description.*500/);
+    await expect(a.mutation(api.projects.update, { projectId, name: "ok", color: "#123456" })).rejects.toThrow(/color/);
+    // Palette colors are accepted case-insensitively.
+    await a.mutation(api.projects.update, { projectId, name: "ok", color: "#6366F1" });
   });
 });

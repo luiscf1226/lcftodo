@@ -2,12 +2,8 @@ import { v } from "convex/values";
 import type { Doc } from "./_generated/dataModel";
 import { mutation, query } from "./_generated/server";
 import { getMember, log, requireMember, requireProject, requireTodo } from "./lib/auth";
+import { assignee, checkDate, todoNotes, todoTitle } from "./lib/validate";
 import { status } from "./schema";
-
-const DATE = /^\d{4}-\d{2}-\d{2}$/;
-function checkDate(date: string) {
-  if (!DATE.test(date)) throw new Error("Invalid date.");
-}
 
 function nextDay(date: string) {
   const d = new Date(`${date}T00:00:00Z`);
@@ -74,16 +70,17 @@ export const create = mutation({
     const member = await requireMember(ctx);
     const project = await requireProject(ctx, member, args.projectId);
     checkDate(args.date);
-    const title = args.title.trim();
-    if (!title) throw new Error("Title is required.");
+    const title = todoTitle(args.title);
+    const notes = todoNotes(args.notes);
+    const assigneeId = await assignee(ctx, args.assigneeId);
     const todoId = await ctx.db.insert("todos", {
       orgId: member.orgId,
       projectId: project._id,
       title,
-      notes: args.notes?.trim() || undefined,
+      notes,
       date: args.date,
       status: "todo",
-      assigneeId: args.assigneeId || undefined,
+      assigneeId,
       createdBy: member.userId,
       order: Date.now(),
     });
@@ -105,10 +102,9 @@ export const update = mutation({
     const todo = await requireTodo(ctx, member, args.todoId);
     const project = await requireProject(ctx, member, todo.projectId);
     checkDate(args.date);
-    const title = args.title.trim();
-    if (!title) throw new Error("Title is required.");
-    const notes = args.notes?.trim() || undefined;
-    const assigneeId = args.assigneeId || undefined;
+    const title = todoTitle(args.title);
+    const notes = todoNotes(args.notes);
+    const assigneeId = await assignee(ctx, args.assigneeId);
     await ctx.db.patch(todo._id, { title, notes, date: args.date, assigneeId });
 
     if (todo.date !== args.date) {
