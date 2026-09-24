@@ -5,9 +5,9 @@ function cell(value: unknown) {
   return /[",\n\r]/.test(safe) ? `"${safe.replace(/"/g, '""')}"` : safe;
 }
 
-export function toCsv(rows: Record<string, unknown>[]) {
-  if (rows.length === 0) return "";
-  const headers = Object.keys(rows[0]);
+// Pass `headers` to fix the columns (and keep a header row when there are no rows).
+export function toCsv(rows: Record<string, unknown>[], headers = Object.keys(rows[0] ?? {})) {
+  if (headers.length === 0) return "";
   return [headers.map(cell).join(","), ...rows.map((r) => headers.map((h) => cell(r[h])).join(","))].join("\r\n");
 }
 

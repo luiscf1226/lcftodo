@@ -10,6 +10,7 @@ import { useEffect, useState, type ReactNode } from "react";
 import { api } from "../../../convex/_generated/api";
 import { OnboardingTutorial } from "@/components/OnboardingTutorial";
 import { ToastViewport } from "@/components/ToastViewport";
+import { SearchButton, TodoSearch } from "@/components/TodoSearch";
 import { ThemeToggle } from "@/components/ThemeToggle";
 
 const NAV = [
@@ -64,7 +65,10 @@ export function AppShell({ children }: { children: ReactNode }) {
           LCF Todos
         </Link>
         <OrganizationSwitcher hidePersonal afterSelectOrganizationUrl="/app" afterCreateOrganizationUrl="/app" appearance={{ elements: { rootBox: "w-full", organizationSwitcherTrigger: "w-full justify-between" } }} />
-        <nav className="mt-4 flex flex-col gap-0.5">
+        <div className="mt-4">
+          <SearchButton />
+        </div>
+        <nav className="mt-2 flex flex-col gap-0.5">
           {NAV.map(({ href, label, icon: Icon }) => (
             <Link
               key={href}
@@ -94,6 +98,7 @@ export function AppShell({ children }: { children: ReactNode }) {
       <header className="sticky top-0 z-20 flex items-center justify-between gap-2 border-b border-line bg-surface/90 px-4 py-2.5 backdrop-blur md:hidden">
         <OrganizationSwitcher hidePersonal afterSelectOrganizationUrl="/app" afterCreateOrganizationUrl="/app" />
         <div className="flex items-center gap-2">
+          <SearchButton compact />
           <button type="button" onClick={openTutorial} className="btn-ghost p-1.5 text-muted" aria-label="Open tutorial" title="Tutorial">
             <CircleHelp className="size-5" />
           </button>
@@ -116,6 +121,7 @@ export function AppShell({ children }: { children: ReactNode }) {
         ))}
       </nav>
       <OnboardingTutorial open={tutorialOpen} completed={onboarding?.completed ?? false} onClose={closeTutorial} />
+      <TodoSearch />
       <ToastViewport />
     </div>
   );

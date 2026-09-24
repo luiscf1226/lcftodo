@@ -7,6 +7,7 @@ import type { Id } from "../../convex/_generated/dataModel";
 import { api } from "../../convex/_generated/api";
 import { errorMessage } from "@/lib/errors";
 import { isQuickAddShortcut, splitTitles } from "@/lib/quickAdd";
+import { AssigneeChip, MentionSuggestions, useAssigneeMention } from "./AssigneeMention";
 import { LIMITS } from "@/lib/status";
 import { showToast } from "./ToastViewport";
 
@@ -21,13 +22,14 @@ type Props = {
 /**
  * Always-visible "type and press Enter" bar for today's todos. The input stays
  * focused after each add, a pasted multi-line list becomes one todo per line,
- * and "/" or "n" jumps here from anywhere on the page.
+ * "@name" assigns it, and "/" or "n" jumps here from anywhere on the page.
  */
 export function TodayQuickAdd({ date, projects, projectId, onProjectIdChange, onMore }: Props) {
   const create = useMutation(api.todos.create);
   const inputRef = useRef<HTMLInputElement>(null);
   const [title, setTitle] = useState("");
   const [busy, setBusy] = useState(false);
+  const mention = useAssigneeMention(title, setTitle, inputRef);
   const project = projects.find((p) => p._id === projectId);
 
   useEffect(() => {
@@ -48,10 +50,11 @@ export function TodayQuickAdd({ date, projects, projectId, onProjectIdChange, on
     try {
       // Sequential so pasted lists keep their order on the board.
       for (const t of titles) {
-        await create({ projectId, date, title: t });
+        await create({ projectId, date, title: t, assigneeId: mention.assigneeId });
         added++;
       }
       setTitle("");
+      mention.clearAssignee();
     } catch (error) {
       // Keep the todo that failed in the input so it can be retried.
       setTitle(titles[added]);
@@ -72,31 +75,38 @@ export function TodayQuickAdd({ date, projects, projectId, onProjectIdChange, on
 
   return (
     <form
-      className="card mb-6 flex items-center gap-2 p-2 focus-within:border-accent"
+      className="card mb-6 flex flex-wrap items-center gap-2 p-2 focus-within:border-accent"
       onSubmit={(e) => {
         e.preventDefault();
         void add(title);
       }}
     >
       <span className="size-2.5 shrink-0 rounded-full ml-1.5" style={{ background: project?.color }} aria-hidden />
-      <input
-        ref={inputRef}
-        className="min-w-0 flex-1 bg-transparent px-1 py-1.5 text-sm outline-none placeholder:text-muted"
-        placeholder="Add a todo for today… press Enter"
-        aria-label="New todo for today"
-        aria-keyshortcuts="/ n"
-        value={title}
-        maxLength={LIMITS.todoTitle}
-        enterKeyHint="done"
-        onChange={(e) => setTitle(e.target.value)}
-        onPaste={onPaste}
-        onKeyDown={(e) => {
-          if (e.key === "Escape") {
-            setTitle("");
-            e.currentTarget.blur();
-          }
-        }}
-      />
+      <div className="relative min-w-40 flex-1">
+        <input
+          ref={inputRef}
+          className="w-full bg-transparent px-1 py-1.5 text-sm outline-none placeholder:text-muted"
+          placeholder="Add a todo for today… @ to assign"
+          aria-label="New todo for today"
+          aria-keyshortcuts="/ n"
+          value={title}
+          maxLength={LIMITS.todoTitle}
+          enterKeyHint="done"
+          {...mention.inputProps}
+          onChange={(e) => setTitle(e.target.value)}
+          onPaste={onPaste}
+          onKeyDown={(e) => {
+            if (mention.onKeyDown(e)) return;
+            if (e.key === "Escape") {
+              setTitle("");
+              mention.clearAssignee();
+              e.currentTarget.blur();
+            }
+          }}
+        />
+        <MentionSuggestions mention={mention} />
+      </div>
+      <AssigneeChip mention={mention} className="max-w-32 shrink-0" />
       {projects.length > 1 && (
         <select
           className="max-w-36 truncate rounded-md bg-transparent px-1.5 py-1 text-xs text-muted hover:bg-surface-2"

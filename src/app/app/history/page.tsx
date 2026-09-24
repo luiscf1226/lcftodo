@@ -11,19 +11,23 @@ import { MAX_EXPORT_PAGE_SIZE, MAX_RANGE_DAYS } from "../../../../convex/lib/con
 import { Avatar } from "@/components/Avatar";
 import { Empty, PageHeader, Skeleton } from "@/components/PageHeader";
 import { StatusPill } from "@/components/StatusSelect";
-import { useDismissibleMenu } from "@/components/useDismissibleMenu";
+import { Menu, MenuItem } from "@/components/Menu";
 import { useMembers } from "@/components/useMembers";
 import { useTeamTimeZone } from "@/components/useTeamTimeZone";
+import { useToday } from "@/components/useToday";
 import { describe } from "@/lib/activity";
 import { download, toCsv } from "@/lib/csv";
-import { browserTimeZone, dayStartMs, fmt, fromKey, shiftDays, todayKey } from "@/lib/dates";
+import { browserTimeZone, dayStartMs, fmt, fromKey, shiftDays } from "@/lib/dates";
 import { errorMessage } from "@/lib/errors";
 import { collectPages } from "@/lib/export";
+import { completion, peopleStats, type PersonStats } from "@/lib/peopleStats";
 import { emptyStatusCounts, STATUS_META, STATUSES } from "@/lib/status";
+import { downloadXlsx } from "@/lib/xlsx";
 
 export default function HistoryPage() {
   // Default range follows the team's "today" (#21) until the user picks dates.
-  const today = todayKey(useTeamTimeZone());
+  const today = useToday();
+  const timeZone = useTeamTimeZone();
   const [picked, setPicked] = useState<{ from?: string; to?: string }>({});
   const from = picked.from ?? shiftDays(today, -29);
   const to = picked.to ?? today;
@@ -40,6 +44,27 @@ export default function HistoryPage() {
   const memberFilterLabel = tab === "activity" ? "Changed by" : "Assigned to";
 
   const projects = useQuery(api.projects.list, { includeArchived: true });
+  // Activity keeps the names of projects that have since been deleted. List those projects too,
+  // so their history stays reachable from the filter.
+  const rangeActivity = useQuery(
+    api.activity.exportPage,
+    canViewRange
+      ? { fromMs: dayStartMs(from, timeZone), toMs: dayStartMs(shiftDays(to, 1), timeZone) - 1, paginationOpts: { numItems: 1000, cursor: null } }
+      : "skip",
+  );
+  const deletedProjects = useMemo(() => {
+    if (!projects) return [];
+    const known = new Set<string>(projects.map((p) => p._id));
+    const names = new Map<Id<"projects">, string>();
+    // Newest first, so the first name seen is the project's last name.
+    for (const a of rangeActivity?.page ?? []) {
+      if (!known.has(a.projectId) && !names.has(a.projectId)) names.set(a.projectId, a.projectName);
+    }
+    // Keep the current choice listed even if a new date range no longer mentions it.
+    if (projectId && !known.has(projectId) && !names.has(projectId)) names.set(projectId, "Deleted project");
+    return [...names].map(([_id, name]) => ({ _id, name })).sort((a, b) => a.name.localeCompare(b.name));
+  }, [projects, rangeActivity, projectId]);
+  const projectDeleted = deletedProjects.some((p) => p._id === projectId);
   const todos = useQuery(api.todos.listForTeam, canViewRange ? { from, to } : "skip");
   const filtered = useMemo(
     () =>
@@ -51,13 +76,18 @@ export default function HistoryPage() {
   const { members, byId, nameOf } = useMembers(
     useMemo(() => (todos ?? []).flatMap((t) => [t.assigneeId, t.createdBy]).filter((x): x is string => !!x), [todos]),
   );
+  // Per-person totals for the People tab and exports; an "Assigned to" filter narrows it to that person.
+  const people = useMemo(() => {
+    const rows = peopleStats(filtered, members, nameOf);
+    return memberId ? rows.filter((p) => p.id === memberId) : rows;
+  }, [filtered, members, nameOf, memberId]);
 
   return (
     <div className="mx-auto max-w-5xl">
       <PageHeader
         title="History"
         subtitle="Everything your team planned, finished and missed."
-        actions={<ExportMenu disabled={!canViewRange} from={from} to={to} projectId={projectId || undefined} memberId={memberId} todos={filtered} members={members} nameOf={nameOf} />}
+        actions={<ExportMenu disabled={!canViewRange} from={from} to={to} projectId={projectId || undefined} projectDeleted={projectDeleted} memberId={memberId} todos={filtered} people={people} nameOf={nameOf} />}
       />
 
       <div className="card mb-5 grid gap-3 p-3 sm:grid-cols-2 lg:grid-cols-4">
@@ -74,6 +104,7 @@ export default function HistoryPage() {
           <select id="h-project" className="input" value={projectId} onChange={(e) => setProjectId(e.target.value as Id<"projects"> | "")}>
             <option value="">All projects</option>
             {projects?.map((p) => <option key={p._id} value={p._id}>{p.name}{p.archived ? " (archived)" : ""}</option>)}
+            {deletedProjects.map((p) => <option key={p._id} value={p._id}>{p.name} (deleted)</option>)}
           </select>
         </div>
         <div>
@@ -117,9 +148,9 @@ export default function HistoryPage() {
       {!canViewRange ? null : tab === "days" ? (
         todos === undefined ? <Skeleton className="h-60" /> : <DaySummary todos={filtered} byId={byId} />
       ) : tab === "people" ? (
-        todos === undefined ? <Skeleton className="h-60" /> : <PeopleSummary todos={filtered} members={members} nameOf={nameOf} />
+        todos === undefined ? <Skeleton className="h-60" /> : <PeopleSummary people={people} />
       ) : (
-        <ActivityLog projectId={projectId || undefined} actorId={memberId || undefined} byId={byId} nameOf={nameOf} />
+        <ActivityLog projectId={projectId || undefined} projectDeleted={projectDeleted} actorId={memberId || undefined} byId={byId} nameOf={nameOf} />
       )}
     </div>
   );
@@ -127,6 +158,11 @@ export default function HistoryPage() {
 
 type TeamTodos = NonNullable<ReturnType<typeof useQuery<typeof api.todos.listForTeam>>>;
 type Members = ReturnType<typeof useMembers>;
+
+// Fixed export columns, so empty sheets/CSVs still carry their headers.
+const TODO_HEADERS = ["date", "project", "title", "status", "assignee", "created_by", "notes", "completed_at", "carried_over"];
+const ACTIVITY_HEADERS = ["time", "person", "project", "action", "todo", "from", "to", "day", "description"];
+const PEOPLE_HEADERS = ["person", "assigned", "done", "didnt_finish", "open", "completion_percent"];
 
 function DaySummary({ todos, byId }: { todos: TeamTodos; byId: Members["byId"] }) {
   const [open, setOpen] = useState<string | null>(null);
@@ -187,47 +223,16 @@ function DaySummary({ todos, byId }: { todos: TeamTodos; byId: Members["byId"] }
   );
 }
 
-type PersonStats = {
-  id?: string;
-  name: string;
-  assigned: number;
-  done: number;
-  notDone: number;
-  open: number;
-};
+function PeopleSummary({ people }: { people: PersonStats[] }) {
+  if (people.length === 0) return <Empty title="No people to show" body="Try clearing the Assigned to filter." />;
 
-function peopleStats(todos: TeamTodos, members: Members["members"], nameOf: Members["nameOf"]): PersonStats[] {
-  const byPerson = new Map<string, PersonStats>();
-  for (const member of members) byPerson.set(member.id, { id: member.id, name: member.name, assigned: 0, done: 0, notDone: 0, open: 0 });
-  byPerson.set("unassigned", { name: "Unassigned", assigned: 0, done: 0, notDone: 0, open: 0 });
-  for (const todo of todos) {
-    const key = todo.assigneeId ?? "unassigned";
-    const person = byPerson.get(key) ?? {
-      id: todo.assigneeId,
-      name: todo.assigneeId ? nameOf(todo.assigneeId) : "Unassigned",
-      assigned: 0,
-      done: 0,
-      notDone: 0,
-      open: 0,
-    };
-    person.assigned++;
-    if (todo.status === "done") person.done++;
-    else if (todo.status === "not_done") person.notDone++;
-    else person.open++;
-    byPerson.set(key, person);
-  }
-  return [...byPerson.values()].sort((a, b) => b.assigned - a.assigned || a.name.localeCompare(b.name));
-}
-
-function PeopleSummary({ todos, members, nameOf }: { todos: TeamTodos; members: Members["members"]; nameOf: Members["nameOf"] }) {
-  const people = useMemo(() => peopleStats(todos, members, nameOf), [todos, members, nameOf]);
-
+  // The person column stays pinned while the numbers scroll sideways on phones.
   return (
     <div className="card overflow-x-auto">
-      <table className="w-full min-w-150 text-left text-sm">
+      <table className="w-full min-w-120 text-left text-sm">
         <thead className="border-b border-line bg-surface-2/60 text-xs font-medium tracking-wide text-muted uppercase">
           <tr>
-            <th className="px-4 py-2.5">Person</th>
+            <th className="sticky left-0 bg-surface px-4 py-2.5">Person</th>
             <th className="px-3 py-2.5 text-right">Assigned</th>
             <th className="px-3 py-2.5 text-right">Done</th>
             <th className="px-3 py-2.5 text-right">Didn&apos;t finish</th>
@@ -238,12 +243,12 @@ function PeopleSummary({ todos, members, nameOf }: { todos: TeamTodos; members: 
         <tbody className="divide-y divide-line">
           {people.map((person) => (
             <tr key={person.id ?? "unassigned"}>
-              <td className="px-4 py-3 font-medium">{person.name}</td>
+              <td className={clsx("sticky left-0 bg-surface px-4 py-3 font-medium", !person.id && "text-muted italic")}>{person.name}</td>
               <td className="px-3 py-3 text-right tabular-nums">{person.assigned}</td>
               <td className="px-3 py-3 text-right tabular-nums">{person.done}</td>
               <td className="px-3 py-3 text-right tabular-nums">{person.notDone}</td>
               <td className="px-3 py-3 text-right tabular-nums">{person.open}</td>
-              <td className="px-4 py-3 text-right tabular-nums">{person.assigned ? `${Math.round((person.done / person.assigned) * 100)}%` : "—"}</td>
+              <td className="px-4 py-3 text-right tabular-nums">{completion(person) === null ? "—" : `${completion(person)}%`}</td>
             </tr>
           ))}
         </tbody>
@@ -254,43 +259,55 @@ function PeopleSummary({ todos, members, nameOf }: { todos: TeamTodos; members: 
 
 function ActivityLog({
   projectId,
+  projectDeleted,
   actorId,
   byId,
   nameOf,
 }: {
   projectId?: Id<"projects">;
+  projectDeleted: boolean;
   actorId?: string;
   byId: Members["byId"];
   nameOf: Members["nameOf"];
 }) {
-  const { results, status, loadMore } = usePaginatedQuery(api.activity.list, { projectId, actorId }, { initialNumItems: 40 });
+  // The server only filters by projects that still exist; a deleted one is filtered here instead.
+  const { results: all, status, loadMore } = usePaginatedQuery(
+    api.activity.list,
+    { projectId: projectDeleted ? undefined : projectId, actorId },
+    { initialNumItems: 40 },
+  );
+  const results = useMemo(() => (projectDeleted ? all.filter((a) => a.projectId === projectId) : all), [all, projectDeleted, projectId]);
 
   if (status === "LoadingFirstPage") return <Skeleton className="h-60" />;
-  if (results.length === 0) return <Empty title="No activity yet" />;
+  if (results.length === 0 && status === "Exhausted") return <Empty title="No activity yet" />;
 
   return (
     <div>
-      <ul className="card divide-y divide-line">
-        {results.map((a, i) => {
-          const day = format(a._creationTime, "yyyy-MM-dd");
-          const header = i === 0 || day !== format(results[i - 1]._creationTime, "yyyy-MM-dd");
-          return (
-            <li key={a._id}>
-              {header && <p className="bg-surface-2/60 px-4 py-1.5 text-xs font-medium text-muted">{fmt(day, "EEEE, MMMM d, yyyy")}</p>}
-              <div className="flex items-start gap-3 px-4 py-2.5 text-sm">
-                <Avatar member={byId.get(a.actorId)} size={22} />
-                <p className="min-w-0 flex-1">
-                  <span className="font-medium">{nameOf(a.actorId)}</span> {describe(a)}
-                  {!a.action.startsWith("project_") && <span className="text-muted"> · {a.projectName}</span>}
-                </p>
-                <time className="shrink-0 text-xs text-muted" dateTime={new Date(a._creationTime).toISOString()} title={new Date(a._creationTime).toLocaleString()}>
-                  {formatDistanceToNow(a._creationTime, { addSuffix: true })}
-                </time>
-              </div>
-            </li>
-          );
-        })}
-      </ul>
+      {results.length === 0 ? (
+        <p className="card p-4 text-sm text-muted">No matching activity in the latest entries. Load more to look further back.</p>
+      ) : (
+        <ul className="card divide-y divide-line">
+          {results.map((a, i) => {
+            const day = format(a._creationTime, "yyyy-MM-dd");
+            const header = i === 0 || day !== format(results[i - 1]._creationTime, "yyyy-MM-dd");
+            return (
+              <li key={a._id}>
+                {header && <p className="bg-surface-2/60 px-4 py-1.5 text-xs font-medium text-muted">{fmt(day, "EEEE, MMMM d, yyyy")}</p>}
+                <div className="flex items-start gap-3 px-4 py-2.5 text-sm">
+                  <Avatar member={byId.get(a.actorId)} size={22} />
+                  <p className="min-w-0 flex-1">
+                    <span className="font-medium">{nameOf(a.actorId)}</span> {describe(a)}
+                    {!a.action.startsWith("project_") && <span className="text-muted"> · {a.projectName}</span>}
+                  </p>
+                  <time className="shrink-0 text-xs text-muted" dateTime={new Date(a._creationTime).toISOString()} title={new Date(a._creationTime).toLocaleString()}>
+                    {formatDistanceToNow(a._creationTime, { addSuffix: true })}
+                  </time>
+                </div>
+              </li>
+            );
+          })}
+        </ul>
+      )}
       {status !== "Exhausted" && (
         <div className="mt-4 flex justify-center">
           <button className="btn-outline" disabled={status === "LoadingMore"} onClick={() => loadMore(60)}>
@@ -307,18 +324,20 @@ function ExportMenu({
   from,
   to,
   projectId,
+  projectDeleted,
   memberId,
   todos,
-  members,
+  people,
   nameOf,
 }: {
   disabled: boolean;
   from: string;
   to: string;
   projectId?: Id<"projects">;
+  projectDeleted: boolean;
   memberId: string;
   todos: TeamTodos;
-  members: Members["members"];
+  people: PersonStats[];
   nameOf: Members["nameOf"];
 }) {
   const convex = useConvex();
@@ -326,7 +345,6 @@ function ExportMenu({
   const timeZone = useTeamTimeZone();
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const { open, setOpen, close, containerRef, triggerRef } = useDismissibleMenu();
   const stamp = `${from}_to_${to}`;
 
   const todoRows = () =>
@@ -343,13 +361,13 @@ function ExportMenu({
     }));
 
   const peopleRows = () =>
-    peopleStats(todos, members, nameOf).map((person) => ({
+    people.map((person) => ({
       person: person.name,
       assigned: person.assigned,
       done: person.done,
       didnt_finish: person.notDone,
       open: person.open,
-      completion_percent: person.assigned ? Math.round((person.done / person.assigned) * 100) : "",
+      completion_percent: completion(person) ?? "",
     }));
 
   async function activityRows() {
@@ -358,12 +376,15 @@ function ExportMenu({
       convex.query(api.activity.exportPage, {
         fromMs: dayStartMs(from, timeZone),
         toMs: dayStartMs(shiftDays(to, 1), timeZone) - 1,
-        projectId,
+        // The server only filters by projects that still exist; a deleted one is filtered below.
+        projectId: projectDeleted ? undefined : projectId,
         actorId: memberId || undefined,
         paginationOpts: { numItems: MAX_EXPORT_PAGE_SIZE, cursor },
       }),
     );
-    return rows.map((a) => ({
+    return rows
+      .filter((a) => !projectDeleted || a.projectId === projectId)
+      .map((a) => ({
         time: new Date(a._creationTime).toISOString(),
         person: nameOf(a.actorId),
         project: a.projectName,
@@ -376,34 +397,20 @@ function ExportMenu({
       }));
   }
 
-  async function downloadExcel() {
-    const { default: ExcelJS } = await import("exceljs");
-    const workbook = new ExcelJS.Workbook();
-    const addSheet = (name: string, rows: Record<string, string | number>[]) => {
-      const worksheet = workbook.addWorksheet(name);
-      worksheet.columns = Object.keys(rows[0] ?? {}).map((key) => ({ header: key, key }));
-      rows.forEach((row) => worksheet.addRow(row));
-    };
-    addSheet("Todos", todoRows());
-    addSheet("Activity", await activityRows());
-    addSheet("People", peopleRows());
-    const content = await workbook.xlsx.writeBuffer();
-    const url = URL.createObjectURL(new Blob([content], { type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" }));
-    const link = document.createElement("a");
-    link.href = url;
-    link.download = `lcftodos_${stamp}.xlsx`;
-    link.click();
-    setTimeout(() => URL.revokeObjectURL(url), 1000);
-  }
-
   async function run(kind: "todos-csv" | "people-csv" | "activity-csv" | "excel" | "json") {
     setBusy(true);
     setError(null);
     try {
-      if (kind === "todos-csv") download(`todos_${stamp}.csv`, toCsv(todoRows()), "text/csv;charset=utf-8");
-      if (kind === "people-csv") download(`people_${stamp}.csv`, toCsv(peopleRows()), "text/csv;charset=utf-8");
-      if (kind === "activity-csv") download(`activity_${stamp}.csv`, toCsv(await activityRows()), "text/csv;charset=utf-8");
-      if (kind === "excel") await downloadExcel();
+      if (kind === "todos-csv") download(`todos_${stamp}.csv`, toCsv(todoRows(), TODO_HEADERS), "text/csv;charset=utf-8");
+      if (kind === "people-csv") download(`people_${stamp}.csv`, toCsv(peopleRows(), PEOPLE_HEADERS), "text/csv;charset=utf-8");
+      if (kind === "activity-csv") download(`activity_${stamp}.csv`, toCsv(await activityRows(), ACTIVITY_HEADERS), "text/csv;charset=utf-8");
+      if (kind === "excel") {
+        await downloadXlsx(`lcftodos_${stamp}.xlsx`, [
+          { name: "Todos", rows: todoRows(), headers: TODO_HEADERS },
+          { name: "Activity", rows: await activityRows(), headers: ACTIVITY_HEADERS },
+          { name: "People", rows: peopleRows(), headers: PEOPLE_HEADERS },
+        ]);
+      }
       if (kind === "json") {
         const data = { exportedAt: new Date().toISOString(), from, to, timeZone: timeZone ?? browserTimeZone(), todos: todoRows(), people: peopleRows(), activity: await activityRows() };
         download(`lcftodos_${stamp}.json`, JSON.stringify(data, null, 2), "application/json");
@@ -412,25 +419,26 @@ function ExportMenu({
       setError(errorMessage(caught, "Couldn’t export this range. Please try a shorter range."));
     } finally {
       setBusy(false);
-      close();
     }
   }
 
   if (disabled) return <button className="btn-outline" disabled>Export</button>;
 
   return (
-    <div ref={containerRef} className="relative">
-      <button ref={triggerRef} type="button" className="btn-outline" aria-expanded={open} aria-haspopup="menu" disabled={busy} onClick={() => setOpen((value) => !value)}>
-        <Download className="size-4" /> {busy ? "Exporting…" : "Export"}
-      </button>
-      {open && <div role="menu" className="absolute right-0 z-10 mt-1 w-56 rounded-xl border border-line bg-surface p-1 shadow-lg">
-        <button role="menuitem" className="btn-ghost w-full justify-start" disabled={busy} onClick={() => void run("todos-csv")}>Todos (CSV)</button>
-        <button role="menuitem" className="btn-ghost w-full justify-start" disabled={busy} onClick={() => void run("people-csv")}>People (CSV)</button>
-        <button role="menuitem" className="btn-ghost w-full justify-start" disabled={busy} onClick={() => void run("activity-csv")}>Activity log (CSV)</button>
-        <button role="menuitem" className="btn-ghost w-full justify-start" disabled={busy} onClick={() => void run("excel")}>Excel (.xlsx)</button>
-        <button role="menuitem" className="btn-ghost w-full justify-start" disabled={busy} onClick={() => void run("json")}>Everything (JSON)</button>
+    <div className="relative">
+      <Menu
+        label={<><Download className="size-4" /> {busy ? "Exporting…" : "Export"}</>}
+        disabled={busy}
+        triggerClassName="btn-outline aria-disabled:cursor-progress aria-disabled:opacity-60"
+        menuClassName="w-56"
+      >
+        <MenuItem onSelect={() => void run("todos-csv")}>Todos (CSV)</MenuItem>
+        <MenuItem onSelect={() => void run("people-csv")}>People (CSV)</MenuItem>
+        <MenuItem onSelect={() => void run("activity-csv")}>Activity log (CSV)</MenuItem>
+        <MenuItem onSelect={() => void run("excel")}>Excel (.xlsx)</MenuItem>
+        <MenuItem onSelect={() => void run("json")}>Everything (JSON)</MenuItem>
         <p className="px-3 pt-1 pb-1.5 text-[11px] text-muted">Uses the current date range and filters.</p>
-      </div>}
+      </Menu>
       {error && <p className="absolute right-0 top-full z-10 mt-2 w-72 rounded-lg border border-danger/30 bg-surface px-3 py-2 text-sm text-danger shadow-lg" role="alert">{error}</p>}
     </div>
   );

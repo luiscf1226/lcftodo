@@ -2,10 +2,10 @@
 
 import { useAuth, useOrganization } from "@clerk/nextjs";
 import clsx from "clsx";
-import { useConvex, useQuery } from "convex/react";
+import { useQuery } from "convex/react";
 import { ArrowRight, Plus } from "lucide-react";
 import Link from "next/link";
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import type { Doc, Id } from "../../../convex/_generated/dataModel";
 import { api } from "../../../convex/_generated/api";
 import { Empty, PageHeader, Skeleton } from "@/components/PageHeader";
@@ -13,8 +13,8 @@ import { TodayQuickAdd } from "@/components/TodayQuickAdd";
 import { TodoDialog } from "@/components/TodoDialog";
 import { TodoItem } from "@/components/TodoItem";
 import { useMembers } from "@/components/useMembers";
-import { useTeamTimeZone } from "@/components/useTeamTimeZone";
-import { fmt, shiftDays, todayKey, weekDays, weekStart } from "@/lib/dates";
+import { useToday } from "@/components/useToday";
+import { fmt, shiftDays, weekDays, weekStart } from "@/lib/dates";
 import { emptyStatusCounts, STATUS_META, STATUSES } from "@/lib/status";
 
 type TeamTodo = Doc<"todos"> & { projectName: string; projectColor: string; projectArchived: boolean };
@@ -22,13 +22,9 @@ type TeamTodo = Doc<"todos"> & { projectName: string; projectColor: string; proj
 export default function TodayPage() {
   const { userId } = useAuth();
   const { organization } = useOrganization();
-  // "Today" is the team's day (#21); bumping `clock` re-reads it when the tab regains focus.
-  const timeZone = useTeamTimeZone();
-  const [, setClock] = useState(0);
-  const today = todayKey(timeZone);
+  const today = useToday();
   const start = weekStart(today);
-  const days = weekDays(start);
-  const convex = useConvex();
+  const days = useMemo(() => weekDays(start), [start]);
   const todos = useQuery(api.todos.listForTeam, { from: start, to: shiftDays(start, 6) });
   const projects = useQuery(api.projects.list, {});
   const { byId } = useMembers();
@@ -48,24 +44,6 @@ export default function TodayPage() {
     setLastProjectId(projectId);
     window.localStorage.setItem("lcftodos:last-project", projectId);
   };
-
-  useEffect(() => {
-    const refreshToday = () => {
-      const currentStart = weekStart(todayKey(timeZone));
-      setClock((n) => n + 1);
-      void convex.query(api.todos.listForTeam, { from: currentStart, to: shiftDays(currentStart, 6) }).catch(() => undefined);
-    };
-    const onFocus = () => refreshToday();
-    const onVisibility = () => {
-      if (document.visibilityState === "visible") refreshToday();
-    };
-    window.addEventListener("focus", onFocus);
-    document.addEventListener("visibilitychange", onVisibility);
-    return () => {
-      window.removeEventListener("focus", onFocus);
-      document.removeEventListener("visibilitychange", onVisibility);
-    };
-  }, [convex, timeZone]);
 
   const inScope = useMemo(
     () => (todos ?? []).filter((t) => scope === "team" || t.assigneeId === userId || (!t.assigneeId && t.createdBy === userId)),
@@ -133,6 +111,12 @@ export default function TodayPage() {
           onProjectIdChange={selectProject}
           onMore={() => setCreating(true)}
         />
+      )}
+      {projects && projects.length > 0 && activeProjects.length === 0 && (
+        <p className="card mb-6 flex flex-wrap items-center justify-between gap-2 p-3 text-sm text-muted">
+          All your projects are archived. Create or restore one to add todos.
+          <Link href="/app/projects" className="btn-outline">Go to projects <ArrowRight className="size-4" /></Link>
+        </p>
       )}
 
       <div className="mb-6 grid grid-cols-2 gap-3 sm:grid-cols-4">
