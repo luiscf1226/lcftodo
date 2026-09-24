@@ -1,7 +1,7 @@
 {
   "color": {
-    "light": { "background": "#f7f7f8", "surface": "#ffffff", "surfaceMuted": "#f1f1f4", "text": "#16161d", "muted": "#6b6b78", "accent": "#4f46e5", "danger": "#dc2626" },
-    "dark": { "background": "#0c0c10", "surface": "#15151b", "surfaceMuted": "#1c1c24", "text": "#ececf1", "muted": "#9a9aa8", "accent": "#818cf8", "danger": "#f87171" }
+    "light": { "background": "#f7f7f8", "surface": "#ffffff", "surfaceMuted": "#f1f1f4", "line": "#e4e4e9", "text": "#16161d", "muted": "#6b6b78", "accent": "#4f46e5", "accentText": "#ffffff", "danger": "#dc2626" },
+    "dark": { "background": "#0c0c10", "surface": "#15151b", "surfaceMuted": "#1c1c24", "line": "#2a2a34", "text": "#ececf1", "muted": "#9a9aa8", "accent": "#818cf8", "accentText": "#0c0c10", "danger": "#f87171" }
   },
   "radius": { "control": "0.5rem", "card": "0.75rem" },
   "typography": { "body": "Geist", "mono": "Geist Mono" }
