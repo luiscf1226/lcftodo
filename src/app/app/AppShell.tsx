@@ -3,7 +3,7 @@
 import { OrganizationSwitcher, UserButton, useOrganization } from "@clerk/nextjs";
 import clsx from "clsx";
 import { useConvexAuth, useMutation, useQuery } from "convex/react";
-import { Bell, CircleHelp, FolderKanban, History, LayoutDashboard, Users } from "lucide-react";
+import { Bell, CircleHelp, FolderKanban, History, Inbox, LayoutDashboard, Users } from "lucide-react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useState, type ReactNode } from "react";
@@ -12,10 +12,11 @@ import { OnboardingTutorial } from "@/components/OnboardingTutorial";
 import { ToastViewport } from "@/components/ToastViewport";
 import { SearchButton, TodoSearch } from "@/components/TodoSearch";
 import { ThemeToggle } from "@/components/ThemeToggle";
-import { ONBOARDING_PATH } from "@/lib/routes";
+import { INBOX_PATH, ONBOARDING_PATH } from "@/lib/routes";
 
 const NAV = [
   { href: "/app", label: "Hoy", icon: LayoutDashboard },
+  { href: INBOX_PATH, label: "Bandeja", icon: Inbox },
   { href: "/app/projects", label: "Proyectos", icon: FolderKanban },
   { href: "/app/history", label: "Historial", icon: History },
   { href: "/app/team", label: "Equipo", icon: Users },
@@ -156,7 +157,7 @@ export function AppShell({ children }: { children: ReactNode }) {
 
       <main className="min-w-0 px-4 pt-5 pb-24 sm:px-6 md:pb-10 lg:px-8">{children}</main>
 
-      <nav className="fixed inset-x-0 bottom-0 z-20 grid grid-cols-4 border-t border-line bg-surface/95 pb-[env(safe-area-inset-bottom)] backdrop-blur md:hidden">
+      <nav className="fixed inset-x-0 bottom-0 z-20 grid grid-cols-5 border-t border-line bg-surface/95 pb-[env(safe-area-inset-bottom)] backdrop-blur md:hidden">
         {NAV.map(({ href, label, icon: Icon }) => (
           <Link
             key={href}

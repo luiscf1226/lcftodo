@@ -61,6 +61,17 @@ export function useMoveTodo() {
         next.sort((a, b) => a.order - b.order),
       );
     }
+    for (const { args, value } of store.getAllQueries(api.todos.listPersonal)) {
+      const todo = value?.find((t) => t._id === todoId);
+      if (!value || !todo) continue;
+      const rest = value.filter((t) => t._id !== todoId);
+      const next = date >= args.from && date <= args.to ? [...rest, { ...todo, date, order }] : rest;
+      store.setQuery(
+        api.todos.listPersonal,
+        args,
+        next.sort((a, b) => a.order - b.order),
+      );
+    }
     for (const { args, value } of store.getAllQueries(api.todos.listForTeam)) {
       const todo = value?.find((t) => t._id === todoId);
       if (!value || !todo) continue;

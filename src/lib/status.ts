@@ -1,7 +1,15 @@
 import type { Status } from "../../convex/lib/constants";
 
 // Statuses, limits and the palette are defined once in Convex (#37) and shared with the UI.
-export { emptyStatusCounts, LIMITS, PROJECT_COLORS, STATUSES, type Status } from "../../convex/lib/constants";
+export {
+  emptyStatusCounts,
+  LIMITS,
+  NO_PROJECT_COLOR,
+  NO_PROJECT_NAME,
+  PROJECT_COLORS,
+  STATUSES,
+  type Status,
+} from "../../convex/lib/constants";
 
 // UI metadata for each status. `Record<Status, …>` fails to compile if a status is missing.
 export const STATUS_META: Record<Status, { label: string; dot: string; pill: string }> = {

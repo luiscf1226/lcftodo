@@ -9,6 +9,7 @@ import {
   ChevronLeft,
   ChevronRight,
   CornerDownRight,
+  Inbox,
   MoreHorizontal,
   Pencil,
   Plus,
@@ -38,7 +39,12 @@ import { emptyStatusCounts, LIMITS, STATUS_META, STATUSES } from "@/lib/status";
 
 type Editing = { date: string; todo?: Doc<"todos"> } | null;
 
-export function WeekBoard({ projectId }: { projectId: Id<"projects"> }) {
+/**
+ * A week calendar. With a `projectId` it is that project's board; without one it is the inbox: the
+ * caller's personal todos that aren't in a project yet, which can be created, dragged between days
+ * and moved into a project (from the todo dialog) just like project todos.
+ */
+export function WeekBoard({ projectId }: { projectId?: Id<"projects"> }) {
   const router = useRouter();
   const pathname = usePathname();
   const search = useSearchParams();
@@ -48,9 +54,15 @@ export function WeekBoard({ projectId }: { projectId: Id<"projects"> }) {
   const start = weekStart(requestedWeek && isValid(fromKey(requestedWeek)) ? requestedWeek : today);
   const days = useMemo(() => weekDays(start), [start]);
 
-  const project = useQuery(api.projects.get, { projectId });
-  const todos = useQuery(api.todos.listForProject, { projectId, from: days[0], to: days[6] });
-  useRecurringTodos(days[0], days[6], projectId);
+  const project = useQuery(api.projects.get, projectId ? { projectId } : "skip");
+  const projectTodos = useQuery(
+    api.todos.listForProject,
+    projectId ? { projectId, from: days[0], to: days[6] } : "skip",
+  );
+  const personalTodos = useQuery(api.todos.listPersonal, projectId ? "skip" : { from: days[0], to: days[6] });
+  const todos = projectId ? projectTodos : personalTodos;
+  // Personal todos don't repeat: recurring series belong to a project.
+  useRecurringTodos(days[0], days[6], projectId, projectId !== undefined);
   const { members, byId } = useMembers();
   const [filter, setFilter] = useState<string>("all");
   const [editing, setEditing] = useState<Editing>(null);
@@ -113,27 +125,44 @@ export function WeekBoard({ projectId }: { projectId: Id<"projects"> }) {
 
   const total = visible.length;
   // Archived projects are read-only (#18); wait for the project before enabling drag & drop.
-  const readOnly = project === undefined || project.archived;
+  const readOnly = projectId !== undefined && (project === undefined || project.archived);
 
   return (
     <div className="mx-auto max-w-[110rem]">
       <div className="mb-4 flex flex-wrap items-start justify-between gap-3">
         <div className="min-w-0">
-          <Link href="/app/projects" className="text-xs text-muted hover:text-fg">
-            ← Proyectos
-          </Link>
-          {project === undefined ? (
-            <Skeleton className="mt-1 h-8 w-48" />
-          ) : (
-            <h1 className="mt-0.5 flex items-center gap-2 text-2xl font-semibold tracking-tight">
-              <span className="size-3 shrink-0 rounded-full" style={{ background: project.color }} />
-              <span className="truncate">{project.name}</span>
-              {project.archived && (
-                <span className="rounded-full bg-surface-2 px-2 py-0.5 text-xs font-medium text-muted">Archivado</span>
+          {projectId ? (
+            <>
+              <Link href="/app/projects" className="text-xs text-muted hover:text-fg">
+                ← Proyectos
+              </Link>
+              {project === undefined ? (
+                <Skeleton className="mt-1 h-8 w-48" />
+              ) : (
+                <h1 className="mt-0.5 flex items-center gap-2 text-2xl font-semibold tracking-tight">
+                  <span className="size-3 shrink-0 rounded-full" style={{ background: project.color }} />
+                  <span className="truncate">{project.name}</span>
+                  {project.archived && (
+                    <span className="rounded-full bg-surface-2 px-2 py-0.5 text-xs font-medium text-muted">
+                      Archivado
+                    </span>
+                  )}
+                </h1>
               )}
-            </h1>
+              {project?.description && <p className="mt-1 max-w-2xl text-sm text-muted">{project.description}</p>}
+            </>
+          ) : (
+            <>
+              <h1 className="flex items-center gap-2 text-2xl font-semibold tracking-tight">
+                <Inbox className="size-6 shrink-0 text-muted" aria-hidden />
+                <span className="truncate">Bandeja</span>
+              </h1>
+              <p className="mt-1 max-w-2xl text-sm text-muted">
+                Tareas sin proyecto: solo tú las ves. Añádelas a cualquier día, arrástralas por el calendario y muévelas
+                a un proyecto cuando quieras (ábrela y elige el proyecto).
+              </p>
+            </>
           )}
-          {project?.description && <p className="mt-1 max-w-2xl text-sm text-muted">{project.description}</p>}
         </div>
         {project && (
           <ProjectMenu
@@ -184,23 +213,25 @@ export function WeekBoard({ projectId }: { projectId: Id<"projects"> }) {
           value={start}
           onChange={(e) => e.target.value && setWeek(e.target.value)}
         />
-        <select
-          aria-label="Filtrar por responsable"
-          className="input w-auto py-1.5"
-          value={filter}
-          onChange={(e) => setFilter(e.target.value)}
-        >
-          <option value="all">Todos</option>
-          {userId && <option value={userId}>Solo yo</option>}
-          <option value="unassigned">Sin asignar</option>
-          {members
-            .filter((m) => m.id !== userId)
-            .map((m) => (
-              <option key={m.id} value={m.id}>
-                {m.name}
-              </option>
-            ))}
-        </select>
+        {projectId && (
+          <select
+            aria-label="Filtrar por responsable"
+            className="input w-auto py-1.5"
+            value={filter}
+            onChange={(e) => setFilter(e.target.value)}
+          >
+            <option value="all">Todos</option>
+            {userId && <option value={userId}>Solo yo</option>}
+            <option value="unassigned">Sin asignar</option>
+            {members
+              .filter((m) => m.id !== userId)
+              .map((m) => (
+                <option key={m.id} value={m.id}>
+                  {m.name}
+                </option>
+              ))}
+          </select>
+        )}
         <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-muted sm:ml-auto">
           {STATUSES.map((s) => (
             <span key={s} className="inline-flex items-center gap-1.5">
@@ -267,7 +298,7 @@ export function WeekBoard({ projectId }: { projectId: Id<"projects"> }) {
                     {!project?.archived && (
                       <QuickAdd projectId={projectId} date={day} onMore={() => setEditing({ date: day })} />
                     )}
-                    {open > 0 && day <= today && !project?.archived && (
+                    {projectId && open > 0 && day <= today && !project?.archived && (
                       <CarryOver projectId={projectId} date={day} count={open} />
                     )}
                   </div>
@@ -299,7 +330,7 @@ export function WeekBoard({ projectId }: { projectId: Id<"projects"> }) {
   );
 }
 
-function QuickAdd({ projectId, date, onMore }: { projectId: Id<"projects">; date: string; onMore: () => void }) {
+function QuickAdd({ projectId, date, onMore }: { projectId?: Id<"projects">; date: string; onMore: () => void }) {
   const [adding, setAdding] = useState(false);
   if (!adding) {
     return (
@@ -317,7 +348,7 @@ function QuickAddForm({
   onClose,
   onMore,
 }: {
-  projectId: Id<"projects">;
+  projectId?: Id<"projects">;
   date: string;
   onClose: () => void;
   onMore: () => void;
@@ -354,7 +385,7 @@ function QuickAddForm({
           ref={inputRef}
           autoFocus
           className="input py-1.5"
-          placeholder="Nueva tarea… @ para asignar"
+          placeholder={projectId ? "Nueva tarea… @ para asignar" : "Nueva tarea sin proyecto…"}
           aria-label={`Nueva tarea para el ${fmt(date, "EEEE")}`}
           value={title}
           maxLength={LIMITS.todoTitle}

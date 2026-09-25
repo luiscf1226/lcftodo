@@ -10,6 +10,7 @@ import { api } from "../../convex/_generated/api";
 import { Modal } from "@/components/Modal";
 import { StatusPill } from "@/components/StatusSelect";
 import { fmt, weekStart } from "@/lib/dates";
+import { INBOX_PATH } from "@/lib/routes";
 
 // Title search across the team's projects and weeks (#26). One <TodoSearch /> is mounted in the
 // app shell; it opens on ⌘K / Ctrl+K or when any <SearchButton /> fires the open event.
@@ -19,8 +20,9 @@ export const openSearch = () => window.dispatchEvent(new Event(OPEN_EVENT));
 
 type Result = NonNullable<ReturnType<typeof useQuery<typeof api.search.todos>>>[number];
 
+// Personal todos (no project) live on the inbox calendar.
 export const resultHref = (r: Pick<Result, "projectId" | "date">) =>
-  `/app/projects/${r.projectId}?week=${weekStart(r.date)}`;
+  `${r.projectId ? `/app/projects/${r.projectId}` : INBOX_PATH}?week=${weekStart(r.date)}`;
 
 const isMac = () => /Mac|iPhone|iPad/.test(navigator.platform || navigator.userAgent);
 

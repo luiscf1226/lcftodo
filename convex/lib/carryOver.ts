@@ -61,7 +61,7 @@ export async function carryOverDay(
     if (t.recurrenceId && (await seriesRecursOn(ctx, t.recurrenceId, to))) continue;
     const newId = await ctx.db.insert("todos", {
       orgId: t.orgId,
-      projectId: t.projectId,
+      projectId: project._id,
       title: t.title,
       notes: t.notes,
       date: to,

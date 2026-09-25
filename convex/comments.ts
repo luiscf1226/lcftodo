@@ -23,7 +23,8 @@ export const list = query({
     const member = await getMember(ctx);
     if (!member) return [];
     const todo = await ctx.db.get(todoId);
-    if (!todo || todo.orgId !== member.orgId) return [];
+    // Personal todos (no project) have no comment thread.
+    if (!todo || todo.orgId !== member.orgId || !todo.projectId) return [];
     const project = await ctx.db.get(todo.projectId);
     // Includes the project access check (#46).
     if (!project || !(await canReadProject(ctx, member, project))) return [];
@@ -45,6 +46,7 @@ export const add = mutation({
   handler: async (ctx, args) => {
     const member = await requireMember(ctx);
     const todo = await requireTodo(ctx, member, args.todoId);
+    if (!todo.projectId) throw new Error("Move this task into a project to comment on it.");
     const project = await requireWritableProject(ctx, member, todo.projectId);
     const body = commentBody(args.body);
     const commentId = await ctx.db.insert("comments", {

@@ -95,11 +95,14 @@ export async function buildDigest(ctx: QueryCtx, orgId: string, userId: string, 
   const projectName = new Map<Id<"projects">, string>(projects.map((p) => [p._id, p.name]));
   const carried = new Set(todos.map((t) => t.carriedFrom).filter((id) => id !== undefined));
   const mine = todos.filter(
-    (t) => projectName.has(t.projectId) && (t.assigneeId === userId || (!t.assigneeId && t.createdBy === userId)),
+    (t) =>
+      t.projectId &&
+      projectName.has(t.projectId) &&
+      (t.assigneeId === userId || (!t.assigneeId && t.createdBy === userId)),
   );
   const item = (t: Doc<"todos">): DigestItem => ({
     title: t.title,
-    project: projectName.get(t.projectId) ?? "",
+    project: (t.projectId && projectName.get(t.projectId)) || "",
     date: t.date,
     status: t.status,
   });

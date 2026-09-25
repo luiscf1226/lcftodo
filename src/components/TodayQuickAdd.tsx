@@ -8,14 +8,15 @@ import { api } from "../../convex/_generated/api";
 import { errorMessage } from "@/lib/errors";
 import { isQuickAddShortcut, splitTitles } from "@/lib/quickAdd";
 import { AssigneeChip, MentionSuggestions, useAssigneeMention } from "./AssigneeMention";
-import { LIMITS } from "@/lib/status";
+import { LIMITS, NO_PROJECT_COLOR, NO_PROJECT_NAME } from "@/lib/status";
 import { showToast } from "./ToastViewport";
 
 type Props = {
   date: string;
   projects: Array<{ _id: Id<"projects">; name: string; color: string }>;
-  projectId: Id<"projects">;
-  onProjectIdChange: (projectId: Id<"projects">) => void;
+  // "" = no project: the task is personal until it is moved into one.
+  projectId: Id<"projects"> | "";
+  onProjectIdChange: (projectId: Id<"projects"> | "") => void;
   onMore: () => void;
 };
 
@@ -29,7 +30,7 @@ export function TodayQuickAdd({ date, projects, projectId, onProjectIdChange, on
   const inputRef = useRef<HTMLInputElement>(null);
   const [title, setTitle] = useState("");
   const [busy, setBusy] = useState(false);
-  const mention = useAssigneeMention(title, setTitle, inputRef, projectId);
+  const mention = useAssigneeMention(title, setTitle, inputRef, projectId || undefined);
   const project = projects.find((p) => p._id === projectId);
 
   useEffect(() => {
@@ -50,7 +51,7 @@ export function TodayQuickAdd({ date, projects, projectId, onProjectIdChange, on
     try {
       // Sequential so pasted lists keep their order on the board.
       for (const t of titles) {
-        await create({ projectId, date, title: t, assigneeId: mention.assigneeId });
+        await create({ projectId: projectId || undefined, date, title: t, assigneeId: mention.assigneeId });
         added++;
       }
       setTitle("");
@@ -81,7 +82,11 @@ export function TodayQuickAdd({ date, projects, projectId, onProjectIdChange, on
         void add(title);
       }}
     >
-      <span className="ml-1.5 size-2.5 shrink-0 rounded-full" style={{ background: project?.color }} aria-hidden />
+      <span
+        className="ml-1.5 size-2.5 shrink-0 rounded-full"
+        style={{ background: project?.color ?? NO_PROJECT_COLOR }}
+        aria-hidden
+      />
       <div className="relative min-w-40 flex-1">
         <input
           ref={inputRef}
@@ -107,20 +112,19 @@ export function TodayQuickAdd({ date, projects, projectId, onProjectIdChange, on
         <MentionSuggestions mention={mention} />
       </div>
       <AssigneeChip mention={mention} className="max-w-32 shrink-0" />
-      {projects.length > 1 && (
-        <select
-          className="max-w-36 truncate rounded-md bg-transparent px-1.5 py-1 text-xs text-muted hover:bg-surface-2"
-          aria-label="Proyecto"
-          value={projectId}
-          onChange={(e) => onProjectIdChange(e.target.value as Id<"projects">)}
-        >
-          {projects.map((p) => (
-            <option key={p._id} value={p._id}>
-              {p.name}
-            </option>
-          ))}
-        </select>
-      )}
+      <select
+        className="max-w-36 truncate rounded-md bg-transparent px-1.5 py-1 text-xs text-muted hover:bg-surface-2"
+        aria-label="Proyecto"
+        value={projectId}
+        onChange={(e) => onProjectIdChange(e.target.value as Id<"projects"> | "")}
+      >
+        <option value="">{NO_PROJECT_NAME}</option>
+        {projects.map((p) => (
+          <option key={p._id} value={p._id}>
+            {p.name}
+          </option>
+        ))}
+      </select>
       <button
         type="button"
         className="btn-ghost px-2 text-muted"

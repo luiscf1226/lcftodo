@@ -343,7 +343,7 @@ export const teamSummaryData = internalQuery({
         .collect(),
     ]);
     const live = new Set(projects.filter((p) => !p.archived && !p.deleting).map((p) => p._id));
-    const visible = todos.filter((t) => live.has(t.projectId));
+    const visible = todos.filter((t) => t.projectId && live.has(t.projectId));
     const carried = new Set(visible.map((t) => t.carriedFrom).filter((id) => id !== undefined));
     const open = (s: string) => s === "todo" || s === "doing";
     const today = visible.filter((t) => t.date === date);
