@@ -158,15 +158,30 @@ export async function requireWritableProject(
 export async function requireTodo(ctx: QueryCtx, member: Member, todoId: Id<"todos">): Promise<Doc<"todos">> {
   const todo = await ctx.db.get(todoId);
   if (!todo || todo.orgId !== member.orgId) throw new Error("Todo not found.");
-  // A todo in a project the member can't access is reported the same way (#46).
-  if (
-    !member.isAdmin &&
-    (await isRestricted(ctx, member.orgId)) &&
-    !(await hasProjectGrant(ctx, todo.projectId, member.userId))
-  ) {
-    throw new Error("Todo not found.");
-  }
+  if (!(await canAccessTodo(ctx, member, todo))) throw new Error("Todo not found.");
   return todo;
+}
+
+/**
+ * True if the member may see this todo. A personal todo (no project) belongs to its creator alone;
+ * a project todo follows the project access policy (#46). Assumes the todo is in the member's team.
+ */
+export async function canAccessTodo(ctx: QueryCtx, member: Member, todo: Doc<"todos">): Promise<boolean> {
+  if (!todo.projectId) return todo.createdBy === member.userId;
+  return (
+    member.isAdmin ||
+    !(await isRestricted(ctx, member.orgId)) ||
+    (await hasProjectGrant(ctx, todo.projectId, member.userId))
+  );
+}
+
+/** The writable project of a todo, or null for a personal todo (which its creator may always edit). */
+export async function requireTodoProject(
+  ctx: QueryCtx,
+  member: Member,
+  todo: Doc<"todos">,
+): Promise<Doc<"projects"> | null> {
+  return todo.projectId ? await requireWritableProject(ctx, member, todo.projectId) : null;
 }
 
 export async function log(

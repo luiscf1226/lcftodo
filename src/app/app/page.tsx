@@ -8,7 +8,7 @@ import Link from "next/link";
 import { useMemo, useState } from "react";
 import type { Doc, Id } from "../../../convex/_generated/dataModel";
 import { api } from "../../../convex/_generated/api";
-import { Empty, PageHeader, Skeleton } from "@/components/PageHeader";
+import { PageHeader, Skeleton } from "@/components/PageHeader";
 import { SetupChecklist } from "@/components/SetupChecklist";
 import { TodayQuickAdd } from "@/components/TodayQuickAdd";
 import { TodoDialog } from "@/components/TodoDialog";
@@ -18,6 +18,9 @@ import { useToday } from "@/components/useToday";
 import { useRecurringTodos } from "@/components/useRecurringTodos";
 import { fmt, shiftDays, weekDays, weekStart } from "@/lib/dates";
 import { emptyStatusCounts, STATUS_META, STATUSES } from "@/lib/status";
+
+const LAST_PROJECT_KEY = "lcftodos:last-project";
+const NO_PROJECT = "none";
 
 type TeamTodo = Doc<"todos"> & { projectName: string; projectColor: string; projectArchived: boolean };
 
@@ -35,18 +38,24 @@ export default function TodayPage() {
   const [scope, setScope] = useState<"mine" | "team">("mine");
   const [editing, setEditing] = useState<TeamTodo | null>(null);
   const [creating, setCreating] = useState(false);
-  const [lastProjectId, setLastProjectId] = useState<Id<"projects"> | "">(() => {
+  // The project new tasks go to: a project id, NO_PROJECT (a personal task), or "" = not chosen yet.
+  const [lastProjectId, setLastProjectId] = useState<Id<"projects"> | typeof NO_PROJECT | "">(() => {
     if (typeof window === "undefined") return "";
-    return (window.localStorage.getItem("lcftodos:last-project") as Id<"projects"> | null) ?? "";
+    return (window.localStorage.getItem(LAST_PROJECT_KEY) as Id<"projects"> | typeof NO_PROJECT | null) ?? "";
   });
   const activeProjects = useMemo(() => (projects ?? []).filter((project) => !project.archived), [projects]);
-  const newProjectId = activeProjects.some((project) => project._id === lastProjectId)
-    ? lastProjectId
-    : (activeProjects[0]?._id ?? "");
+  // Tasks need no project: with none chosen (or none existing) they start out personal.
+  const newProjectId: Id<"projects"> | "" =
+    lastProjectId === NO_PROJECT
+      ? ""
+      : activeProjects.some((project) => project._id === lastProjectId)
+        ? (lastProjectId as Id<"projects">)
+        : (activeProjects[0]?._id ?? "");
 
-  const selectProject = (projectId: Id<"projects">) => {
-    setLastProjectId(projectId);
-    window.localStorage.setItem("lcftodos:last-project", projectId);
+  const selectProject = (projectId: Id<"projects"> | "") => {
+    const value = projectId || NO_PROJECT;
+    setLastProjectId(value);
+    window.localStorage.setItem(LAST_PROJECT_KEY, value);
   };
 
   const inScope = useMemo(
@@ -88,11 +97,9 @@ export default function TodayPage() {
         subtitle={organization ? `${organization.name} · resumen de esta semana` : undefined}
         actions={
           <div className="flex flex-wrap items-center gap-2">
-            {activeProjects.length > 0 && (
-              <button className="btn-primary" onClick={() => setCreating(true)}>
-                <Plus className="size-4" /> Nueva tarea
-              </button>
-            )}
+            <button className="btn-primary" onClick={() => setCreating(true)}>
+              <Plus className="size-4" /> Nueva tarea
+            </button>
             <div className="flex rounded-lg border border-line bg-surface p-0.5 text-sm" role="tablist">
               {(["mine", "team"] as const).map((s) => (
                 <button
@@ -112,18 +119,20 @@ export default function TodayPage() {
 
       {organization && access?.isAdmin && <SetupChecklist orgId={organization.id} />}
 
-      {newProjectId && (
-        <TodayQuickAdd
-          date={today}
-          projects={activeProjects}
-          projectId={newProjectId}
-          onProjectIdChange={selectProject}
-          onMore={() => setCreating(true)}
-        />
-      )}
-      {projects && projects.length > 0 && activeProjects.length === 0 && (
+      <TodayQuickAdd
+        date={today}
+        projects={activeProjects}
+        projectId={newProjectId}
+        onProjectIdChange={selectProject}
+        onMore={() => setCreating(true)}
+      />
+      {projects && activeProjects.length === 0 && (
         <p className="mb-6 flex flex-wrap items-center justify-between gap-2 card p-3 text-sm text-muted">
-          Todos tus proyectos están archivados. Crea o restaura uno para añadir tareas.
+          {projects.length > 0
+            ? "Todos tus proyectos están archivados. Tus tareas no necesitan proyecto: puedes crear o restaurar uno cuando quieras."
+            : access?.restricted && !access.isAdmin
+              ? "Aún no tienes acceso a ningún proyecto. Tus tareas son solo tuyas hasta que las muevas a uno."
+              : "Puedes empezar ya: las tareas sin proyecto son solo tuyas y luego las mueves a un proyecto."}
           <Link href="/app/projects" className="btn-outline">
             Ver proyectos <ArrowRight className="size-4" />
           </Link>
@@ -165,26 +174,6 @@ export default function TodayPage() {
 
       {todos === undefined ? (
         <Skeleton className="h-40" />
-      ) : projects && projects.length === 0 && access?.restricted && !access.isAdmin ? (
-        <Empty
-          title="Aún no hay proyectos"
-          body="Todavía no tienes acceso a ningún proyecto del equipo. Pide acceso a un administrador o crea tu propio proyecto."
-          action={
-            <Link href="/app/projects" className="btn-outline">
-              Ver proyectos <ArrowRight className="size-4" />
-            </Link>
-          }
-        />
-      ) : projects && projects.length === 0 ? (
-        <Empty
-          title="¡Bienvenido! Empieza con un proyecto"
-          body="Crea un proyecto y añade tareas a cada día de la semana. Invita a tus compañeros desde la página Equipo."
-          action={
-            <Link href="/app/projects" className="btn-primary">
-              Ver proyectos <ArrowRight className="size-4" />
-            </Link>
-          }
-        />
       ) : (
         <div className="grid gap-6 md:grid-cols-2">
           <section>
@@ -218,13 +207,12 @@ export default function TodayPage() {
           readOnly={editing.projectArchived}
         />
       )}
-      {creating && newProjectId && (
+      {creating && (
         <TodoDialog
           open
           onClose={() => setCreating(false)}
-          projectId={newProjectId}
+          projectId={newProjectId || undefined}
           date={today}
-          projects={activeProjects}
           onProjectIdChange={selectProject}
         />
       )}

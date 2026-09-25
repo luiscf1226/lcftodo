@@ -23,11 +23,12 @@ import { useToday } from "./useToday";
 type Props = {
   open: boolean;
   onClose: () => void;
-  projectId: Id<"projects">;
+  // Where a new todo starts out: undefined = no project (a personal todo). Ignored when editing.
+  projectId?: Id<"projects">;
   date: string;
   todo?: Doc<"todos">;
-  projects?: Array<{ _id: Id<"projects">; name: string; archived: boolean }>;
-  onProjectIdChange?: (projectId: Id<"projects">) => void;
+  // Called when the project is changed in the picker ("" = no project).
+  onProjectIdChange?: (projectId: Id<"projects"> | "") => void;
   // The todo belongs to an archived project: show it, but allow no changes (#18).
   readOnly?: boolean;
 };
@@ -53,7 +54,7 @@ export function TodoDialog(props: Props) {
   );
 }
 
-function TodoForm({ onClose, projectId, date, todo, projects, onProjectIdChange, readOnly = false }: Props) {
+function TodoForm({ onClose, projectId, date, todo, onProjectIdChange, readOnly = false }: Props) {
   const create = useMutation(api.todos.create);
   const update = useMutation(api.todos.update);
   const remove = useMutation(api.todos.remove);
@@ -65,17 +66,28 @@ function TodoForm({ onClose, projectId, date, todo, projects, onProjectIdChange,
   const series = useQuery(api.recurrences.get, todo?.recurrenceId ? { recurrenceId: todo.recurrenceId } : "skip");
   const activeSeries = series && !series.stoppedFrom ? series : null;
   const today = useToday();
+  const projects = useQuery(api.projects.list, {});
 
   const [title, setTitle] = useState(todo?.title ?? "");
   const [notes, setNotes] = useState(todo?.notes ?? "");
   const [day, setDay] = useState(todo?.date ?? date);
   const [assigneeId, setAssigneeId] = useState(todo?.assigneeId ?? "");
-  const [selectedProjectId, setSelectedProjectId] = useState(projectId);
+  // "" = no project. A todo without one is personal: only its creator sees it, until it is moved
+  // into a project here (which also lets it be assigned, commented on and repeated).
+  const [selectedProjectId, setSelectedProjectId] = useState<Id<"projects"> | "">(
+    todo ? (todo.projectId ?? "") : (projectId ?? ""),
+  );
+  const inProject = selectedProjectId !== "";
   // Only people with access to the project can be picked (#46).
-  const { members, nameOf } = useAssignableMembers(todo?.projectId ?? selectedProjectId);
+  const { members, nameOf } = useAssignableMembers(inProject ? selectedProjectId : undefined);
   // A historical assignee who has since lost access stays visible, but can't be re-picked.
   const formerAssignee =
-    todo?.assigneeId && !members.some((m) => m.id === todo.assigneeId) ? todo.assigneeId : undefined;
+    todo?.assigneeId && selectedProjectId === todo.projectId && !members.some((m) => m.id === todo.assigneeId)
+      ? todo.assigneeId
+      : undefined;
+  // An occurrence of a series stays in its project; a todo can't go back to "no project" once in one.
+  const canPickProject = !readOnly && !todo?.recurrenceId;
+  const canPickNone = !todo || !todo.projectId;
   // New todos: an optional repeat rule. Occurrences: edit "this" todo or the whole series (#23).
   const [repeat, setRepeat] = useState<RecurrenceRule | null>(null);
   const [scope, setScope] = useState<"this" | "series">("this");
@@ -99,7 +111,7 @@ function TodoForm({ onClose, projectId, date, todo, projects, onProjectIdChange,
   function submit(e: FormEvent) {
     e.preventDefault();
     if (!title.trim() || busy || readOnly) return;
-    const fields = { title, notes, date: day, assigneeId: assigneeId || undefined };
+    const fields = { title, notes, date: day, assigneeId: (inProject && assigneeId) || undefined };
     if (editingSeries) {
       const rule = seriesRule ?? activeSeries.rule;
       // Series edits apply to this and later occurrences, never to past days.
@@ -108,12 +120,13 @@ function TodoForm({ onClose, projectId, date, todo, projects, onProjectIdChange,
         updateSeries({ recurrenceId: activeSeries._id, from, title, notes, assigneeId: fields.assigneeId, rule }),
       );
     } else if (todo) {
-      void run(() => update({ todoId: todo._id, ...fields }));
-    } else if (repeat) {
+      const moveTo = inProject && selectedProjectId !== todo.projectId ? selectedProjectId : undefined;
+      void run(() => update({ todoId: todo._id, ...fields, projectId: moveTo }));
+    } else if (repeat && inProject) {
       const { date, ...rest } = fields;
       void run(() => createSeries({ projectId: selectedProjectId, startDate: date, rule: repeat, ...rest }));
     } else {
-      void run(() => create({ projectId: selectedProjectId, ...fields }));
+      void run(() => create({ projectId: inProject ? selectedProjectId : undefined, ...fields }));
     }
   }
 
@@ -194,7 +207,7 @@ function TodoForm({ onClose, projectId, date, todo, projects, onProjectIdChange,
               required
             />
           </div>
-          {!todo && projects && (
+          {canPickProject && projects && (
             <div>
               <label className="label" htmlFor="todo-project">
                 Proyecto
@@ -204,19 +217,26 @@ function TodoForm({ onClose, projectId, date, todo, projects, onProjectIdChange,
                 className="input"
                 value={selectedProjectId}
                 onChange={(e) => {
-                  const nextProjectId = e.target.value as Id<"projects">;
-                  setSelectedProjectId(nextProjectId);
-                  onProjectIdChange?.(nextProjectId);
+                  const next = e.target.value as Id<"projects"> | "";
+                  setSelectedProjectId(next);
+                  // The new project has its own people: pick the responsible person again.
+                  setAssigneeId("");
+                  if (next === "") setRepeat(null);
+                  onProjectIdChange?.(next);
                 }}
               >
-                {projects
-                  .filter((project) => !project.archived)
-                  .map((project) => (
-                    <option key={project._id} value={project._id}>
-                      {project.name}
-                    </option>
-                  ))}
+                {canPickNone && <option value="">Sin proyecto</option>}
+                {projects.map((project) => (
+                  <option key={project._id} value={project._id}>
+                    {project.name}
+                  </option>
+                ))}
               </select>
+              {todo && !todo.projectId && (
+                <p className="mt-1 text-xs text-muted">
+                  Solo tú ves esta tarea hasta que la muevas a un proyecto. Al moverla podrás asignarla y comentarla.
+                </p>
+              )}
             </div>
           )}
           <div className="grid gap-4 sm:grid-cols-2">
@@ -243,6 +263,8 @@ function TodoForm({ onClose, projectId, date, todo, projects, onProjectIdChange,
                 id="todo-assignee"
                 className="input"
                 value={assigneeId}
+                disabled={!inProject}
+                title={inProject ? undefined : "Elige un proyecto para asignar la tarea"}
                 onChange={(e) => setAssigneeId(e.target.value)}
               >
                 <option value="">Sin asignar</option>
@@ -270,7 +292,7 @@ function TodoForm({ onClose, projectId, date, todo, projects, onProjectIdChange,
               placeholder="Detalles opcionales"
             />
           </div>
-          {(!todo || editingSeries) && (
+          {(editingSeries || (!todo && inProject)) && (
             <div>
               <label className="label" htmlFor="todo-repeat">
                 Repetir
@@ -339,7 +361,7 @@ function TodoForm({ onClose, projectId, date, todo, projects, onProjectIdChange,
         )}
       </form>
 
-      {todo && <CommentThread todoId={todo._id} readOnly={readOnly} />}
+      {todo?.projectId && <CommentThread todoId={todo._id} readOnly={readOnly} />}
 
       {todo && (
         <div className="border-t border-line pt-4">

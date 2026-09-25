@@ -17,6 +17,10 @@ export function describe(a: Doc<"activity">, { withTitle = true } = {}) {
       return `marcó${t} como ${statusLabel(a.to)}${a.from ? ` (antes: ${statusLabel(a.from)})` : ""}`;
     case "moved":
       return `movió${t} del ${day(a.from)} al ${day(a.to)}`;
+    case "project_changed":
+      return a.from
+        ? `movió${t} del proyecto “${a.from}” a “${a.to}”`
+        : `movió${t} de sus tareas sin proyecto al proyecto “${a.to}”`;
     case "carried_over":
       return `pasó${t} del ${day(a.from)} al ${day(a.to)}`;
     case "deleted":

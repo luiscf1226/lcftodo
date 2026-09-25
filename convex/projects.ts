@@ -53,7 +53,7 @@ export const listWithStats = query({
     ]);
     const countsByProject = new Map<Id<"projects">, Record<Status, number>>();
     for (const t of todos) {
-      if (!inScope(scope, t.projectId)) continue;
+      if (!t.projectId || !inScope(scope, t.projectId)) continue;
       let counts = countsByProject.get(t.projectId);
       if (!counts) countsByProject.set(t.projectId, (counts = emptyStatusCounts()));
       counts[t.status]++;

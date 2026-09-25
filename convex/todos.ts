@@ -1,6 +1,6 @@
 import { v } from "convex/values";
 import type { Doc } from "./_generated/dataModel";
-import { mutation, query } from "./_generated/server";
+import { mutation, query, type MutationCtx, type QueryCtx } from "./_generated/server";
 import {
   accessibleProjectIds,
   canReadProject,
@@ -9,16 +9,56 @@ import {
   log,
   requireMember,
   requireTodo,
+  requireTodoProject,
   requireWritableProject,
+  type Member,
 } from "./lib/auth";
 import { carryOverDay } from "./lib/carryOver";
 import { deleteTodo } from "./lib/cascade";
+import { NO_PROJECT_COLOR, NO_PROJECT_NAME } from "./lib/constants";
 import { needsRebalance, ORDER_STEP } from "./lib/ordering";
 import { notifyAssigned } from "./lib/notify";
 import { assignee, checkDate, checkRange, todoNotes, todoTitle } from "./lib/validate";
 import { status } from "./schema";
 
 const byOrder = (a: Doc<"todos">, b: Doc<"todos">) => a.order - b.order;
+
+// The member's personal todos (no project yet) in an inclusive day range. Never anyone else's.
+const personalTodos = (ctx: QueryCtx, member: Member, from: string, to: string) =>
+  ctx.db
+    .query("todos")
+    .withIndex("by_owner_project_date", (q) =>
+      q
+        .eq("orgId", member.orgId)
+        .eq("createdBy", member.userId)
+        .eq("projectId", undefined)
+        .gte("date", from)
+        .lte("date", to),
+    )
+    .collect();
+
+// One day of the list a todo lives in: its project's, or its creator's personal list.
+function dayList(ctx: MutationCtx, todo: Doc<"todos">, date: string) {
+  const projectId = todo.projectId;
+  return projectId
+    ? ctx.db.query("todos").withIndex("by_project_date", (q) => q.eq("projectId", projectId).eq("date", date))
+    : ctx.db
+        .query("todos")
+        .withIndex("by_owner_project_date", (q) =>
+          q.eq("orgId", todo.orgId).eq("createdBy", todo.createdBy).eq("projectId", undefined).eq("date", date),
+        );
+}
+
+// The caller's personal todos (not in a project yet) for a date range.
+export const listPersonal = query({
+  args: { from: v.string(), to: v.string() },
+  handler: async (ctx, { from, to }) => {
+    const member = await getMember(ctx);
+    if (!member) return [];
+    checkRange(from, to);
+    return (await personalTodos(ctx, member, from, to)).sort(byOrder);
+  },
+});
 
 export const listForProject = query({
   args: { projectId: v.id("projects"), from: v.string(), to: v.string() },
@@ -44,7 +84,7 @@ export const listForTeam = query({
     const member = await getMember(ctx);
     if (!member) return [];
     checkRange(from, to);
-    const [todos, projects, scope] = await Promise.all([
+    const [todos, projects, scope, personal] = await Promise.all([
       ctx.db
         .query("todos")
         .withIndex("by_org_date", (q) => q.eq("orgId", member.orgId).gte("date", from).lte("date", to))
@@ -54,22 +94,23 @@ export const listForTeam = query({
         .withIndex("by_org", (q) => q.eq("orgId", member.orgId))
         .collect(),
       accessibleProjectIds(ctx, member),
+      personalTodos(ctx, member, from, to),
     ]);
     // Only projects the caller may read (#46); a restricted member never sees other projects' rows.
     const byId = new Map(projects.filter((p) => !p.deleting && inScope(scope, p._id)).map((p) => [p._id, p]));
-    return todos
-      .filter((t) => byId.has(t.projectId))
-      .sort((a, b) => a.date.localeCompare(b.date) || byOrder(a, b))
-      .map((t) => {
-        const p = byId.get(t.projectId);
-        return {
-          ...t,
-          projectName: p?.name ?? "—",
-          projectColor: p?.color ?? "#94a3b8",
-          // Archived projects are read-only (#18); the UI disables editing for these.
-          projectArchived: p?.archived ?? false,
-        };
-      });
+    const inProjects = todos.flatMap((t) => {
+      const p = t.projectId && byId.get(t.projectId);
+      // Archived projects are read-only (#18); the UI disables editing for these.
+      return p ? [{ ...t, projectName: p.name, projectColor: p.color, projectArchived: p.archived }] : [];
+    });
+    // Personal todos of the caller sit alongside them, labelled as having no project.
+    const own = personal.map((t) => ({
+      ...t,
+      projectName: NO_PROJECT_NAME,
+      projectColor: NO_PROJECT_COLOR,
+      projectArchived: false,
+    }));
+    return [...inProjects, ...own].sort((a, b) => a.date.localeCompare(b.date) || byOrder(a, b));
   },
 });
 
@@ -81,14 +122,17 @@ export const get = query({
     if (!member) return null;
     const todo = await ctx.db.get(todoId);
     if (!todo || todo.orgId !== member.orgId) return null;
+    if (!todo.projectId) return todo.createdBy === member.userId ? todo : null;
     const project = await ctx.db.get(todo.projectId);
     return (await canReadProject(ctx, member, project)) ? todo : null;
   },
 });
 
+// `projectId` is optional: a todo created without one is personal (only its creator sees it) until
+// it is moved into a project with `update`.
 export const create = mutation({
   args: {
-    projectId: v.id("projects"),
+    projectId: v.optional(v.id("projects")),
     title: v.string(),
     date: v.string(),
     notes: v.optional(v.string()),
@@ -96,14 +140,15 @@ export const create = mutation({
   },
   handler: async (ctx, args) => {
     const member = await requireMember(ctx);
-    const project = await requireWritableProject(ctx, member, args.projectId);
+    const project = args.projectId ? await requireWritableProject(ctx, member, args.projectId) : null;
     checkDate(args.date);
     const title = todoTitle(args.title);
     const notes = todoNotes(args.notes);
-    const assigneeId = await assignee(ctx, project, args.assigneeId);
+    if (!project && args.assigneeId) throw new Error("Move this task into a project to assign it.");
+    const assigneeId = project ? await assignee(ctx, project, args.assigneeId) : undefined;
     const todoId = await ctx.db.insert("todos", {
       orgId: member.orgId,
-      projectId: project._id,
+      projectId: project?._id,
       title,
       notes,
       date: args.date,
@@ -112,8 +157,10 @@ export const create = mutation({
       createdBy: member.userId,
       order: Date.now(),
     });
-    await log(ctx, member, project, { action: "created", todoId, todoTitle: title, date: args.date });
-    if (assigneeId) await notifyAssigned(ctx, member, project, { todoId, title, date: args.date }, assigneeId);
+    if (project) {
+      await log(ctx, member, project, { action: "created", todoId, todoTitle: title, date: args.date });
+      if (assigneeId) await notifyAssigned(ctx, member, project, { todoId, title, date: args.date }, assigneeId);
+    }
     return todoId;
   },
 });
@@ -125,18 +172,26 @@ export const update = mutation({
     notes: v.optional(v.string()),
     date: v.string(),
     assigneeId: v.optional(v.string()),
+    // Move the todo into this project (from no project, or from another one). Omitted = unchanged.
+    projectId: v.optional(v.id("projects")),
   },
   handler: async (ctx, args) => {
     const member = await requireMember(ctx);
     const todo = await requireTodo(ctx, member, args.todoId);
-    const project = await requireWritableProject(ctx, member, todo.projectId);
+    const source = await requireTodoProject(ctx, member, todo);
+    const moving = args.projectId !== undefined && args.projectId !== todo.projectId;
+    if (moving && todo.recurrenceId) throw new Error("Recurring tasks can't be moved to another project.");
+    const project = moving ? await requireWritableProject(ctx, member, args.projectId!) : source;
     checkDate(args.date);
     const title = todoTitle(args.title);
     const notes = todoNotes(args.notes);
+    if (!project && args.assigneeId) throw new Error("Move this task into a project to assign it.");
     // Preserve a historical assignee when editing other fields, even if their team membership
-    // or project access has since been removed (#46); only a new assignee is validated.
-    const assigneeId =
-      args.assigneeId && args.assigneeId === todo.assigneeId
+    // or project access has since been removed (#46); only a new assignee (or a new project's
+    // people) is validated.
+    const assigneeId = !project
+      ? undefined
+      : args.assigneeId && args.assigneeId === todo.assigneeId && !moving
         ? todo.assigneeId
         : await assignee(ctx, project, args.assigneeId);
     const changed =
@@ -146,9 +201,27 @@ export const update = mutation({
       notes,
       date: args.date,
       assigneeId,
+      ...(moving ? { projectId: project!._id } : {}),
       // Editing one occurrence of a series detaches it: later series edits leave it alone (#23).
       ...(todo.recurrenceId && changed ? { recurrenceDetached: true } : {}),
     });
+    if (!project) return;
+    if (moving) {
+      // Comments follow the todo, so the new project's members can read the thread.
+      const comments = await ctx.db
+        .query("comments")
+        .withIndex("by_todo", (q) => q.eq("todoId", todo._id))
+        .collect();
+      for (const c of comments) await ctx.db.patch(c._id, { projectId: project._id });
+      await log(ctx, member, project, {
+        action: "project_changed",
+        todoId: todo._id,
+        todoTitle: title,
+        from: source?.name,
+        to: project.name,
+        date: args.date,
+      });
+    }
     if (assigneeId && assigneeId !== todo.assigneeId) {
       await notifyAssigned(ctx, member, project, { todoId: todo._id, title, date: args.date }, assigneeId);
     }
@@ -184,7 +257,7 @@ export const move = mutation({
   handler: async (ctx, args) => {
     const member = await requireMember(ctx);
     const todo = await requireTodo(ctx, member, args.todoId);
-    const project = await requireWritableProject(ctx, member, todo.projectId);
+    const project = await requireTodoProject(ctx, member, todo);
     checkDate(args.date);
     if (!Number.isFinite(args.order)) throw new Error("Invalid position.");
     if (todo.date === args.date && todo.order === args.order) return;
@@ -197,13 +270,10 @@ export const move = mutation({
     });
 
     // When neighbours get too close to tell apart, renumber the whole day
-    // (a single project's day, so the read stays small) keeping its sequence.
-    const day = (
-      await ctx.db
-        .query("todos")
-        .withIndex("by_project_date", (q) => q.eq("projectId", todo.projectId).eq("date", args.date))
-        .collect()
-    ).sort((a, b) => a.order - b.order || a._creationTime - b._creationTime);
+    // (a single project's day, or one member's personal day, so the read stays small) keeping its sequence.
+    const day = (await dayList(ctx, todo, args.date).collect()).sort(
+      (a, b) => a.order - b.order || a._creationTime - b._creationTime,
+    );
     if (needsRebalance(day)) {
       for (const [i, t] of day.entries()) {
         const order = (i + 1) * ORDER_STEP;
@@ -211,7 +281,7 @@ export const move = mutation({
       }
     }
 
-    if (todo.date !== args.date) {
+    if (project && todo.date !== args.date) {
       await log(ctx, member, project, {
         action: "moved",
         todoId: todo._id,
@@ -229,12 +299,13 @@ export const setStatus = mutation({
   handler: async (ctx, args) => {
     const member = await requireMember(ctx);
     const todo = await requireTodo(ctx, member, args.todoId);
-    const project = await requireWritableProject(ctx, member, todo.projectId);
+    const project = await requireTodoProject(ctx, member, todo);
     if (todo.status === args.status) return;
     await ctx.db.patch(todo._id, {
       status: args.status,
       completedAt: args.status === "done" ? Date.now() : undefined,
     });
+    if (!project) return;
     await log(ctx, member, project, {
       action: "status",
       todoId: todo._id,
@@ -251,7 +322,7 @@ export const remove = mutation({
   handler: async (ctx, { todoId }) => {
     const member = await requireMember(ctx);
     const todo = await requireTodo(ctx, member, todoId);
-    const project = await requireWritableProject(ctx, member, todo.projectId);
+    const project = await requireTodoProject(ctx, member, todo);
     await deleteTodo(ctx, todo);
     // Deleting one occurrence of a series: remember the day so it is not generated again (#23).
     if (todo.recurrenceId && todo.recurrenceDate) {
@@ -260,6 +331,7 @@ export const remove = mutation({
         await ctx.db.patch(rec._id, { skipDates: [...(rec.skipDates ?? []), todo.recurrenceDate] });
       }
     }
+    if (!project) return;
     await log(ctx, member, project, {
       action: "deleted",
       todoId: todo._id,

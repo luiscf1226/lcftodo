@@ -41,6 +41,14 @@ export function TodoItem({
         value.map((t) => (t._id === todoId ? { ...t, status } : t)),
       );
     }
+    for (const { args, value } of store.getAllQueries(api.todos.listPersonal)) {
+      if (!value) continue;
+      store.setQuery(
+        api.todos.listPersonal,
+        args,
+        value.map((t) => (t._id === todoId ? { ...t, status } : t)),
+      );
+    }
   });
   const done = todo.status === "done";
   const notDone = todo.status === "not_done";

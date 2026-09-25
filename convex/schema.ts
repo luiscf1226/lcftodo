@@ -123,7 +123,9 @@ export default defineSchema({
 
   todos: defineTable({
     orgId: v.string(),
-    projectId: v.id("projects"),
+    // Missing = a personal task (no project yet): visible and editable only by its creator until
+    // it is moved into a project. Everything else about it works like a project todo.
+    projectId: v.optional(v.id("projects")),
     title: v.string(),
     notes: v.optional(v.string()),
     // Local calendar day, "YYYY-MM-DD".
@@ -146,6 +148,8 @@ export default defineSchema({
     .index("by_project_date", ["projectId", "date"])
     .index("by_recurrence", ["recurrenceId", "recurrenceDate"])
     .index("by_org_date", ["orgId", "date"])
+    // A member's personal (project-less) todos: `eq("projectId", undefined)` matches the missing field.
+    .index("by_owner_project_date", ["orgId", "createdBy", "projectId", "date"])
     // Full-text search on titles, always scoped to one team (#26).
     .searchIndex("search_title", { searchField: "title", filterFields: ["orgId"] }),
 

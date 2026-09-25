@@ -72,6 +72,11 @@ const STEPS: Step[] = [
             Pulsa <Kbd>/</Kbd> o <Kbd>n</Kbd> en Hoy para ir a la barra.
           </li>
           <li>Elige el proyecto junto al campo o abre más opciones para el día, el responsable y las notas.</li>
+          <li>
+            No hace falta un proyecto: una tarea sin proyecto es solo tuya y vive en la <strong>Bandeja</strong>, un
+            calendario semanal donde también puedes crear y arrastrar tareas. Muévela a un proyecto cuando quieras desde
+            su ventana de edición.
+          </li>
         </ul>
       </>
     ),

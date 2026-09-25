@@ -209,6 +209,8 @@ async function seedGrantsFromWork(ctx: MutationCtx, member: Member): Promise<num
   };
   for (const p of byId.values()) add(p._id, p.createdBy);
   for (const t of todos) {
+    // Personal todos (no project) grant nothing.
+    if (!t.projectId) continue;
     add(t.projectId, t.assigneeId);
     add(t.projectId, t.createdBy);
   }

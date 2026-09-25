@@ -113,6 +113,13 @@ npm test                  # backend tests (convex-test)
   (`convex/lib/auth.ts`) — teams can never see each other's data. After the
   membership backfill, it also requires an active synced membership.
 - `activity` is an append-only log; deleting a todo or project keeps its history.
+- A todo can be created **without a project** (`todos.projectId` is optional): it is personal —
+  only its creator can read or change it (`canAccessTodo` in `convex/lib/auth.ts`) — and lives on the
+  **Bandeja** (`/app/inbox`), a week calendar with the same create and drag & drop as a project board.
+  Opening it and choosing a project moves it there (`todos.update` with `projectId`; comments follow it,
+  it can then be assigned, and a `project_changed` entry lands in that project's history). Personal
+  todos have no assignee, comments, repeat, activity entries or carry-over, and a todo cannot go back
+  to "no project".
 - Search (`convex/search.ts`) uses the `todos.search_title` search index, filtered by
   the caller's team, and links each result to its project week.
 - *Pasar* on a day moves unfinished todos to the next day and marks the originals

@@ -10,6 +10,7 @@ export const ACTIONS = [
   "updated",
   "status",
   "moved",
+  "project_changed",
   "carried_over",
   "deleted",
   "project_created",
@@ -53,6 +54,10 @@ export const PROJECT_COLORS = [
   "#8b5cf6",
   "#64748b",
 ] as const;
+
+// How a personal todo (one that isn't in a project yet) is labelled where a project name is expected.
+export const NO_PROJECT_NAME = "Sin proyecto";
+export const NO_PROJECT_COLOR = "#94a3b8";
 
 // Longest inclusive day range a team-wide query or export may span (#15).
 export const MAX_RANGE_DAYS = 366;
