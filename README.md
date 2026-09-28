@@ -129,6 +129,22 @@ npm test                  # backend tests (convex-test)
 - Invite teammates to selected projects from **Equipo**; Clerk's organization profile below
   it still handles roles and team settings. Only admins can delete projects.
 
+## Add tasks from Claude (MCP)
+
+Convex serves an [MCP](https://modelcontextprotocol.io) endpoint at
+`https://<deployment>.convex.site/mcp`. In **Notificaciones → Claude (MCP)**, create a personal
+access token (shown once), then register the server in Claude Code:
+
+```bash
+claude mcp add --transport http lcftodos https://<deployment>.convex.site/mcp \
+  --header "Authorization: Bearer lcf_..."
+```
+
+Tools: `create_task` (title, optional date/notes/project; defaults to today in the team's time
+zone and to your private inbox), `list_projects` and `list_tasks`. Claude acts as the token's
+owner and sees only what they can see. Only a hash of each token is stored; revoking a token, or
+removing its owner from the team, disables it immediately.
+
 ## Deploy
 
 Vercel + Convex + Clerk, deployed from `main` on every merge. One-time account setup,

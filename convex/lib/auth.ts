@@ -41,6 +41,34 @@ export async function getMember(ctx: QueryCtx): Promise<Member | null> {
   return { userId: identity.subject, orgId, isAdmin: role === "org:admin" };
 }
 
+/**
+ * The member an MCP access token acts as, or null if the token is unknown or its owner is no
+ * longer an active member. Mirrors `getMember`: once the team's memberships are synced, the
+ * synced row decides membership and role, so removing someone from the team disables their tokens.
+ */
+export async function getTokenMember(
+  ctx: QueryCtx,
+  tokenHash: string,
+): Promise<{ member: Member; token: Doc<"apiTokens"> } | null> {
+  const token = await ctx.db
+    .query("apiTokens")
+    .withIndex("by_hash", (q) => q.eq("tokenHash", tokenHash))
+    .unique();
+  if (!token) return null;
+  const { orgId, userId } = token;
+  const sync = await ctx.db
+    .query("membershipSync")
+    .withIndex("by_org", (q) => q.eq("orgId", orgId))
+    .unique();
+  if (!sync?.ready) return { member: { userId, orgId, isAdmin: token.isAdmin }, token };
+  const membership = await ctx.db
+    .query("memberships")
+    .withIndex("by_org_user", (q) => q.eq("orgId", orgId).eq("userId", userId))
+    .unique();
+  if (!membership?.active) return null;
+  return { member: { userId, orgId, isAdmin: membership.role === "org:admin" }, token };
+}
+
 export async function requireMember(ctx: QueryCtx): Promise<Member> {
   const member = await getMember(ctx);
   if (!member) throw new Error("You must be signed in to a team.");
