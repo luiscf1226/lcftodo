@@ -422,6 +422,8 @@ function clerkError(status: number, body: Record<string, unknown> | null, fallba
   return new Error(typeof message === "string" && message ? message : `${fallback} (${status}).`);
 }
 
+type ClerkMembership = { membershipId: string; role: string; createdAt: number; updatedAt: number };
+
 type ClerkInvitation = { id: string; status: string; expiresAt?: number };
 
 function parseInvitation(body: Record<string, unknown> | null): ClerkInvitation {
@@ -435,7 +437,7 @@ function parseInvitation(body: Record<string, unknown> | null): ClerkInvitation 
 
 const org = (orgId: string) => `/organizations/${encodeURIComponent(orgId)}`;
 
-const clerk = {
+export const clerk = {
   async createInvitation(orgId: string, email: string, role: string, inviterId: string): Promise<ClerkInvitation> {
     const appUrl = process.env.APP_URL?.replace(/\/+$/, "");
     const res = await clerkFetch(`${org(orgId)}/invitations`, {
@@ -471,6 +473,34 @@ const clerk = {
     if (res.status === 404) return null;
     if (!res.ok) throw clerkError(res.status, res.body, "Couldn't load the invitation");
     return parseInvitation(res.body);
+  },
+
+  /**
+   * Adds a user to a team directly (invite codes). Returns null if they already belong to it,
+   * so a retried redemption is harmless.
+   */
+  async createMembership(orgId: string, userId: string, role: string): Promise<ClerkMembership | null> {
+    const res = await clerkFetch(`${org(orgId)}/memberships`, {
+      method: "POST",
+      body: { user_id: userId, role },
+    });
+    if (!res.ok) {
+      const errors =
+        res.body && Array.isArray(res.body.errors) ? (res.body.errors as Array<Record<string, unknown>>) : [];
+      if (errors.some((e) => e.code === "already_a_member_in_organization")) return null;
+      throw clerkError(res.status, res.body, "Couldn't add you to the team");
+    }
+    const b = res.body;
+    if (
+      !b ||
+      typeof b.id !== "string" ||
+      typeof b.role !== "string" ||
+      typeof b.created_at !== "number" ||
+      typeof b.updated_at !== "number"
+    ) {
+      throw new Error("Unexpected Clerk membership response.");
+    }
+    return { membershipId: b.id, role: b.role, createdAt: b.created_at, updatedAt: b.updated_at };
   },
 
   async deleteMembership(orgId: string, userId: string) {

@@ -110,6 +110,32 @@ export default defineSchema({
     .index("by_invitation", ["invitationId"])
     .index("by_org_email", ["orgId", "email"]),
 
+  // Shareable invite codes: a fallback for when an invitation email never arrives. Anyone signed in
+  // who enters a live code joins the team as a member and gets the code's project grants.
+  inviteCodes: defineTable({
+    orgId: v.string(),
+    // Normalized: upper-case, no separators (see lib/inviteCode.ts).
+    code: v.string(),
+    projectIds: v.array(v.id("projects")),
+    createdBy: v.string(),
+    createdAt: v.number(),
+    expiresAt: v.number(),
+    // Missing = unlimited.
+    maxUses: v.optional(v.number()),
+    uses: v.number(),
+    revokedAt: v.optional(v.number()),
+  })
+    .index("by_code", ["code"])
+    .index("by_org", ["orgId"]),
+
+  // One row per person per code, so redeeming twice never consumes a second use.
+  inviteCodeRedemptions: defineTable({
+    codeId: v.id("inviteCodes"),
+    orgId: v.string(),
+    userId: v.string(),
+    redeemedAt: v.number(),
+  }).index("by_code_user", ["codeId", "userId"]),
+
   projects: defineTable({
     orgId: v.string(),
     name: v.string(),

@@ -270,13 +270,17 @@ export const setupStatus = query({
   handler: async (ctx) => {
     const member = await getMember(ctx);
     if (!member?.isAdmin) return null;
-    const [project, invitation, memberships, todos] = await Promise.all([
+    const [project, invitation, code, memberships, todos] = await Promise.all([
       ctx.db
         .query("projects")
         .withIndex("by_org", (q) => q.eq("orgId", member.orgId))
         .first(),
       ctx.db
         .query("projectInvitations")
+        .withIndex("by_org", (q) => q.eq("orgId", member.orgId))
+        .first(),
+      ctx.db
+        .query("inviteCodes")
         .withIndex("by_org", (q) => q.eq("orgId", member.orgId))
         .first(),
       ctx.db
@@ -291,7 +295,7 @@ export const setupStatus = query({
     ]);
     return {
       hasProject: project !== null,
-      hasInvited: invitation !== null || memberships.length > 1,
+      hasInvited: invitation !== null || code !== null || memberships.length > 1,
       hasAssigned: todos.some((t) => t.assigneeId !== undefined),
     };
   },

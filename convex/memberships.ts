@@ -14,7 +14,7 @@ const membership = v.object({
   updatedAt: v.number(),
 });
 
-type MembershipEvent = {
+export type MembershipEvent = {
   orgId: string;
   userId: string;
   membershipId: string;
@@ -25,7 +25,7 @@ type MembershipEvent = {
 };
 
 /** Applies a membership event; returns false when it was stale or already terminal. */
-async function applyMembershipEvent(
+export async function applyMembershipEvent(
   ctx: MutationCtx,
   { orgId, userId, membershipId, role, active, createdAt, updatedAt }: MembershipEvent,
 ): Promise<boolean> {

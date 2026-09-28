@@ -3,6 +3,7 @@
 import { OrganizationProfile } from "@clerk/nextjs";
 import { useQuery } from "convex/react";
 import { api } from "../../../../../convex/_generated/api";
+import { JoinWithCode } from "@/components/JoinWithCode";
 import { ProjectAccessPanel } from "@/components/ProjectAccessPanel";
 import { TeamSettings } from "@/components/TeamSettings";
 import { TeamBackupExport } from "@/components/TeamBackupExport";
@@ -32,6 +33,9 @@ export default function TeamPage() {
       )}
       <TeamSettings />
       <TeamBackupExport />
+      <div className="mb-5">
+        <JoinWithCode />
+      </div>
       <OrganizationProfile
         path="/app/team"
         routing="path"

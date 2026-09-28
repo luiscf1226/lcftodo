@@ -5,15 +5,20 @@ const SERVER_MESSAGES: Record<string, string> = {
   "Enter a Slack incoming webhook URL (https://hooks.slack.com/services/...).":
     "Introduce una URL de webhook de Slack válida (https://hooks.slack.com/services/...).",
   "Enter a valid email address.": "Introduce una dirección de correo válida.",
+  "Couldn't create an invite code. Try again.": "No se pudo crear el código. Inténtalo de nuevo.",
+  "Enter a valid invite code.": "Introduce un código de invitación válido.",
   "Invalid date.": "Fecha no válida.",
   "Invalid date range.": "Período no válido.",
   "Invalid date range: the start must be before the end.": "La fecha de inicio debe ser anterior a la de fin.",
   "Invalid day of the week.": "Día de la semana no válido.",
+  "Invalid expiry.": "Vencimiento no válido.",
+  "Invalid number of uses.": "Número de usos no válido.",
   "Invalid project color.": "Color de proyecto no válido.",
   "Invalid position.": "Posición no válida.",
   "Invalid range: the start date is after the end date.": "La fecha de inicio debe ser anterior a la fecha de fin.",
   "Invalid role.": "Rol no válido.",
   "Invitation not found.": "Invitación no encontrada.",
+  "Invite code not found.": "Código de invitación no encontrado.",
   "Move this task into a project to assign it.": "Mueve esta tarea a un proyecto para asignarla.",
   "Move this task into a project to comment on it.": "Mueve esta tarea a un proyecto para comentarla.",
   "Not signed in.": "Debes iniciar sesión.",
@@ -28,6 +33,7 @@ const SERVER_MESSAGES: Record<string, string> = {
   "Only team admins can export all team data.": "Solo los administradores pueden exportar todos los datos del equipo.",
   "Only team admins can invite people or manage invitations.":
     "Solo los administradores pueden gestionar invitaciones.",
+  "Only team admins can manage invite codes.": "Solo los administradores pueden gestionar códigos de invitación.",
   "Only team admins can manage project access.": "Solo los administradores pueden gestionar el acceso a proyectos.",
   "Only team admins can backfill memberships.": "Solo los administradores pueden actualizar los miembros.",
   "Only the author or a team admin can delete this comment.":
@@ -40,6 +46,7 @@ const SERVER_MESSAGES: Record<string, string> = {
   "That person isn't an active member of this team yet.": "Esta persona aún no es miembro activo del equipo.",
   "This account was deleted.": "Esta cuenta fue eliminada.",
   "This invitation was already accepted.": "Esta invitación ya fue aceptada.",
+  "This invite code is invalid or has expired.": "Este código no es válido, ya se usó o venció.",
   "This project is archived. Restore it to make changes.":
     "Este proyecto está archivado. Restáuralo para hacer cambios.",
   "This project is being deleted.": "Este proyecto se está eliminando.",
