@@ -231,6 +231,23 @@ export default defineSchema({
     .index("by_org", ["orgId"])
     .index("by_project", ["projectId"]),
 
+  // Personal access tokens for the MCP endpoint (`/mcp`), so Claude can add tasks as their owner.
+  // Only the SHA-256 hash of a token is stored; the token itself is shown once, on creation.
+  apiTokens: defineTable({
+    orgId: v.string(),
+    userId: v.string(),
+    name: v.string(),
+    tokenHash: v.string(),
+    // First characters of the token, shown so the owner can tell tokens apart.
+    prefix: v.string(),
+    // The owner's admin role when the token was created; only used until the team's membership
+    // backfill completes (afterwards the synced membership decides, like `getMember`).
+    isAdmin: v.boolean(),
+    lastUsedAt: v.optional(v.number()),
+  })
+    .index("by_hash", ["tokenHash"])
+    .index("by_user_org", ["userId", "orgId"]),
+
   // --- Notifications (#25) ---
 
   // Per-user email preferences (apply to every team). Missing row = all on.

@@ -1,4 +1,5 @@
 const SERVER_MESSAGES: Record<string, string> = {
+  "Access token not found.": "Token no encontrado.",
   "Assignee doesn't have access to this project.": "El responsable no tiene acceso a este proyecto.",
   "Assignee is not an active member of this team.": "El responsable ya no forma parte de este equipo.",
   "Comment not found.": "Comentario no encontrado.",
@@ -65,6 +66,7 @@ const FIELD_LABELS: Record<string, string> = {
   "Project name": "El nombre del proyecto",
   Description: "La descripción",
   Comment: "El comentario",
+  Name: "El nombre",
 };
 
 export function errorMessage(error: unknown, fallback = "Ocurrió un error. Inténtalo de nuevo.") {
@@ -73,14 +75,18 @@ export function errorMessage(error: unknown, fallback = "Ocurrió un error. Int�
   const message = error.message.replace(/^.*Uncaught Error: /, "").split("\n")[0];
   if (!message) return fallback;
   if (SERVER_MESSAGES[message]) return SERVER_MESSAGES[message];
-  const required = /^(Title|Notes|Project name|Description|Comment) is required\.$/.exec(message);
+  const required = /^(Title|Notes|Project name|Description|Comment|Name) is required\.$/.exec(message);
   if (required) return `${FIELD_LABELS[required[1]]} es obligatorio.`;
-  const length = /^(Title|Notes|Project name|Description|Comment) must be at most ([\d,]+) characters\.$/.exec(message);
+  const length = /^(Title|Notes|Project name|Description|Comment|Name) must be at most ([\d,]+) characters\.$/.exec(
+    message,
+  );
   if (length) return `${FIELD_LABELS[length[1]]} debe tener como máximo ${length[2]} caracteres.`;
   const range = /^Date range too large: pick at most (\d+) days\.$/.exec(message);
   if (range) return `El período es demasiado largo. Elige como máximo ${range[1]} días.`;
   const exportRange = /^Date range is too long: export at most ([\d,]+) days at a time\.$/.exec(message);
   if (exportRange) return `El período es demasiado largo. Exporta como máximo ${exportRange[1]} días a la vez.`;
+  const tokens = /^You can have at most ([\d,]+) access tokens\.$/.exec(message);
+  if (tokens) return `Puedes tener como máximo ${tokens[1]} tokens de acceso.`;
   const pickDays = /^Pick at most ([\d,]+) days\.$/.exec(message);
   if (pickDays) return `Elige como máximo ${pickDays[1]} días.`;
   const pickProjects = /^Pick at most ([\d,]+) projects\.$/.exec(message);

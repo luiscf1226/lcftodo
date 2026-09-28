@@ -1,5 +1,5 @@
 import { v } from "convex/values";
-import type { Doc } from "./_generated/dataModel";
+import type { Doc, Id } from "./_generated/dataModel";
 import { mutation, query, type MutationCtx, type QueryCtx } from "./_generated/server";
 import {
   accessibleProjectIds,
@@ -83,36 +83,41 @@ export const listForTeam = query({
   handler: async (ctx, { from, to }) => {
     const member = await getMember(ctx);
     if (!member) return [];
-    checkRange(from, to);
-    const [todos, projects, scope, personal] = await Promise.all([
-      ctx.db
-        .query("todos")
-        .withIndex("by_org_date", (q) => q.eq("orgId", member.orgId).gte("date", from).lte("date", to))
-        .collect(),
-      ctx.db
-        .query("projects")
-        .withIndex("by_org", (q) => q.eq("orgId", member.orgId))
-        .collect(),
-      accessibleProjectIds(ctx, member),
-      personalTodos(ctx, member, from, to),
-    ]);
-    // Only projects the caller may read (#46); a restricted member never sees other projects' rows.
-    const byId = new Map(projects.filter((p) => !p.deleting && inScope(scope, p._id)).map((p) => [p._id, p]));
-    const inProjects = todos.flatMap((t) => {
-      const p = t.projectId && byId.get(t.projectId);
-      // Archived projects are read-only (#18); the UI disables editing for these.
-      return p ? [{ ...t, projectName: p.name, projectColor: p.color, projectArchived: p.archived }] : [];
-    });
-    // Personal todos of the caller sit alongside them, labelled as having no project.
-    const own = personal.map((t) => ({
-      ...t,
-      projectName: NO_PROJECT_NAME,
-      projectColor: NO_PROJECT_COLOR,
-      projectArchived: false,
-    }));
-    return [...inProjects, ...own].sort((a, b) => a.date.localeCompare(b.date) || byOrder(a, b));
+    return await teamTodos(ctx, member, from, to);
   },
 });
+
+/** The todos a member can see in a date range, joined with their project (also used by the MCP endpoint). */
+export async function teamTodos(ctx: QueryCtx, member: Member, from: string, to: string) {
+  checkRange(from, to);
+  const [todos, projects, scope, personal] = await Promise.all([
+    ctx.db
+      .query("todos")
+      .withIndex("by_org_date", (q) => q.eq("orgId", member.orgId).gte("date", from).lte("date", to))
+      .collect(),
+    ctx.db
+      .query("projects")
+      .withIndex("by_org", (q) => q.eq("orgId", member.orgId))
+      .collect(),
+    accessibleProjectIds(ctx, member),
+    personalTodos(ctx, member, from, to),
+  ]);
+  // Only projects the caller may read (#46); a restricted member never sees other projects' rows.
+  const byId = new Map(projects.filter((p) => !p.deleting && inScope(scope, p._id)).map((p) => [p._id, p]));
+  const inProjects = todos.flatMap((t) => {
+    const p = t.projectId && byId.get(t.projectId);
+    // Archived projects are read-only (#18); the UI disables editing for these.
+    return p ? [{ ...t, projectName: p.name, projectColor: p.color, projectArchived: p.archived }] : [];
+  });
+  // Personal todos of the caller sit alongside them, labelled as having no project.
+  const own = personal.map((t) => ({
+    ...t,
+    projectName: NO_PROJECT_NAME,
+    projectColor: NO_PROJECT_COLOR,
+    projectArchived: false,
+  }));
+  return [...inProjects, ...own].sort((a, b) => a.date.localeCompare(b.date) || byOrder(a, b));
+}
 
 // A single todo of the caller's team, or null. Used to resolve `carriedFrom` links (#33).
 export const get = query({
@@ -138,32 +143,38 @@ export const create = mutation({
     notes: v.optional(v.string()),
     assigneeId: v.optional(v.string()),
   },
-  handler: async (ctx, args) => {
-    const member = await requireMember(ctx);
-    const project = args.projectId ? await requireWritableProject(ctx, member, args.projectId) : null;
-    checkDate(args.date);
-    const title = todoTitle(args.title);
-    const notes = todoNotes(args.notes);
-    if (!project && args.assigneeId) throw new Error("Move this task into a project to assign it.");
-    const assigneeId = project ? await assignee(ctx, project, args.assigneeId) : undefined;
-    const todoId = await ctx.db.insert("todos", {
-      orgId: member.orgId,
-      projectId: project?._id,
-      title,
-      notes,
-      date: args.date,
-      status: "todo",
-      assigneeId,
-      createdBy: member.userId,
-      order: Date.now(),
-    });
-    if (project) {
-      await log(ctx, member, project, { action: "created", todoId, todoTitle: title, date: args.date });
-      if (assigneeId) await notifyAssigned(ctx, member, project, { todoId, title, date: args.date }, assigneeId);
-    }
-    return todoId;
-  },
+  handler: async (ctx, args) => await createTodo(ctx, await requireMember(ctx), args),
 });
+
+/** Creates a todo as `member` (also used by the MCP endpoint). */
+export async function createTodo(
+  ctx: MutationCtx,
+  member: Member,
+  args: { projectId?: Id<"projects">; title: string; date: string; notes?: string; assigneeId?: string },
+) {
+  const project = args.projectId ? await requireWritableProject(ctx, member, args.projectId) : null;
+  checkDate(args.date);
+  const title = todoTitle(args.title);
+  const notes = todoNotes(args.notes);
+  if (!project && args.assigneeId) throw new Error("Move this task into a project to assign it.");
+  const assigneeId = project ? await assignee(ctx, project, args.assigneeId) : undefined;
+  const todoId = await ctx.db.insert("todos", {
+    orgId: member.orgId,
+    projectId: project?._id,
+    title,
+    notes,
+    date: args.date,
+    status: "todo",
+    assigneeId,
+    createdBy: member.userId,
+    order: Date.now(),
+  });
+  if (project) {
+    await log(ctx, member, project, { action: "created", todoId, todoTitle: title, date: args.date });
+    if (assigneeId) await notifyAssigned(ctx, member, project, { todoId, title, date: args.date }, assigneeId);
+  }
+  return todoId;
+}
 
 export const update = mutation({
   args: {
