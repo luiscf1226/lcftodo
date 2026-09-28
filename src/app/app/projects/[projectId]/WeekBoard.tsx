@@ -38,11 +38,13 @@ import { BoardDnd, DayList, SortableTodo } from "./BoardDnd";
 import { emptyStatusCounts, LIMITS, STATUS_META, STATUSES } from "@/lib/status";
 
 type Editing = { date: string; todo?: Doc<"todos"> } | null;
+type ProjectLabel = { name: string; color: string; archived: boolean };
 
 /**
- * A week calendar. With a `projectId` it is that project's board; without one it is the inbox: the
- * caller's personal todos that aren't in a project yet, which can be created, dragged between days
- * and moved into a project (from the todo dialog) just like project todos.
+ * A week calendar. With a `projectId` it is that project's board; without one it is the inbox: every
+ * todo of the team the caller can see (labelled with its project) plus the caller's personal todos
+ * that aren't in a project yet. New todos added here are personal; they can be moved into a project
+ * from the todo dialog.
  */
 export function WeekBoard({ projectId }: { projectId?: Id<"projects"> }) {
   const router = useRouter();
@@ -59,10 +61,20 @@ export function WeekBoard({ projectId }: { projectId?: Id<"projects"> }) {
     api.todos.listForProject,
     projectId ? { projectId, from: days[0], to: days[6] } : "skip",
   );
-  const personalTodos = useQuery(api.todos.listPersonal, projectId ? "skip" : { from: days[0], to: days[6] });
-  const todos = projectId ? projectTodos : personalTodos;
-  // Personal todos don't repeat: recurring series belong to a project.
-  useRecurringTodos(days[0], days[6], projectId, projectId !== undefined);
+  const teamTodos = useQuery(api.todos.listForTeam, projectId ? "skip" : { from: days[0], to: days[6] });
+  const todos = projectId ? projectTodos : teamTodos;
+  // In the inbox, each todo's project (name, color, archived) for its card and dialog.
+  const labels = useMemo(
+    () =>
+      new Map<Id<"todos">, ProjectLabel>(
+        (teamTodos ?? []).map((t) => [
+          t._id,
+          { name: t.projectName, color: t.projectColor, archived: t.projectArchived },
+        ]),
+      ),
+    [teamTodos],
+  );
+  useRecurringTodos(days[0], days[6], projectId);
   const { members, byId } = useMembers();
   const [filter, setFilter] = useState<string>("all");
   const [editing, setEditing] = useState<Editing>(null);
@@ -158,8 +170,8 @@ export function WeekBoard({ projectId }: { projectId?: Id<"projects"> }) {
                 <span className="truncate">Bandeja</span>
               </h1>
               <p className="mt-1 max-w-2xl text-sm text-muted">
-                Tareas sin proyecto: solo tú las ves. Añádelas a cualquier día, arrástralas por el calendario y muévelas
-                a un proyecto cuando quieras (ábrela y elige el proyecto).
+                Todas las tareas del equipo de la semana. Las que añades aquí no tienen proyecto (solo tú las ves):
+                arrástralas por el calendario y muévelas a un proyecto cuando quieras (ábrela y elige el proyecto).
               </p>
             </>
           )}
@@ -213,25 +225,23 @@ export function WeekBoard({ projectId }: { projectId?: Id<"projects"> }) {
           value={start}
           onChange={(e) => e.target.value && setWeek(e.target.value)}
         />
-        {projectId && (
-          <select
-            aria-label="Filtrar por responsable"
-            className="input w-auto py-1.5"
-            value={filter}
-            onChange={(e) => setFilter(e.target.value)}
-          >
-            <option value="all">Todos</option>
-            {userId && <option value={userId}>Solo yo</option>}
-            <option value="unassigned">Sin asignar</option>
-            {members
-              .filter((m) => m.id !== userId)
-              .map((m) => (
-                <option key={m.id} value={m.id}>
-                  {m.name}
-                </option>
-              ))}
-          </select>
-        )}
+        <select
+          aria-label="Filtrar por responsable"
+          className="input w-auto py-1.5"
+          value={filter}
+          onChange={(e) => setFilter(e.target.value)}
+        >
+          <option value="all">Todos</option>
+          {userId && <option value={userId}>Solo yo</option>}
+          <option value="unassigned">Sin asignar</option>
+          {members
+            .filter((m) => m.id !== userId)
+            .map((m) => (
+              <option key={m.id} value={m.id}>
+                {m.name}
+              </option>
+            ))}
+        </select>
         <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-muted sm:ml-auto">
           {STATUSES.map((s) => (
             <span key={s} className="inline-flex items-center gap-1.5">
@@ -281,16 +291,26 @@ export function WeekBoard({ projectId }: { projectId?: Id<"projects"> }) {
                     <Skeleton className="h-14" />
                   ) : (
                     <DayList day={day} items={items}>
-                      {items.map((t) => (
-                        <SortableTodo key={t._id} todo={t} day={day} columns={columns} readOnly={readOnly}>
-                          <TodoItem
+                      {items.map((t) => {
+                        const label = labels.get(t._id);
+                        return (
+                          <SortableTodo
+                            key={t._id}
                             todo={t}
-                            assignee={t.assigneeId ? byId.get(t.assigneeId) : undefined}
-                            readOnly={project?.archived}
-                            onOpen={() => setEditing({ date: day, todo: t })}
-                          />
-                        </SortableTodo>
-                      ))}
+                            day={day}
+                            columns={columns}
+                            readOnly={readOnly || label?.archived}
+                          >
+                            <TodoItem
+                              todo={t}
+                              assignee={t.assigneeId ? byId.get(t.assigneeId) : undefined}
+                              project={label}
+                              readOnly={project?.archived || label?.archived}
+                              onOpen={() => setEditing({ date: day, todo: t })}
+                            />
+                          </SortableTodo>
+                        );
+                      })}
                     </DayList>
                   )}
 
@@ -312,10 +332,10 @@ export function WeekBoard({ projectId }: { projectId?: Id<"projects"> }) {
       <TodoDialog
         open={editing !== null}
         onClose={() => setEditing(null)}
-        projectId={projectId}
+        projectId={editing?.todo?.projectId ?? projectId}
         date={editing?.date ?? today}
         todo={editing?.todo}
-        readOnly={project?.archived}
+        readOnly={project?.archived || (editing?.todo && labels.get(editing.todo._id)?.archived)}
       />
       {project && <ProjectDialog open={editingProject} onClose={() => setEditingProject(false)} project={project} />}
       {project && (
