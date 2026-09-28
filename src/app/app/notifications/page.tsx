@@ -5,6 +5,7 @@ import { useMutation, useQuery } from "convex/react";
 import { CheckCheck } from "lucide-react";
 import { useMemo, useState, type FormEvent } from "react";
 import { api } from "../../../../convex/_generated/api";
+import { ClaudeMcpSettings } from "@/components/ClaudeMcpSettings";
 import { Empty, PageHeader, Skeleton } from "@/components/PageHeader";
 import { showToast } from "@/components/ToastViewport";
 import { useMembers } from "@/components/useMembers";
@@ -13,10 +14,11 @@ import { errorMessage } from "@/lib/errors";
 export default function NotificationsPage() {
   return (
     <div className="mx-auto max-w-3xl space-y-8">
-      <PageHeader title="Notificaciones" subtitle="Tus tareas asignadas y cómo recibes avisos." />
+      <PageHeader title="Notificaciones" subtitle="Tus tareas asignadas, cómo recibes avisos y tus integraciones." />
       <Inbox />
       <EmailSettings />
       <SlackSettings />
+      <ClaudeMcpSettings />
     </div>
   );
 }

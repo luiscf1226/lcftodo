@@ -3,6 +3,7 @@ import { Webhook } from "svix";
 import { internal } from "./_generated/api";
 import { httpAction } from "./_generated/server";
 import { escapeHtml } from "./lib/email";
+import { handleMcpRequest, MCP_PATH } from "./lib/mcp";
 import { UNSUBSCRIBE_PATH, verifyUnsubscribeToken } from "./lib/unsubscribe";
 
 const http = httpRouter();
@@ -208,6 +209,19 @@ http.route({
       `<p>Ya no recibirás ${KIND_LABEL[target.kind]}. Puedes volver a activar estos correos en Notificaciones de LCF Todos.</p>`,
     );
   }),
+});
+
+// MCP endpoint for Claude and other MCP clients (see ./lib/mcp.ts). Stateless: no SSE stream.
+http.route({
+  path: MCP_PATH,
+  method: "POST",
+  handler: httpAction(handleMcpRequest),
+});
+
+http.route({
+  path: MCP_PATH,
+  method: "GET",
+  handler: httpAction(async () => new Response(null, { status: 405, headers: { Allow: "POST" } })),
 });
 
 export default http;

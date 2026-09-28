@@ -123,5 +123,10 @@ export const deleteFromWebhook = internalMutation({
       if (membership.active) await ctx.db.patch(membership._id, { active: false, updatedAt: Date.now() });
       await revokeAllGrants(ctx, membership.orgId, clerkId);
     }
+    const tokens = await ctx.db
+      .query("apiTokens")
+      .withIndex("by_user_org", (q) => q.eq("userId", clerkId))
+      .collect();
+    for (const token of tokens) await ctx.db.delete(token._id);
   },
 });
