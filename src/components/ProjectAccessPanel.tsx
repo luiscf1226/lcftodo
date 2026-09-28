@@ -10,13 +10,14 @@ import { api } from "../../convex/_generated/api";
 import type { Id } from "../../convex/_generated/dataModel";
 import { errorMessage } from "@/lib/errors";
 import { Avatar } from "./Avatar";
+import { InviteCodes } from "./InviteCodes";
 import { Modal } from "./Modal";
+import { ProjectPicker, type ProjectLite } from "./ProjectPicker";
 import { showToast } from "./ToastViewport";
 import { useMembers, type Member } from "./useMembers";
 
 type Overview = NonNullable<ReturnType<typeof useQuery<typeof api.projectAccess.overview>>>;
 type Invitation = Overview["invitations"][number];
-type ProjectLite = { _id: Id<"projects">; name: string; color: string; archived: boolean };
 
 const STATUS_STYLE: Record<string, string> = {
   pending: "bg-amber-50 text-amber-800 ring-amber-200 dark:bg-amber-950 dark:text-amber-300 dark:ring-amber-900",
@@ -45,6 +46,7 @@ export function ProjectAccessPanel() {
       <PolicyCard restricted={overview.restricted} syncReady={overview.membershipSyncReady} />
       <InviteForm projects={projects} restricted={overview.restricted} />
       <Invitations invitations={overview.invitations} projects={projects} />
+      <InviteCodes projects={projects} restricted={overview.restricted} />
       <MemberAccess grantsByUser={overview.grantsByUser} projects={projects} restricted={overview.restricted} />
     </div>
   );
@@ -155,48 +157,6 @@ function PolicyCard({ restricted, syncReady }: { restricted: boolean; syncReady:
         </div>
       </Modal>
     </section>
-  );
-}
-
-function ProjectPicker({
-  projects,
-  selected,
-  onToggle,
-  legend,
-}: {
-  projects: ProjectLite[];
-  selected: Set<Id<"projects">>;
-  onToggle: (id: Id<"projects">) => void;
-  legend: string;
-}) {
-  return (
-    <fieldset>
-      <legend className="label">{legend}</legend>
-      {projects.length === 0 ? (
-        <p className="text-sm text-muted">Crea un proyecto antes de dar acceso.</p>
-      ) : (
-        <div className="flex flex-wrap gap-1.5">
-          {projects.map((p) => (
-            <label
-              key={p._id}
-              className={clsx(
-                "inline-flex cursor-pointer items-center gap-1.5 rounded-full border px-2.5 py-1 text-sm has-focus-visible:outline-2 has-focus-visible:outline-accent",
-                selected.has(p._id) ? "border-accent bg-surface-2 text-fg" : "border-line text-muted hover:text-fg",
-              )}
-            >
-              <input
-                type="checkbox"
-                className="sr-only"
-                checked={selected.has(p._id)}
-                onChange={() => onToggle(p._id)}
-              />
-              <span className="size-2 rounded-full" style={{ background: p.color }} aria-hidden />
-              {p.name}
-            </label>
-          ))}
-        </div>
-      )}
-    </fieldset>
   );
 }
 

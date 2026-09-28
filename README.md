@@ -87,6 +87,12 @@ Admins manage access from **Equipo** (Team):
   inviting a pending email again adds projects to that invitation. Admins can resend
   (revokes the old Clerk invitation and sends a new one), revoke, and refresh statuses
   (Clerk does not send a webhook for expiry).
+- **Invite codes** (fallback when the email never arrives). Admins create a code on
+  **Equipo** with projects, an expiry (1/7/30 days) and a use limit, and share the code or
+  its `/onboarding?code=…` link. A signed-in person enters it on onboarding (no team yet) or
+  on **Equipo**; Convex reserves a use, adds them to the Clerk organization as `org:member`
+  with `CLERK_SECRET_KEY`, and grants the code's projects. Codes never grant admin; unknown,
+  expired, used-up and revoked codes are rejected with the same message.
 - **Grant/revoke and removal.** Admins toggle each member's projects and can remove people
   from the team (Clerk membership + every grant, effective immediately).
 - **Assignees** must be active members with access to the todo's project. When access is
